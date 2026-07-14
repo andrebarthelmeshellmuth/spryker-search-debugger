@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<transfers xmlns="spryker:transfer-01"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="spryker:transfer-01 http://static.spryker.com/transfer-01.xsd">
+
+    <!-- Typed model of ONE live Elasticsearch index's analysis configuration, hydrated from the
+         cluster's real _mapping/_settings (the merged truth) rather than from schema JSON files,
+         whose location and merge layering are installation-specific. -->
+    <transfer name="SearchIndexSchema" strict="true">
+        <property name="indexName" type="string"/>
+        <property name="fields" type="SearchIndexField[]" singular="field"/>
+        <property name="analyzers" type="SearchAnalyzer[]" singular="analyzer"/>
+    </transfer>
+
+    <!-- analyzerName/searchAnalyzerName hold the RESOLVED analyzer names — Elasticsearch's own fallback
+         rules (no search_analyzer -> analyzer; no analyzer -> "standard") are applied at hydration time,
+         so consumers never re-implement them. Only text fields carry analyzer names. -->
+    <transfer name="SearchIndexField" strict="true">
+        <property name="name" type="string"/>
+        <property name="type" type="string"/>
+        <property name="analyzerName" type="string"/>
+        <property name="searchAnalyzerName" type="string"/>
+    </transfer>
+
+    <!-- A custom analyzer definition from the index settings, verbatim: tokenizer and filter chains in
+         their configured order. Built-in analyzers (e.g. "standard") have no entry here. -->
+    <transfer name="SearchAnalyzer" strict="true">
+        <property name="name" type="string"/>
+        <property name="tokenizerName" type="string"/>
+        <property name="charFilterNames" type="string[]" singular="charFilterName"/>
+        <property name="filterNames" type="string[]" singular="filterName"/>
+    </transfer>
+
+</transfers>

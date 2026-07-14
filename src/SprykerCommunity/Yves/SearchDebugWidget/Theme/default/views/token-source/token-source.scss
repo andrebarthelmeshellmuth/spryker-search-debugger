@@ -1,0 +1,81 @@
+// Standalone debug utility page (opened via the SRP's per-token "play" link, in a new tab) — kept
+// deliberately plain, no product-card/grid styling to coordinate with.
+.token-source-page {
+    padding: rem(24) 0;
+}
+
+// One rounded "card" per ES-level field (full-text-boosted / full-text), stacked top to bottom.
+// Deliberately greyscale (not the earlier orange/purple sketch colors) — the only color on this page
+// should be the `<mark>` token highlight, so it's the first thing the eye lands on.
+$token-source-tier-accent: $setting-color-darkest;
+$token-source-field-label-color: $setting-color-darker;
+
+.token-source-tier {
+    margin-top: rem(24);
+    overflow: hidden;
+    border: 1px solid $setting-color-light;
+    border-radius: rem(12);
+}
+
+.token-source-tier__heading {
+    margin: 0;
+    padding: rem(10) rem(16);
+    background-color: $token-source-tier-accent;
+    color: $setting-color-white;
+    font-family: monospace;
+    font-size: rem(14);
+}
+
+.token-source-tier__body {
+    padding: rem(16);
+}
+
+// One label+value pair per candidate DB field — the label pill sits directly on top of its value pill,
+// visually pairing them (rather than side-by-side columns).
+.token-source-field {
+    margin-bottom: rem(12);
+
+    &:last-child {
+        margin-bottom: 0;
+    }
+
+    &--unmatched {
+        opacity: 0.6;
+    }
+}
+
+.token-source-field__label {
+    padding: rem(6) rem(14);
+    border-radius: rem(6) rem(6) 0 0;
+    background-color: $token-source-field-label-color;
+    color: $setting-color-white;
+    font-family: monospace;
+    font-size: rem(12);
+    word-break: break-word;
+}
+
+.token-source-field__value {
+    padding: rem(8) rem(14);
+    border: 1px solid $setting-color-light;
+    border-top: none;
+    border-radius: 0 0 rem(12) rem(12);
+    overflow-wrap: break-word;
+
+    // Full, untruncated field text — can be long (a product description), so it scrolls in place
+    // rather than pushing the rest of the page down.
+    max-height: rem(160);
+    overflow-y: auto;
+    white-space: pre-line;
+}
+
+.token-source-field__no-match {
+    color: $setting-color-darker;
+    font-style: italic;
+}
+
+.token-source-highlight {
+    background-color: #fff2a8;
+    color: $setting-color-black;
+    padding: 0 rem(2);
+    border-radius: rem(2);
+}

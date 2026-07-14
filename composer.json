@@ -1,0 +1,52 @@
+{
+    "name": "spryker-community/search-debug",
+    "type": "library",
+    "description": "Search relevance debugging for Spryker storefronts: per-product Elasticsearch score/token overlay on the search results page, and a token-source page that attributes matched tokens back to the raw product fields they were indexed from.",
+    "license": "MIT",
+    "keywords": [
+        "spryker",
+        "elasticsearch",
+        "search",
+        "relevance",
+        "debug",
+        "explain"
+    ],
+    "require": {
+        "php": ">=8.2",
+        "spryker/kernel": "^3.30.0",
+        "spryker/permission": "^1.3.0",
+        "spryker/search-elasticsearch": "^1.10.0",
+        "spryker/search-extension": "^1.2.0",
+        "spryker/synchronization": "^1.5.0",
+        "spryker/transfer": "^3.25.0"
+    },
+    "require-dev": {
+        "codeception/codeception": "^5.0.0",
+        "phpunit/phpunit": "^10.0.0 || ^11.0.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "SprykerCommunity\\": "src/SprykerCommunity/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SprykerCommunityTest\\": "tests/SprykerCommunityTest/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "homepage": "https://github.com/andrebarthelmeshellmuth/spryker-search-debugger",
+    "authors": [
+        {
+            "name": "Andre Barthelmes",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/andrebarthelmeshellmuth/spryker-search-debugger/issues",
+        "source": "https://github.com/andrebarthelmeshellmuth/spryker-search-debugger"
+    }
+}

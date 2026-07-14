@@ -1,0 +1,27 @@
+{% extends model('component') %}
+
+{% define config = {
+    name: 'search-debug-tokens'
+} %}
+
+{% define data = {
+    tokens: [],
+    tokenColors: []
+} %}
+
+{% block component %}
+    {% if data.tokens is not empty %}
+        {{ parent() }}
+    {% endif %}
+{% endblock %}
+
+{% block body %}
+    <div class="box">
+        <strong>{{ 'search_debug.query_tokens' | trans }}</strong>
+        {% for token in data.tokens %}
+            {# tokenColors is a total map over exactly these tokens — both are built together by
+               CatalogController::executeFulltextSearchAction(), so every token has a color class. #}
+            <span class="search-debug-token {{ data.tokenColors[token] }}">{{ token }}</span>
+        {% endfor %}
+    </div>
+{% endblock %}

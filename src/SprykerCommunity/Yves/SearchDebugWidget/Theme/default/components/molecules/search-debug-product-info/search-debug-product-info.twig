@@ -1,0 +1,79 @@
+{% extends model('component') %}
+
+{% define config = {
+    name: 'search-debug-product-info'
+} %}
+
+{% define data = {
+    debugInfo: required,
+    tokenColors: [],
+    productAbstractSku: required,
+} %}
+
+{% block body %}
+    {% set score = data.debugInfo.score is null ? ('search_debug.score_unavailable' | trans) : data.debugInfo.score | number_format(4) %}
+
+    {# type="button": this component renders inside page-layout-catalog.twig's <form method="GET">
+       (the filter/sort form) — without an explicit type a <button> defaults to type="submit", and an
+       accidental click would submit the filter form. #}
+    <button type="button" class="button button--expand search-debug-trigger" title="{{ 'search_debug.details' | trans }}">
+        {{ 'search_debug.score' | trans }} {{ score }}
+        {% include atom('icon') with {
+            data: {
+                name: 'search',
+            },
+        } only %}
+    </button>
+
+    <div class="search-debug-overlay text-small">
+        <div>
+            <strong>{{ 'search_debug.score' | trans }}</strong>
+            {{ score }}
+        </div>
+
+        {# matchedTokens holds only tokens from the user's actual query: everything else the explain tree
+           scored (e.g. the internal type filter clause) is listed under otherContributions instead, so the
+           numbers shown always account for the score rather than silently omitting part of it. #}
+        {% if data.debugInfo.matchedTokens is not empty %}
+            <div class="search-debug-overlay__section">
+                <strong>{{ 'search_debug.matched_tokens' | trans }}</strong><br>
+                {% for token, tokenInfo in data.debugInfo.matchedTokens %}
+                    {# Every matched token is by construction one of the query tokens (ExplanationParser
+                       splits on exactly that set), so tokenColors always has a class for it. The list
+                       below the token names the ONE field that actually contributed to the score: this
+                       is a best_fields-type multi_match (dis_max semantics, confirmed against real
+                       explain output), so ES takes the max across fields and discards the rest outright
+                       rather than summing them — showing non-winning fields would misleadingly imply
+                       they added something. If the query ever changes to a type that legitimately sums
+                       several fields, ExplanationParser's output contract is the place to extend first. #}
+                    <span class="search-debug-token {{ data.tokenColors[token] }}">{{ token }}</span>
+                    <a
+                        href="{{ url('search-debug/token-source', { sku: data.productAbstractSku, token: token }) }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="search-debug-token-source-link"
+                        title="{{ 'search_debug.token_source.open' | trans }}"
+                    >
+                        {% include atom('icon') with {
+                            data: {
+                                name: 'search',
+                            },
+                        } only %}
+                    </a>
+                    <ul class="search-debug-token-fields">
+                        <li>{{ tokenInfo.field }}: {{ tokenInfo.total | number_format(4) }}</li>
+                    </ul>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if data.debugInfo.otherContributions is not empty %}
+            <div class="search-debug-overlay__section">
+                <strong>{{ 'search_debug.other_contributions' | trans }}</strong><br>
+                {% for contribution in data.debugInfo.otherContributions %}
+                    <span>{{ contribution.description }} = {{ contribution.value | number_format(4) }}</span><br>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

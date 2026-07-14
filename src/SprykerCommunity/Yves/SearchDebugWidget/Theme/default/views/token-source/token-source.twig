@@ -1,0 +1,43 @@
+{# @var data.tiers array<array{key: string, labelKey: string, boost: int, rows: array<array{labelKey: string, matched: bool, highlightedHtml: string|null}>}> #}
+
+{% extends template('page-blank') %}
+
+{% define data = {
+    productTitle: _view.productTitle,
+    productSku: _view.productSku,
+    token: _view.token,
+    tiers: _view.tiers,
+    title: 'search_debug.token_source.heading' | trans({'%token%': _view.token}),
+} %}
+
+{% block body %}
+    <div class="container token-source-page">
+        <h1>{{ 'search_debug.token_source.heading' | trans({'%token%': data.token}) }}</h1>
+        <p class="text-small">{{ 'search_debug.token_source.subheading' | trans({'%title%': data.productTitle, '%sku%': data.productSku}) }}</p>
+
+        {# Rows are driven by the product's REAL indexed document: one row per identified source value
+           present in that tier's array, plus one row per element no known source claims ("other indexed
+           value" — e.g. a searchable product attribute). A source that contributed nothing to the
+           document simply has no row. #}
+        {% for tier in data.tiers %}
+            <section class="token-source-tier">
+                <h2 class="token-source-tier__heading">{{ tier.labelKey | trans({'%boost%': tier.boost}) }}</h2>
+
+                <div class="token-source-tier__body">
+                    {% for row in tier.rows %}
+                        <div class="token-source-field {{ row.matched ? 'token-source-field--matched' : 'token-source-field--unmatched' }}">
+                            <div class="token-source-field__label">{{ row.labelKey | trans }}</div>
+                            <div class="token-source-field__value">{%- if row.highlightedHtml is not null -%}
+                                {{- row.highlightedHtml | raw -}}
+                            {%- else -%}
+                                <span class="token-source-field__no-match">{{ 'search_debug.token_source.no_match' | trans }}</span>
+                            {%- endif -%}</div>
+                        </div>
+                    {% else %}
+                        <p class="token-source-field__no-match">{{ 'search_debug.token_source.document_missing' | trans }}</p>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endfor %}
+    </div>
+{% endblock %}

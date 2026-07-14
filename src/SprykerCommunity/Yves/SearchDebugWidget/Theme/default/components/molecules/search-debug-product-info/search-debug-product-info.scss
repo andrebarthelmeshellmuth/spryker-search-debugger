@@ -1,0 +1,132 @@
+@import '../search-debug-tokens/search-debug-palette';
+
+// Hover-reveal overlay for the per-product search-debug panel. `.search-debug-product-wrapper` is added
+// around the product widget in page-layout-catalog.twig (only for products that have debug data) so it
+// becomes the single grid item instead of the widget's own inner `.col` div, and acts as the positioning
+// context for the overlay — this keeps the debug panel from taking up its own SRP grid slot and pushing
+// the normal product-card layout out of shape.
+// Flex column so the inner .col's float can't affect layout (flex children ignore float); the
+// trigger button and overlay are both absolutely positioned, so the wrapper's footprint is exactly
+// the product card's and the SRP grid flow is untouched by the debug additions.
+.search-debug-product-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+
+    // The product widget's own template still renders its inner grid-item div with the same
+    // `.col--*` width classes this wrapper now carries — nested, those percentage widths would
+    // apply twice (a ~33%-wide box inside a 33%-wide slot). The wrapper is the real grid item,
+    // so its direct .col child must simply fill it.
+    > .col {
+        width: 100%;
+        min-width: 100%;
+        flex: 1 0 auto;
+    }
+}
+
+// Reuses the token palette's purple rather than the shop's brand color, deliberately: the trigger should
+// read as debug tooling, not as a normal shop action sitting on the product card.
+$search-debug-trigger-color: nth($search-debug-token-colors, 5);
+
+// Doubled `.button` class to outweigh `.button`'s own :hover/:active rules regardless of bundle order.
+// Overlaid across the top edge of the product card (absolutely positioned, so it adds no height of its
+// own): the wrapper's footprint stays exactly the product card's and the SRP grid flow is untouched.
+// Top rather than bottom, so the card's own "View Product" action stays clickable.
+.button.search-debug-trigger {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: $setting-zi-element;
+    width: auto;
+    font-size: rem(12);
+    background-color: $search-debug-trigger-color;
+    opacity: 0.92;
+
+    &:hover,
+    &:focus {
+        background-color: darken($search-debug-trigger-color, 8%);
+    }
+
+    &:active {
+        background-color: $search-debug-trigger-color;
+        box-shadow: inset 0 2px 7px 0 darken($search-debug-trigger-color, 16%);
+    }
+}
+
+.search-debug-overlay {
+    @include helper-effect-transition(opacity visibility);
+
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: $setting-zi-element-floating;
+    overflow-y: auto;
+    overflow-x: hidden;
+    // Explain descriptions are free text from Elasticsearch and can be arbitrarily long — wrap them
+    // so overflow stays vertical-only (the overlay is pinned to the product card and cannot grow).
+    overflow-wrap: break-word;
+    padding: rem(12);
+    background-color: rgba($setting-color-black, 0.88);
+    color: $setting-color-white;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+
+    // The shared pill mixin sets nowrap (right for the headline); inside this fixed-size overlay a
+    // long `token [field] = score` line must wrap instead of overflowing horizontally.
+    .search-debug-token {
+        white-space: normal;
+    }
+
+    &__section {
+        margin-top: rem(16);
+    }
+}
+
+// Revealed on hover of the trigger button, and kept open while the cursor is over the overlay itself
+// (it visually covers the trigger once shown, so a trigger-only `:hover` would otherwise flicker closed).
+.search-debug-trigger:hover ~ .search-debug-overlay,
+.search-debug-overlay:hover {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+// Opens the token-source debug page (in a new tab) for one matched token — a small circular icon-button
+// next to the (plain, non-link) token badge, reusing the same debug-purple accent as the score trigger
+// button above so both read as the same "debug tooling" affordance.
+.search-debug-token-source-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: rem(20);
+    height: rem(20);
+    margin-left: rem(2);
+    border-radius: 50%;
+    background-color: $search-debug-trigger-color;
+    color: $setting-color-white;
+    vertical-align: middle;
+
+    .icon {
+        width: rem(12);
+        height: rem(12);
+    }
+
+    &:hover,
+    &:focus {
+        background-color: darken($search-debug-trigger-color, 8%);
+    }
+}
+
+// The field(s) that actually contributed to a token's score, e.g. "full-text-boosted: 19.8417" — a list
+// even though it's a single item today (see the twig comment above the loop for why).
+.search-debug-token-fields {
+    margin: 0 0 rem(8) 0;
+    padding-left: rem(16);
+    font-size: rem(11);
+    color: rgba($setting-color-white, 0.75);
+    list-style: disc;
+}

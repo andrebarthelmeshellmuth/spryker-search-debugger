@@ -1,0 +1,10 @@
+// The single source of the search-debug color palette, shared by both search-debug components (the token
+// headline and the per-product overlay), which must render a given token in the same color. Variables only —
+// no rules — so both components can import it without emitting the same CSS twice.
+//
+// These are a fixed categorical set chosen for mutual distinguishability, NOT the shop's brand design
+// tokens: a debug overlay reads better when it is visibly not shop UI, so raw hex is deliberate here.
+//
+// The length of this list must equal SearchDebugConfig::TOKEN_COLOR_CLASS_COUNT — the PHP side cycles
+// through exactly this many color classes when assigning one per query token.
+$search-debug-token-colors: (#2a78d6, #1baf7a, #eda100, #008300, #4a3aa7, #e34948, #e87ba4, #eb6834);

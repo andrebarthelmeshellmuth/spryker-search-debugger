@@ -1,0 +1,430 @@
+<?php
+
+/**
+ * This file is part of the spryker-community/search-debug package.
+ * For full license information, please view the LICENSE file that was distributed with this source code.
+ */
+
+declare(strict_types = 1);
+
+namespace SprykerCommunityTest\Yves\SearchDebugWidget\Resolver;
+
+use Codeception\Test\Unit;
+use Generated\Shared\Transfer\CategoryNodeStorageTransfer;
+use Generated\Shared\Transfer\MerchantStorageTransfer;
+use Generated\Shared\Transfer\ProductAbstractCategoryStorageTransfer;
+use Generated\Shared\Transfer\ProductCategoryStorageTransfer;
+use Generated\Shared\Transfer\StoreTransfer;
+use SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolver;
+use Spryker\Client\CategoryStorage\CategoryStorageClientInterface;
+use Spryker\Client\MerchantStorage\MerchantStorageClientInterface;
+use Spryker\Client\ProductCategoryStorage\ProductCategoryStorageClientInterface;
+use Spryker\Client\ProductStorage\ProductStorageClientInterface;
+use Spryker\Client\Store\StoreClientInterface;
+
+/**
+ * Auto-generated group annotations
+ *
+ * @group SprykerCommunityTest
+ * @group Yves
+ * @group SearchDebugWidget
+ * @group Resolver
+ * @group TokenSourceResolverTest
+ * Add your own group annotations below this line
+ *
+ * @property \SprykerCommunityTest\Yves\SearchDebugWidget\SearchDebugWidgetTester $tester
+ */
+class TokenSourceResolverTest extends Unit
+{
+    /**
+     * @var string
+     */
+    protected const TOKEN = 'cable';
+
+    /**
+     * @var string
+     */
+    protected const PRODUCT_ABSTRACT_SKU = 'ABSTRACT-SKU-1';
+
+    /**
+     * Arbitrary in these tests — the resolver just has to pass whatever it's given through to the tier
+     * unchanged. Deliberately NOT the real configured value (3, see `config/Shared/config_default.php`),
+     * so a test that hardcoded 3 instead of reading this constant wouldn't accidentally still pass.
+     *
+     * @var int
+     */
+    protected const FULL_TEXT_BOOSTED_BOOSTING_VALUE = 7;
+
+    /**
+     * @return void
+     */
+    public function testResolveReturnsNullWhenNoProductAbstractHasThatSku(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createMock(ProductStorageClientInterface::class);
+        $productStorageClientMock->method('findProductAbstractStorageDataByMapping')->willReturn(null);
+
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->expects($this->never())->method('findPageDocumentData');
+
+        $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
+
+        // Act
+        $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US');
+
+        // Assert
+        $this->assertNull($result);
+    }
+
+    /**
+     * Rows come from the REAL indexed document: identified elements get their source label, the token
+     * test runs per element, and matched elements are highlighted while unmatched identified ones show
+     * as a compact "no match" (highlightedHtml = null).
+     *
+     * @return void
+     */
+    public function testResolveBuildsRowsFromTheRealDocumentElements(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createProductStorageClientMock([
+            'id_product_abstract' => 123,
+            'name' => 'Steel Cable',
+            'sku' => 'STEEL-1',
+            'description' => 'A cable for outdoor use',
+        ]);
+
+        $searchDebugClientMock = $this->createSearchElasticsearchClientMock(
+            [
+                'full-text-boosted' => ['Steel Cable', 'STEEL-1'],
+                'full-text' => ['A cable for outdoor use'],
+            ],
+        );
+
+        $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
+
+        // Act
+        $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US');
+
+        // Assert
+        $this->assertSame('Steel Cable', $result['productTitle']);
+        $this->assertSame('STEEL-1', $result['productSku']);
+
+        $boostedRows = $result['tiers'][0]['rows'];
+        $this->assertSame('full-text-boosted', $result['tiers'][0]['key']);
+        $this->assertSame(static::FULL_TEXT_BOOSTED_BOOSTING_VALUE, $result['tiers'][0]['boost']);
+        $this->assertSame(
+            [
+                ['labelKey' => 'search_debug.token_source.field.title', 'matched' => true, 'highlightedHtml' => 'HL[Steel Cable]'],
+                ['labelKey' => 'search_debug.token_source.field.sku', 'matched' => false, 'highlightedHtml' => null],
+            ],
+            $boostedRows,
+        );
+
+        $fullTextRows = $result['tiers'][1]['rows'];
+        $this->assertSame('full-text', $result['tiers'][1]['key']);
+        $this->assertSame(1, $result['tiers'][1]['boost']);
+        $this->assertSame(
+            [
+                ['labelKey' => 'search_debug.token_source.field.abstract_description', 'matched' => true, 'highlightedHtml' => 'HL[A cable for outdoor use]'],
+            ],
+            $fullTextRows,
+        );
+    }
+
+    /**
+     * A document element no known source claims (e.g. a searchable product attribute mapped via
+     * Zed > Search Preferences) must still surface — under the generic "other" label, and ALWAYS with
+     * its text: for an unidentified value, the value itself is the diagnostic information.
+     *
+     * @return void
+     */
+    public function testResolveLabelsUnidentifiedElementsAsOtherAndAlwaysShowsTheirText(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createProductStorageClientMock([
+            'id_product_abstract' => 123,
+            'name' => 'Steel Cable',
+            'sku' => 'CABLE-1',
+        ]);
+
+        $searchDebugClientMock = $this->createSearchElasticsearchClientMock(
+            [
+                'full-text-boosted' => ['rot', 'cable-ish attribute'],
+            ],
+        );
+
+        $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
+
+        // Act
+        $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US');
+
+        // Assert
+        $this->assertSame(
+            [
+                ['labelKey' => 'search_debug.token_source.field.other', 'matched' => false, 'highlightedHtml' => 'TXT[rot]'],
+                ['labelKey' => 'search_debug.token_source.field.other', 'matched' => true, 'highlightedHtml' => 'HL[cable-ish attribute]'],
+            ],
+            $result['tiers'][0]['rows'],
+        );
+    }
+
+    /**
+     * A source that contributed nothing to the document gets no row at all — that is more accurate than
+     * a "no match" row, which would imply the value was indexed and merely didn't contain the token.
+     *
+     * @return void
+     */
+    public function testResolveOmitsSourcesAbsentFromTheDocument(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createProductStorageClientMock([
+            'id_product_abstract' => 123,
+            'name' => 'Steel Cable',
+            'sku' => 'CABLE-1',
+        ]);
+
+        // Document contains only the title element — no sku element, although the product has a SKU.
+        $searchDebugClientMock = $this->createSearchElasticsearchClientMock(
+            [
+                'full-text-boosted' => ['Steel Cable'],
+            ],
+        );
+
+        $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
+
+        // Act
+        $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US');
+
+        // Assert
+        $labelKeys = array_column($result['tiers'][0]['rows'], 'labelKey');
+        $this->assertSame(['search_debug.token_source.field.title'], $labelKeys);
+    }
+
+    /**
+     * @return void
+     */
+    public function testResolveReturnsEmptyRowsWhenTheDocumentIsMissing(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createProductStorageClientMock([
+            'id_product_abstract' => 123,
+            'name' => 'Steel Cable',
+            'sku' => 'CABLE-1',
+        ]);
+
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->method('findPageDocumentData')->willReturn(null);
+        $searchDebugClientMock->expects($this->never())->method('getTextTokenOffsets');
+
+        $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
+
+        // Act
+        $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US');
+
+        // Assert
+        $this->assertNotNull($result);
+        $this->assertSame([], $result['tiers'][0]['rows']);
+        $this->assertSame([], $result['tiers'][1]['rows']);
+    }
+
+    /**
+     * Identical element strings recur within one document (e.g. a concrete name equal to the abstract
+     * name, indexed into both tiers) — each distinct string must be analyzed exactly once.
+     *
+     * @return void
+     */
+    public function testResolveAnalyzesEachDistinctElementOnlyOnce(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createProductStorageClientMock([
+            'id_product_abstract' => 123,
+            'name' => 'Steel Cable',
+            'sku' => 'CABLE-1',
+        ]);
+
+        $searchDebugClientMock = $this->createSearchElasticsearchClientMock(
+            [
+                'full-text-boosted' => ['Steel Cable', 'CABLE-1'],
+                'full-text' => ['Steel Cable', 'Steel Cable'],
+            ],
+            2,
+        );
+
+        $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
+
+        // Act
+        $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US');
+    }
+
+    /**
+     * Concrete variants, categories (direct + recursive ancestors), and the merchant name feed the
+     * per-tier value-to-source lookup, so their document elements resolve to the right labels.
+     *
+     * @return void
+     */
+    public function testResolveLabelsConcreteCategoryAndMerchantValues(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createProductStorageClientMock([
+            'id_product_abstract' => 123,
+            'name' => 'Cable',
+            'sku' => 'ABSTRACT-1',
+            'merchant_reference' => 'MER000005',
+            'attribute_map' => ['product_concrete_ids' => ['CONCRETE-1' => 11]],
+        ]);
+        $productStorageClientMock->method('getBulkProductConcreteStorageData')
+            ->with([11], 'en_US')
+            ->willReturn([
+                ['name' => 'Cable Red', 'sku' => 'CONCRETE-1', 'description' => 'Red variant'],
+            ]);
+
+        $directCategory = (new ProductCategoryStorageTransfer())->setName('Cables')->setCategoryNodeId(5);
+        $productCategoryStorageClientMock = $this->createMock(ProductCategoryStorageClientInterface::class);
+        $productCategoryStorageClientMock->method('findBulkProductAbstractCategory')
+            ->willReturn([(new ProductAbstractCategoryStorageTransfer())->addCategory($directCategory)]);
+
+        $grandparent = (new CategoryNodeStorageTransfer())->setNodeId(1)->setName('All Products');
+        $parent = (new CategoryNodeStorageTransfer())->setNodeId(2)->setName('Electrical')->addParents($grandparent);
+        $directNode = (new CategoryNodeStorageTransfer())->setNodeId(5)->setName('Cables')->addParents($parent);
+        $categoryStorageClientMock = $this->createMock(CategoryStorageClientInterface::class);
+        $categoryStorageClientMock->method('getCategoryNodeByIds')->with([5], 'en_US', 'DE')->willReturn([5 => $directNode]);
+
+        $merchantStorageClientMock = $this->createMock(MerchantStorageClientInterface::class);
+        $merchantStorageClientMock->method('findOne')
+            ->willReturn((new MerchantStorageTransfer())->setName('Video King'));
+
+        $searchDebugClientMock = $this->createSearchElasticsearchClientMock(
+            [
+                'full-text-boosted' => ['Cable', 'ABSTRACT-1', 'Cables', 'Video King'],
+                'full-text' => ['Cable Red', 'CONCRETE-1', 'Red variant', 'Electrical', 'All Products'],
+            ],
+        );
+
+        $resolver = $this->createResolver(
+            $productStorageClientMock,
+            $searchDebugClientMock,
+            $productCategoryStorageClientMock,
+            $categoryStorageClientMock,
+            $merchantStorageClientMock,
+        );
+
+        // Act
+        $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US');
+
+        // Assert
+        $this->assertSame(
+            [
+                'search_debug.token_source.field.title',
+                'search_debug.token_source.field.sku',
+                'search_debug.token_source.field.direct_categories',
+                'search_debug.token_source.field.merchant_name',
+            ],
+            array_column($result['tiers'][0]['rows'], 'labelKey'),
+        );
+        $this->assertSame(
+            [
+                'search_debug.token_source.field.concrete_names',
+                'search_debug.token_source.field.concrete_skus',
+                'search_debug.token_source.field.concrete_descriptions',
+                'search_debug.token_source.field.indirect_categories',
+            ],
+            array_column($result['tiers'][1]['rows'], 'labelKey'),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $productData
+     *
+     * @return \PHPUnit\Framework\MockObject\MockObject|\Spryker\Client\ProductStorage\ProductStorageClientInterface
+     */
+    protected function createProductStorageClientMock(array $productData): ProductStorageClientInterface
+    {
+        $productStorageClientMock = $this->createMock(ProductStorageClientInterface::class);
+        $productStorageClientMock->method('findProductAbstractStorageDataByMapping')
+            ->with('sku', static::PRODUCT_ABSTRACT_SKU, 'en_US')
+            ->willReturn($productData);
+
+        return $productStorageClientMock;
+    }
+
+    /**
+     * The search client stub serves the given document and reports a token match for every element
+     * containing the token as a substring — a stand-in for the real index-time analysis that keeps the
+     * focus of these tests on the resolver's attribution logic.
+     *
+     * @param array<string, array<int, string>> $documentData
+     * @param int|null $expectedAnalyzeCallCount
+     *
+     * @return \PHPUnit\Framework\MockObject\MockObject|\SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface
+     */
+    protected function createSearchElasticsearchClientMock(
+        array $documentData,
+        ?int $expectedAnalyzeCallCount = null
+    ): SearchDebugClientInterface {
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->method('findPageDocumentData')
+            ->with('product_abstract', '123', 'en_US')
+            ->willReturn($documentData);
+
+        $invocationRule = $expectedAnalyzeCallCount === null
+            ? $this->any()
+            : $this->exactly($expectedAnalyzeCallCount);
+
+        $searchDebugClientMock->expects($invocationRule)
+            ->method('getTextTokenOffsets')
+            ->willReturnCallback(
+                function (string $text): array {
+                    if (str_contains(mb_strtolower($text), static::TOKEN)) {
+                        return [['token' => static::TOKEN, 'startOffset' => 0, 'endOffset' => 5]];
+                    }
+
+                    return [];
+                },
+            );
+
+        return $searchDebugClientMock;
+    }
+
+    /**
+     * @param \Spryker\Client\ProductStorage\ProductStorageClientInterface $productStorageClient
+     * @param \SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface $searchDebugClient
+     * @param \Spryker\Client\ProductCategoryStorage\ProductCategoryStorageClientInterface|null $productCategoryStorageClient
+     * @param \Spryker\Client\CategoryStorage\CategoryStorageClientInterface|null $categoryStorageClient
+     * @param \Spryker\Client\MerchantStorage\MerchantStorageClientInterface|null $merchantStorageClient
+     *
+     * @return \SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolver
+     */
+    protected function createResolver(
+        ProductStorageClientInterface $productStorageClient,
+        SearchDebugClientInterface $searchDebugClient,
+        ?ProductCategoryStorageClientInterface $productCategoryStorageClient = null,
+        ?CategoryStorageClientInterface $categoryStorageClient = null,
+        ?MerchantStorageClientInterface $merchantStorageClient = null
+    ): TokenSourceResolver {
+        $storeClientMock = $this->createMock(StoreClientInterface::class);
+        $storeClientMock->method('getCurrentStore')->willReturn((new StoreTransfer())->setName('DE'));
+
+        if ($productCategoryStorageClient === null) {
+            $productCategoryStorageClient = $this->createMock(ProductCategoryStorageClientInterface::class);
+            $productCategoryStorageClient->method('findBulkProductAbstractCategory')->willReturn([]);
+        }
+
+        $tokenHighlighterMock = $this->createMock(TokenHighlighterInterface::class);
+        $tokenHighlighterMock->method('highlight')->willReturnCallback(
+            fn (string $text, array $matches): string => ($matches !== [] ? 'HL[' : 'TXT[') . $text . ']',
+        );
+
+        return new TokenSourceResolver(
+            $productStorageClient,
+            $productCategoryStorageClient,
+            $categoryStorageClient ?? $this->createMock(CategoryStorageClientInterface::class),
+            $merchantStorageClient ?? $this->createMock(MerchantStorageClientInterface::class),
+            $searchDebugClient,
+            $storeClientMock,
+            $tokenHighlighterMock,
+            static::FULL_TEXT_BOOSTED_BOOSTING_VALUE,
+        );
+    }
+}
