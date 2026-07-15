@@ -39,8 +39,8 @@ class TokenSourceController extends AbstractController
      * The real field=>boost pairs the SRP's search query used, forwarded from the search-debug overlay
      * that generated this link — see `search-debug-product-info.twig`'s link and
      * `SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReader`, which captured them live off
-     * that query. Purely informational display data: a missing or tampered value only degrades to
-     * `TokenSourceResolver`'s own fallback, never a security or correctness concern for the real search.
+     * that query. Purely informational display data: a missing or tampered value only means the page
+     * shows no tiers (there is no fallback), never a security or correctness concern for the real search.
      *
      * @var string
      */

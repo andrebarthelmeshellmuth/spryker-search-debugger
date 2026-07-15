@@ -157,7 +157,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      * One definition per known NAMED source value feeding the full-text fields: display label and the
      * ES-level field ("tier") the indexing pipeline writes it into.
      *
-     * This tier assignment is THIS demo shop's default `ProductPageSearchDependencyProvider` wiring
+     * This tier assignment mirrors a basic shop's default `ProductPageSearchDependencyProvider` wiring
      * (name/sku/direct-category/merchant-name → boosted, everything else → unboosted) — it is PHP plugin
      * registration code (`getProductAbstractMapExpanderPlugins()`), not something the cluster or Zed
      * exposes generically, so a project registering a different set of map-expander plugins (or moving a
@@ -261,17 +261,6 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     protected TokenHighlighterInterface $tokenHighlighter;
 
     /**
-     * The real query-time boost applied to `full-text-boosted` — see
-     * `SearchDebugWidgetConfig::getFullTextBoostedBoostingValue()`. Shown next to the tier heading so
-     * the debug page doesn't just say *which* field a token matched, but how much that match was worth
-     * relative to `full-text`, which the same query leaves at ES's implicit boost of 1 — no config
-     * constant exists for that value since it's simply the absence of a `^` suffix, not a setting.
-     *
-     * @var int
-     */
-    protected int $fullTextBoostedBoostingValue;
-
-    /**
      * Memoizes `getTextTokenOffsets()` results per distinct element string — identical values recur in
      * one document (e.g. a concrete name equal to the abstract name) and need only one `_analyze` call.
      *
@@ -287,7 +276,6 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      * @param \SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface $searchDebugClient
      * @param \Spryker\Client\Store\StoreClientInterface $storeClient
      * @param \SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface $tokenHighlighter
-     * @param int $fullTextBoostedBoostingValue
      */
     public function __construct(
         ProductStorageClientInterface $productStorageClient,
@@ -297,7 +285,6 @@ class TokenSourceResolver implements TokenSourceResolverInterface
         SearchDebugClientInterface $searchDebugClient,
         StoreClientInterface $storeClient,
         TokenHighlighterInterface $tokenHighlighter,
-        int $fullTextBoostedBoostingValue,
     ) {
         $this->productStorageClient = $productStorageClient;
         $this->productCategoryStorageClient = $productCategoryStorageClient;
@@ -306,14 +293,17 @@ class TokenSourceResolver implements TokenSourceResolverInterface
         $this->searchDebugClient = $searchDebugClient;
         $this->storeClient = $storeClient;
         $this->tokenHighlighter = $tokenHighlighter;
-        $this->fullTextBoostedBoostingValue = $fullTextBoostedBoostingValue;
     }
 
     /**
      * @param string $productAbstractSku
      * @param string $token
      * @param string $localeName
-     * @param array<string, int> $fieldBoosts
+     * @param array<string, int> $fieldBoosts The query's real field=>boost pairs (see
+     *   `SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReaderInterface`). Empty means that
+     *   couldn't be captured (e.g. a hand-typed URL, or a request whose search never went through
+     *   `SearchDebugQueryExpanderPlugin`) — `tiers` is then empty too, rather than guessing at which
+     *   fields a query might have used.
      *
      * @return array{
      *     productTitle: string,
@@ -360,9 +350,11 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      * value-to-source lookup — falling back to the generic "other indexed value" label for elements no
      * known source or attribute claims.
      *
-     * Which tiers exist, and in what order, is driven entirely by $fieldBoosts — the query's real,
-     * live field=>boost pairs (see `resolveFieldBoosts()`) — sorted boost-descending, not a fixed count:
-     * a query searching three fields shows three tiers, one searching five shows five.
+     * Which tiers exist, and in what order, is driven entirely by $fieldBoosts — the query's real, live
+     * field=>boost pairs — sorted boost-descending, not a fixed count: a query searching three fields
+     * shows three tiers, one searching five shows five. No fallback: an empty $fieldBoosts means the
+     * fields a query actually used could not be captured, and this legitimately has nothing to show
+     * rather than guessing at a field list or a boost value that isn't real.
      *
      * @param array<string, mixed> $documentData
      * @param array<string, array<string, array<int, string>>> $sourceKeysByValue
@@ -384,7 +376,6 @@ class TokenSourceResolver implements TokenSourceResolverInterface
         string $token,
         array $fieldBoosts,
     ): array {
-        $fieldBoosts = $this->resolveFieldBoosts($fieldBoosts);
         arsort($fieldBoosts);
 
         $tiers = [];
@@ -400,28 +391,6 @@ class TokenSourceResolver implements TokenSourceResolverInterface
         }
 
         return $tiers;
-    }
-
-    /**
-     * Falls back to this demo shop's own default field=>boost pairs when $fieldBoosts is empty — e.g. a
-     * link generated before this parameter existed, or a hand-typed URL. The default mirrors
-     * `CatalogSearchQueryPlugin::createFulltextSearchQuery()`'s two fields: `full-text-boosted` at this
-     * shop's configured boost, `full-text` at Elasticsearch's implicit boost of 1 (no `^` suffix).
-     *
-     * @param array<string, int> $fieldBoosts
-     *
-     * @return array<string, int>
-     */
-    protected function resolveFieldBoosts(array $fieldBoosts): array
-    {
-        if ($fieldBoosts !== []) {
-            return $fieldBoosts;
-        }
-
-        return [
-            PageIndexMap::FULL_TEXT_BOOSTED => $this->fullTextBoostedBoostingValue,
-            PageIndexMap::FULL_TEXT => 1,
-        ];
     }
 
     /**
@@ -701,10 +670,10 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     /**
      * Recursively walks each direct category's ancestor chain. `CategoryNodeStorageTransfer::getParents()`
      * returns the IMMEDIATE parent only, each one itself carrying its own further-nested `getParents()`,
-     * terminating at the root category with an empty list — confirmed live against this shop's own
-     * category storage data (e.g. node 74 "Asset Management" -> 72 "Sustainability Solutions" -> 36
-     * "Services" -> 1 "Demoshop", each level's `node_id` correctly populated). The recursion below is
-     * therefore genuinely necessary, not a defensive no-op for an already-flattened list.
+     * terminating at the root category with an empty list — confirmed live against real category storage
+     * data (a 4-level chain, e.g. node -> parent -> grandparent -> root, each level's `node_id` correctly
+     * populated). The recursion below is therefore genuinely necessary, not a defensive no-op for an
+     * already-flattened list.
      *
      * @param array<int> $directCategoryNodeIds
      * @param string $localeName

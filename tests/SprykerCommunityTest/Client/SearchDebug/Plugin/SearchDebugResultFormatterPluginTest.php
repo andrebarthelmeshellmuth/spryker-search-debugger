@@ -14,12 +14,12 @@ use Elastica\Query;
 use Elastica\Response;
 use Elastica\Result;
 use Elastica\ResultSet;
-use SprykerCommunity\Client\SearchDebug\SearchDebugFactory;
-use SprykerCommunity\Client\SearchDebug\Plugin\Catalog\SearchDebugResultFormatterPlugin;
-use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser;
 use SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessCheckerInterface;
+use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser;
+use SprykerCommunity\Client\SearchDebug\Plugin\Catalog\SearchDebugResultFormatterPlugin;
 use SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReaderInterface;
 use SprykerCommunity\Client\SearchDebug\SearchDebugClient;
+use SprykerCommunity\Client\SearchDebug\SearchDebugFactory;
 use SprykerCommunity\Shared\SearchDebug\SearchDebugConfig;
 
 /**

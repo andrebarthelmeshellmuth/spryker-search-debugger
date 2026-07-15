@@ -91,10 +91,10 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      * never touches document content. This matters whenever an analyzer transforms text asymmetrically
      * between index- and query-time — ngram/edge-ngram filters, decompounding, synonym expansion, and
      * stemming are all common examples — because only the index-time analyzer that actually produced a
-     * document's tokens can explain why a query token matched it. E.g., in this reference shop's config,
-     * the index analyzer edge-ngrams every word (search-as-you-type prefix matching), so a query token
-     * like "öl" can legitimately match a document that only contains "Ölpapier" — the search-time
-     * analyzer alone could never explain that match.
+     * document's tokens can explain why a query token matched it. E.g., in a basic shop using an
+     * edge-ngram index analyzer (search-as-you-type prefix matching), a query token like "öl" can
+     * legitimately match a document that only contains "Ölpapier" — the search-time analyzer alone could
+     * never explain that match.
      *
      * @param string $text
      *

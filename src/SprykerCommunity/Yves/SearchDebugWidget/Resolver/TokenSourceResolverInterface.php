@@ -32,14 +32,17 @@ interface TokenSourceResolverInterface
      *
      * Tiers themselves are driven by $fieldBoosts (the query's real, live field=>boost pairs — see
      * `SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReaderInterface`): however many fields the
-     * query actually searched, not a fixed count, sorted by boost descending. An empty $fieldBoosts (e.g.
-     * an old link generated before this parameter existed) falls back to this demo shop's own default.
+     * query actually searched, not a fixed count, sorted by boost descending. There is no fallback for an
+     * empty $fieldBoosts (e.g. a hand-typed URL, or a request whose search never went through
+     * `SearchDebugQueryExpanderPlugin`) — `tiers` comes back empty rather than guessing at a field list or
+     * a boost value that isn't real.
      *
      * @param string $productAbstractSku
      * @param string $token
      * @param string $localeName
      * @param array<string, int> $fieldBoosts The query's real field=>boost pairs, e.g.
-     *   `['full-text' => 1, 'full-text-boosted' => 5]`. Empty falls back to a demo-shop-specific default.
+     *   `['full-text' => 1, 'full-text-boosted' => 5]`. Empty means it couldn't be captured — `tiers`
+     *   comes back empty, not a guessed default.
      *
      * @return array{
      *     productTitle: string,

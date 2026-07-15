@@ -51,7 +51,7 @@ class TokenHighlighter implements TokenHighlighterInterface
             $endOffset = max($startOffset, min($match['endOffset'], $lengthInCodeUnits));
 
             if ($startOffset < $cursor) {
-                // Overlapping match (shouldn't happen for THIS shop's edge-ngram filter, which always
+                // Overlapping match (shouldn't happen for a shop using an edge-ngram filter, which always
                 // anchors grams at the token's start offset — defensive only, for other analyzer configs
                 // this package might run against). Concrete example where it CAN happen: a plain
                 // (non-edge) `ngram` filter with min_gram=max_gram=2 on repeated-character text, e.g.

@@ -30,8 +30,8 @@ class ExplanationParser implements ExplanationParserInterface
     /**
      * Matches a `function_score` boost-function leaf's own description — the documented Lucene/ES
      * phrasing for `field_value_factor`, decay functions (`gauss`/`exp`/`linear`), and `script_score`.
-     * Not yet exercised against a real function_score query in this reference shop (its default catalog
-     * search doesn't use one) — built ahead of that feature so the parser is ready for it. If real
+     * Not yet exercised against a real function_score query (a basic shop's default catalog search
+     * doesn't use one) — built ahead of that feature so the parser is ready for it. If real
      * explain output ever uses different wording, the worst case is these nodes fall through to the
      * generic {@see KEY_OTHER_CONTRIBUTIONS} bucket instead of {@see KEY_SCORE_FUNCTIONS} — never dropped.
      *
@@ -216,7 +216,7 @@ class ExplanationParser implements ExplanationParserInterface
      * explain tree's own node descriptions by the caller ({@see walkNode}), defaulting to MAX only when no
      * combiner node was seen at all.
      *
-     * Confirmed live against this reference shop's real explain output: the top-level bool query combines
+     * Confirmed live against a real basic shop's explain output: the top-level bool query combines
      * the multi_match's weight with the internal `type:product_abstract` filter clause via a literal
      * "sum of:" node (the filter clause is zero-valued and gets skipped before reaching this method, so
      * that outer sum is otherwise invisible here) — so $combineMode is `sum`, NOT the `max` this class

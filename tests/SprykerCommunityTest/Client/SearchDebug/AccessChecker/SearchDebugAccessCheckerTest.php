@@ -10,10 +10,10 @@ declare(strict_types = 1);
 namespace SprykerCommunityTest\Client\SearchDebug\AccessChecker;
 
 use Codeception\Test\Unit;
+use Spryker\Client\Permission\PermissionClientInterface;
 use SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessChecker;
 use SprykerCommunity\Shared\SearchDebug\Plugin\SeeSearchDebugInfoPermissionPlugin;
 use SprykerCommunity\Shared\SearchDebug\SearchDebugConfig;
-use Spryker\Client\Permission\PermissionClientInterface;
 
 /**
  * This is the single gate for search debug output — every entry point (the Yves catalog controller AND the

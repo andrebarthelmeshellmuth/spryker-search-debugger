@@ -277,10 +277,13 @@ class ExplanationParserTest extends Unit
 
     /**
      * When no node anywhere in the ancestor chain indicates a combine mode (neither "max of:" nor
-     * "sum of:"), the parser defaults to MAX — the mode this reference shop's own `cross_fields` query has
-     * been confirmed to produce. This is distinct from {@see testParseTakesTheMaxOverFieldsAsATokenTotalRatherThanTheSum},
-     * which exercises an EXPLICIT "max of:" ancestor; this fixture's ancestor description matches neither
-     * combiner pattern at all.
+     * "sum of:"), the parser defaults to MAX as a conservative fallback for a genuinely unrecognized
+     * explain shape — even though live verification against a real basic shop found its actual top-level
+     * node uses "sum of:" (making this fallback branch rarely reached in practice there), MAX is kept as
+     * the ultimate default since it's historically the more common multi-field text-search combiner shape
+     * when the tree can't be classified at all. This is distinct from
+     * {@see testParseTakesTheMaxOverFieldsAsATokenTotalRatherThanTheSum}, which exercises an EXPLICIT
+     * "max of:" ancestor; this fixture's ancestor description matches neither combiner pattern at all.
      *
      * @return void
      */

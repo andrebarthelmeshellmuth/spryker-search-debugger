@@ -24,7 +24,7 @@
            picking one. #}
         {% for tier in data.tiers %}
             <section class="token-source-tier">
-                {# %field% is only used by the generic fallback label (an ES field this shop's config
+                {# %field% is only used by the generic fallback label (an ES field a shop's config
                    doesn't have a translation key for) — harmless to pass unconditionally to the two
                    well-known tiers' translations, which simply don't reference it. #}
                 <h2 class="token-source-tier__heading">{{ tier.labelKey | trans({'%boost%': tier.boost, '%field%': tier.key}) }}</h2>
@@ -47,6 +47,11 @@
                     {% endfor %}
                 </div>
             </section>
+        {% else %}
+            {# No tiers at all: the fields this search actually used couldn't be determined (a hand-typed
+               URL, or a link generated before a search went through the debug-enabled query path) — there
+               is no fallback field list to guess with, so say so plainly rather than showing nothing. #}
+            <p class="token-source-field__no-match">{{ 'search_debug.token_source.fields_unknown' | trans }}</p>
         {% endfor %}
     </div>
 {% endblock %}

@@ -14,8 +14,8 @@ use Elastica\Query;
 use Elastica\Query\BoolQuery;
 use Elastica\Query\MatchAll;
 use Elastica\Query\MultiMatch;
-use SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReader;
 use Spryker\Client\SearchExtension\Dependency\Plugin\QueryInterface;
+use SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReader;
 
 /**
  * Auto-generated group annotations

@@ -12,10 +12,11 @@ namespace SprykerCommunityTest\Client\SearchDebug\Plugin;
 use Codeception\Test\Unit;
 use Elastica\Query;
 use Elastica\Query\BoolQuery;
-use SprykerCommunity\Client\SearchDebug\SearchDebugFactory;
-use SprykerCommunity\Client\SearchDebug\Plugin\Catalog\SearchDebugQueryExpanderPlugin;
+use PHPUnit\Framework\MockObject\Rule\InvocationOrder;
 use SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessCheckerInterface;
+use SprykerCommunity\Client\SearchDebug\Plugin\Catalog\SearchDebugQueryExpanderPlugin;
 use SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReaderInterface;
+use SprykerCommunity\Client\SearchDebug\SearchDebugFactory;
 use SprykerCommunityTest\Client\SearchDebug\Plugin\Fixtures\BaseQueryPlugin;
 
 /**
@@ -88,7 +89,7 @@ class SearchDebugQueryExpanderPluginTest extends Unit
     protected function createQueryExpanderPlugin(
         bool $isSearchDebugEnabled,
         ?QueryFieldBoostReaderInterface $queryFieldBoostReaderMock = null,
-        $createQueryFieldBoostReaderInvocationRule = null
+        ?InvocationOrder $createQueryFieldBoostReaderInvocationRule = null,
     ): SearchDebugQueryExpanderPlugin {
         $searchDebugAccessCheckerMock = $this->createMock(SearchDebugAccessCheckerInterface::class);
         $searchDebugAccessCheckerMock

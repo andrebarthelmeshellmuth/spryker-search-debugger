@@ -45,11 +45,11 @@
                        correctly-combined total (ExplanationParser detects max/dis_max vs. sum/bool-should
                        from the explain tree's own nodes rather than assuming one), but `tokenInfo.field`
                        is always a single "primary contributor" label, even when the underlying combination
-                       summed several fields — this reference shop's own query (`multi_match` type
-                       cross_fields, see `CatalogSearchQueryPlugin::createFulltextSearchQuery()`) has been
-                       confirmed live to produce one dominant field per term, so a one-line UI is accurate
-                       for it; a project whose query genuinely splits a term's score meaningfully across
-                       multiple fields would want a multi-field breakdown here instead of this single line. #}
+                       summed several fields — a basic shop's own query (`multi_match` type cross_fields,
+                       see `CatalogSearchQueryPlugin::createFulltextSearchQuery()`) has been confirmed
+                       live to produce one dominant field per term, so a one-line UI is accurate for it;
+                       a project whose query genuinely splits a term's score meaningfully across multiple
+                       fields would want a multi-field breakdown here instead of this single line. #}
                     <span class="search-debug-token {{ data.tokenColors[token] }}">{{ token }}</span>
                     <a
                         href="{{ url('search-debug/token-source', { sku: data.productAbstractSku, token: token, boosts: data.fieldBoosts }) }}"

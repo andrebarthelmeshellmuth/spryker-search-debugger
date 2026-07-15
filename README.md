@@ -248,8 +248,9 @@ yarn yves
 
 ### 8. Glossary entries
 
-Add the `search_debug.*` translations to your glossary data import (see
-`data/import/.../glossary.csv` in the reference integration) and re-run:
+Add the `search_debug.*` translation keys to your glossary data import (search this package's `Theme/**/*.twig`
+and `*.php` files for the `search_debug.*` glossary keys they reference, and add each one — with your own
+translated text — to your project's own `glossary.csv`) and re-run:
 
 ```bash
 vendor/bin/console data:import glossary
@@ -290,8 +291,8 @@ role), and assign that role to the users who should see debug output.
   different catalog/search topology — a tabbed abstract/concrete search, an additional "single" product
   type with no abstract, or multiple search resources — need to adapt the resource name and SKU→ID lookup
   to their own model; this is a structural assumption the package does not attempt to generalize away.
-- **The field→tier mapping is this demo shop's default, not a discovered fact.** `TokenSourceResolver::SOURCE_DEFINITIONS`
-  mirrors the `b2b-demo-marketplace` reference integration's default `ProductPageSearchDependencyProvider`
+- **The field→tier mapping is a basic shop's default, not a discovered fact.** `TokenSourceResolver::SOURCE_DEFINITIONS`
+  mirrors a basic Spryker shop's default `ProductPageSearchDependencyProvider`
   wiring (title/SKU/direct category/merchant name → `full-text-boosted`; concrete names/SKUs/descriptions
   and indirect categories → `full-text`). Nothing in the indexed document or the live cluster records which
   *source field* a value in `full-text`/`full-text-boosted` came from (that's the whole reason this feature

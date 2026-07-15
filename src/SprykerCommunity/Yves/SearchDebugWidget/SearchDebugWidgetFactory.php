@@ -39,7 +39,6 @@ class SearchDebugWidgetFactory extends AbstractFactory
             $this->getSearchDebugClient(),
             $this->getStoreClient(),
             $this->createTokenHighlighter(),
-            $this->getConfig()->getFullTextBoostedBoostingValue(),
         );
     }
 
