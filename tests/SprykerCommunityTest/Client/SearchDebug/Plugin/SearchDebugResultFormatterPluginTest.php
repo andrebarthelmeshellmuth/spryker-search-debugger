@@ -14,11 +14,12 @@ use Elastica\Query;
 use Elastica\Response;
 use Elastica\Result;
 use Elastica\ResultSet;
-use SprykerCommunity\Client\SearchDebug\SearchDebugFactory;
-use SprykerCommunity\Client\SearchDebug\Plugin\Catalog\SearchDebugResultFormatterPlugin;
-use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser;
 use SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessCheckerInterface;
+use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser;
+use SprykerCommunity\Client\SearchDebug\Plugin\Catalog\SearchDebugResultFormatterPlugin;
+use SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReaderInterface;
 use SprykerCommunity\Client\SearchDebug\SearchDebugClient;
+use SprykerCommunity\Client\SearchDebug\SearchDebugFactory;
 use SprykerCommunity\Shared\SearchDebug\SearchDebugConfig;
 
 /**
@@ -60,6 +61,28 @@ class SearchDebugResultFormatterPluginTest extends Unit
         $productDebugData = $result[SearchDebugConfig::KEY_PRODUCTS][static::ID_PRODUCT_ABSTRACT];
         $this->assertSame(20.7051, $productDebugData['score']);
         $this->assertArrayHasKey('cable', $productDebugData[ExplanationParser::KEY_MATCHED_TOKENS]);
+    }
+
+    /**
+     * The real field=>boost pairs are never computed here — they were already captured live off the
+     * query by `SearchDebugQueryExpanderPlugin`/`QueryFieldBoostReader` earlier in the same request; this
+     * plugin only has to read them back out via `QueryFieldBoostReader::getFieldBoosts()` and forward them
+     * verbatim under {@see SearchDebugConfig::KEY_FIELD_BOOSTS}.
+     *
+     * @return void
+     */
+    public function testFormatResultReturnsTheFieldBoostsCapturedEarlierInTheRequest(): void
+    {
+        // Arrange
+        $fieldBoosts = ['full-text' => 1, 'full-text-boosted' => 5];
+        $resultFormatterPlugin = $this->createResultFormatterPlugin(true, ['cable'], $fieldBoosts);
+        $resultSet = $this->createResultSet([$this->createHit(20.7051)]);
+
+        // Act
+        $result = $resultFormatterPlugin->formatResult($resultSet, $this->createRequestParameters());
+
+        // Assert
+        $this->assertSame($fieldBoosts, $result[SearchDebugConfig::KEY_FIELD_BOOSTS]);
     }
 
     /**
@@ -161,12 +184,14 @@ class SearchDebugResultFormatterPluginTest extends Unit
     /**
      * @param bool $isSearchDebugEnabled
      * @param array<string> $queryTokens
+     * @param array<string, int> $fieldBoosts
      *
      * @return \SprykerCommunity\Client\SearchDebug\Plugin\Catalog\SearchDebugResultFormatterPlugin
      */
     protected function createResultFormatterPlugin(
         bool $isSearchDebugEnabled,
         array $queryTokens,
+        array $fieldBoosts = [],
     ): SearchDebugResultFormatterPlugin {
         $searchDebugAccessCheckerMock = $this->createMock(SearchDebugAccessCheckerInterface::class);
         $searchDebugAccessCheckerMock
@@ -180,8 +205,13 @@ class SearchDebugResultFormatterPluginTest extends Unit
             ->method('getSearchStringTokens')
             ->willReturn($queryTokens);
 
+        $queryFieldBoostReaderMock = $this->createMock(QueryFieldBoostReaderInterface::class);
+        $queryFieldBoostReaderMock
+            ->method('getFieldBoosts')
+            ->willReturn($fieldBoosts);
+
         $searchDebugFactoryMock = $this->getMockBuilder(SearchDebugFactory::class)
-            ->onlyMethods(['createSearchDebugAccessChecker', 'createExplanationParser'])
+            ->onlyMethods(['createSearchDebugAccessChecker', 'createExplanationParser', 'createQueryFieldBoostReader'])
             ->getMock();
         $searchDebugFactoryMock
             ->method('createSearchDebugAccessChecker')
@@ -189,6 +219,9 @@ class SearchDebugResultFormatterPluginTest extends Unit
         $searchDebugFactoryMock
             ->method('createExplanationParser')
             ->willReturn(new ExplanationParser());
+        $searchDebugFactoryMock
+            ->method('createQueryFieldBoostReader')
+            ->willReturn($queryFieldBoostReaderMock);
 
         $resultFormatterPlugin = new SearchDebugResultFormatterPlugin();
         $resultFormatterPlugin->setFactory($searchDebugFactoryMock);

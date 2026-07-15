@@ -1,12 +1,13 @@
-// Standalone debug utility page (opened via the SRP's per-token "play" link, in a new tab) — kept
-// deliberately plain, no product-card/grid styling to coordinate with.
+// Standalone debug utility page (opened via the SRP's per-token magnifying-glass link, in a new tab) —
+// kept deliberately plain, no product-card/grid styling to coordinate with.
 .token-source-page {
     padding: rem(24) 0;
 }
 
-// One rounded "card" per ES-level field (full-text-boosted / full-text), stacked top to bottom.
-// Deliberately greyscale (not the earlier orange/purple sketch colors) — the only color on this page
-// should be the `<mark>` token highlight, so it's the first thing the eye lands on.
+// One rounded "card" per ES-level field the query actually searched (e.g. full-text-boosted / full-text),
+// stacked top to bottom, boost-descending.
+// Deliberately greyscale — the only color on this page should be the `<mark>` token highlight, so it's
+// the first thing the eye lands on.
 $token-source-tier-accent: $setting-color-darkest;
 $token-source-field-label-color: $setting-color-darker;
 
@@ -30,8 +31,8 @@ $token-source-field-label-color: $setting-color-darker;
     padding: rem(16);
 }
 
-// One label+value pair per candidate DB field — the label pill sits directly on top of its value pill,
-// visually pairing them (rather than side-by-side columns).
+// One label+value pair per candidate DB field — the label pill sits directly on top of its value pill to
+// visually pair them.
 .token-source-field {
     margin-bottom: rem(12);
 
@@ -41,6 +42,16 @@ $token-source-field-label-color: $setting-color-darker;
 
     &--unmatched {
         opacity: 0.6;
+    }
+
+    // Two or more sources contributed the identical text for this element — genuinely indistinguishable
+    // once merged, not a case the resolver can resolve with more cleverness (see the twig comment above
+    // the row loop). The dashed border marks the row as "honestly ambiguous" rather than a normal match.
+    &--ambiguous {
+        .token-source-field__label {
+            border: rem(2) dashed $setting-color-white;
+            border-bottom: none;
+        }
     }
 }
 

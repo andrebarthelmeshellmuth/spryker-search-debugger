@@ -184,19 +184,37 @@ class CatalogController extends SprykerShopCatalogController
 
 ### 6. Hook up the storefront templates
 
-In your search view (e.g. a project `search.twig`), render the query-token headline:
+In your search view (e.g. a project `search.twig`), map the raw `_view.searchDebug.*` result data (nested
+under the `SearchDebugResultFormatterPlugin::NAME` key) into flat `data.*` entries alongside your other
+view data:
+
+```twig
+{% define data = {
+    {# ...your existing entries... #}
+
+    searchDebugTokens: _view.searchDebug.tokens | default([]),
+    searchDebugProducts: _view.searchDebug.products | default([]),
+    searchDebugFieldBoosts: _view.searchDebug.fieldBoosts | default([]),
+    searchDebugTokenColors: _view.searchDebugTokenColors | default([]),
+} %}
+```
+
+Then render the query-token headline:
 
 ```twig
 {% include molecule('search-debug-tokens', 'SearchDebugWidget') with {
     data: {
-        tokens: _view.searchDebug.tokens | default([]),
-        tokenColors: _view.searchDebugTokenColors | default([]),
+        tokens: data.searchDebugTokens,
+        tokenColors: data.searchDebugTokenColors,
     },
 } only %}
 ```
 
 In your product-grid template (e.g. `page-layout-catalog.twig`), render the per-product overlay inside
-the product loop:
+the product loop — `fieldBoosts` is the query's real, live field=>boost pairs (captured by
+`QueryFieldBoostReader`, e.g. `{'full-text': 1, 'full-text-boosted': 5}`), forwarded through the
+per-token link so the token-source page shows however many fields your query actually searched, at their
+real boost values, with no hardcoded field count or boost assumption:
 
 ```twig
 {% set productSearchDebugInfo = (data.searchDebugProducts | default([]))[product.id_product_abstract] | default([]) %}
@@ -206,6 +224,7 @@ the product loop:
             debugInfo: productSearchDebugInfo,
             tokenColors: data.searchDebugTokenColors | default([]),
             productAbstractSku: product.abstract_sku,
+            fieldBoosts: data.searchDebugFieldBoosts | default([]),
         }
     } only %}
 {% endif %}
@@ -229,8 +248,9 @@ yarn yves
 
 ### 8. Glossary entries
 
-Add the `search_debug.*` translations to your glossary data import (see
-`data/import/.../glossary.csv` in the reference integration) and re-run:
+Add the `search_debug.*` translation keys to your glossary data import (search this package's `Theme/**/*.twig`
+and `*.php` files for the `search_debug.*` glossary keys they reference, and add each one — with your own
+translated text — to your project's own `glossary.csv`) and re-run:
 
 ```bash
 vendor/bin/console data:import glossary
@@ -246,15 +266,38 @@ role), and assign that role to the users who should see debug output.
 
 - `SearchDebugQueryExpanderPlugin` switches Elasticsearch inline `explain` on — only when the request
   was flagged by the controller AND the customer holds the permission (`SearchDebugAccessChecker`, the
-  single client-layer gate).
+  single client-layer gate). It also captures the query's real `multi_match` field=>boost pairs
+  (`QueryFieldBoostReader`) — whatever fields your query actually searches, at whatever boost, nothing
+  hardcoded — for `SearchDebugResultFormatterPlugin` to include in its output.
 - `SearchDebugResultFormatterPlugin` parses each hit's explain tree (`ExplanationParser`, a recursive
   shape-matching walker with an honest fallback for unknown node shapes) into per-token score
-  contributions.
+  contributions. Per-field weights for the same term are combined via whichever mode the explain tree's
+  own nodes indicate — max/dis_max or sum/bool-should — detected from the node descriptions, not assumed;
+  `function_score` boost-function contributions (field_value_factor, decay functions, script_score) get
+  their own bucket, separate from other score contributions.
 - The token-source page (`SearchDebugWidget` Yves module) reads the product's indexed document via the
-  synchronization-service document id, tests every `full-text`/`full-text-boosted` element with the
-  index-time analyzer (`_analyze` with `explain: true`, offsets included), and labels each element by
-  matching it against the known source values — grouped under the two ES fields with their live query
-  boosts.
+  synchronization-service document id, and tests every element of every field the query searched (however
+  many that is — see `QueryFieldBoostReader` above) with the index-time analyzer (`_analyze` with
+  `explain: true`, offsets included). Each element is labeled by matching it first against the known
+  NAMED source values (title, SKU, description, category, merchant name, ...), then against the product's
+  own searchable attribute values (labeled with the real attribute key, e.g. "brand") — anything neither
+  identifies still shows up, under a generic "other indexed value" label. Tiers render sorted by boost
+  descending, with the real, live boost value shown next to each.
+
+## Limitations
+
+- **Assumes Spryker's default single-resource catalog search model.** `TokenSourceResolver` always resolves
+  a SKU to a `product_abstract` and reads the `product_abstract` search resource's document. Shops with a
+  different catalog/search topology — a tabbed abstract/concrete search, an additional "single" product
+  type with no abstract, or multiple search resources — need to adapt the resource name and SKU→ID lookup
+  to their own model; this is a structural assumption the package does not attempt to generalize away.
+- **The field→tier mapping is a basic shop's default, not a discovered fact.** `TokenSourceResolver::SOURCE_DEFINITIONS`
+  mirrors a basic Spryker shop's default `ProductPageSearchDependencyProvider`
+  wiring (title/SKU/direct category/merchant name → `full-text-boosted`; concrete names/SKUs/descriptions
+  and indirect categories → `full-text`). Nothing in the indexed document or the live cluster records which
+  *source field* a value in `full-text`/`full-text-boosted` came from (that's the whole reason this feature
+  exists), so if your project registers different map-expander plugins, or moves a field between tiers,
+  edit `SOURCE_DEFINITIONS` to match your project's actual wiring — that's the one place to check.
 
 ## Testing
 

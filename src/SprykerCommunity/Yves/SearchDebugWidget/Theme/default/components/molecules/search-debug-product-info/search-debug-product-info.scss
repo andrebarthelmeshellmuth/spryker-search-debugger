@@ -1,4 +1,7 @@
-@import '../search-debug-tokens/search-debug-palette';
+// Pulls in both the shared palette (for $search-debug-feature-accent-color below) and the `.search-debug-token`
+// badge rule set — a partial import, not a dependency on the sibling component's compiled bundle (see
+// _search-debug-token-badge.scss for why this must be a partial, not a cross-component index.ts import).
+@import '../search-debug-tokens/search-debug-token-badge';
 
 // Hover-reveal overlay for the per-product search-debug panel. `.search-debug-product-wrapper` is added
 // around the product widget in page-layout-catalog.twig (only for products that have debug data) so it
@@ -24,9 +27,10 @@
     }
 }
 
-// Reuses the token palette's purple rather than the shop's brand color, deliberately: the trigger should
-// read as debug tooling, not as a normal shop action sitting on the product card.
-$search-debug-trigger-color: nth($search-debug-token-colors, 5);
+// Uses the dedicated feature-accent color (not the shop's brand color, and not the token palette): the
+// trigger should read as debug tooling, not as a normal shop action sitting on the product card, and must
+// stay visually distinct from any of the cycling token badge colors.
+$search-debug-trigger-color: $search-debug-feature-accent-color;
 
 // Doubled `.button` class to outweigh `.button`'s own :hover/:active rules regardless of bundle order.
 // Overlaid across the top edge of the product card (absolutely positioned, so it adds no height of its

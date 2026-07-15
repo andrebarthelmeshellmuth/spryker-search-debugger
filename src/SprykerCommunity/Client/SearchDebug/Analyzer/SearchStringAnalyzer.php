@@ -12,10 +12,10 @@ namespace SprykerCommunity\Client\SearchDebug\Analyzer;
 use Elastica\Client;
 use Elastica\Exception\ExceptionInterface;
 use Generated\Shared\Search\PageIndexMap;
+use Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolverInterface;
 use SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaMapper;
 use SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaReaderInterface;
 use SprykerCommunity\Client\SearchDebug\SearchDebugConfig;
-use Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolverInterface;
 
 class SearchStringAnalyzer implements SearchStringAnalyzerInterface
 {
@@ -49,7 +49,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
         Client $elasticaClient,
         IndexNameResolverInterface $indexNameResolver,
         IndexSchemaReaderInterface $indexSchemaReader,
-        SearchDebugConfig $config
+        SearchDebugConfig $config,
     ) {
         $this->elasticaClient = $elasticaClient;
         $this->indexNameResolver = $indexNameResolver;
@@ -88,10 +88,13 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      * Deliberately the INDEX-time analyzer, not the search-time one `getTokens()` above uses: this method
      * answers "does this piece of product text contain token X", and that's determined entirely by
      * what the text was indexed as — the query-time analyzer only ever tokenizes the query string, it
-     * never touches document content. Concretely, this shop's index analyzer edge-ngrams every word
-     * (search-as-you-type prefix matching), so a query token like "öl" can legitimately match a document
-     * that only contains "Ölpapier" — the search-time analyzer alone could never explain that match, only
-     * the index-time analyzer that actually produced the "öl" prefix token at index time can.
+     * never touches document content. This matters whenever an analyzer transforms text asymmetrically
+     * between index- and query-time — ngram/edge-ngram filters, decompounding, synonym expansion, and
+     * stemming are all common examples — because only the index-time analyzer that actually produced a
+     * document's tokens can explain why a query token matched it. E.g., in a basic shop using an
+     * edge-ngram index analyzer (search-as-you-type prefix matching), a query token like "öl" can
+     * legitimately match a document that only contains "Ölpapier" — the search-time analyzer alone could
+     * never explain that match.
      *
      * @param string $text
      *

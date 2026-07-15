@@ -28,6 +28,46 @@ class ExplanationParser implements ExplanationParserInterface
     protected const WEIGHT_NODE_PREFIX = 'weight(';
 
     /**
+     * Matches a `function_score` boost-function leaf's own description — the documented Lucene/ES
+     * phrasing for `field_value_factor`, decay functions (`gauss`/`exp`/`linear`), and `script_score`.
+     * Not yet exercised against a real function_score query (a basic shop's default catalog search
+     * doesn't use one) — built ahead of that feature so the parser is ready for it. If real
+     * explain output ever uses different wording, the worst case is these nodes fall through to the
+     * generic {@see KEY_OTHER_CONTRIBUTIONS} bucket instead of {@see KEY_SCORE_FUNCTIONS} — never dropped.
+     *
+     * @var string
+     */
+    protected const SCORE_FUNCTION_PATTERN = '/^(field value function|function score|script score function|gauss|exp|linear)\b/i';
+
+    /**
+     * Matches the description of a node that combines its children by taking the MAXIMUM (Lucene
+     * `DisjunctionMaxQuery`, i.e. a `dis_max`/`best_fields` multi_match) — e.g. "max of:" or
+     * "max plus 0.1 times others of:" for a non-zero tie_breaker.
+     *
+     * @var string
+     */
+    protected const COMBINE_PATTERN_MAX = '/^max\b.*of:$/i';
+
+    /**
+     * Matches the description of a node that combines its children by SUMMING them (Lucene `BooleanQuery`
+     * "should" clauses, i.e. a `most_fields`/`cross_fields` multi_match without full field blending) —
+     * e.g. "sum of:".
+     *
+     * @var string
+     */
+    protected const COMBINE_PATTERN_SUM = '/^sum\b.*of:$/i';
+
+    /**
+     * @var string
+     */
+    protected const COMBINE_MODE_MAX = 'max';
+
+    /**
+     * @var string
+     */
+    protected const COMBINE_MODE_SUM = 'sum';
+
+    /**
      * @var string
      */
     public const KEY_MATCHED_TOKENS = 'matchedTokens';
@@ -36,6 +76,11 @@ class ExplanationParser implements ExplanationParserInterface
      * @var string
      */
     public const KEY_OTHER_CONTRIBUTIONS = 'otherContributions';
+
+    /**
+     * @var string
+     */
+    public const KEY_SCORE_FUNCTIONS = 'scoreFunctions';
 
     /**
      * {@inheritDoc}
@@ -49,30 +94,41 @@ class ExplanationParser implements ExplanationParserInterface
     {
         $terms = [];
         $otherContributions = [];
+        $scoreFunctions = [];
 
-        $this->walkNode($explanation, $terms, $otherContributions);
+        $this->walkNode($explanation, $terms, $otherContributions, $scoreFunctions);
 
-        return $this->splitByQueryTokens($terms, $otherContributions, $queryTokens);
+        $result = $this->splitByQueryTokens($terms, $otherContributions, $queryTokens);
+        $result[static::KEY_SCORE_FUNCTIONS] = $scoreFunctions;
+
+        return $result;
     }
 
     /**
      * Walks the recursive `_explanation` tree by node shape:
      * - A weight node attributable to one `field:term` pair is collected as a term contribution
      *   (descent stops there: its children are TF/IDF internals, which are multiplicative factors of
-     *   this node's value, not additive score parts of their own).
+     *   this node's value, not additive score parts of their own). Per-field weights for the SAME term
+     *   are combined using whichever mode ($combineMode) the nearest enclosing combiner node's own
+     *   description indicated — max/dis_max or sum/bool-should — not assumed.
      * - Any other weight node is kept verbatim rather than descended into, for the same reason — its
      *   internals would otherwise surface as bogus standalone contributions.
-     * - Any other node with children is descended into.
-     * - Any other scoring leaf is kept verbatim, so unknown query shapes (e.g. a future function_score)
-     *   degrade gracefully instead of being dropped.
+     * - A node with children updates $combineMode from its OWN description (falling back to the mode
+     *   inherited from its ancestor when its description doesn't match a known combiner shape) and is
+     *   descended into.
+     * - A `function_score` boost-function leaf is collected separately from other contributions.
+     * - Any other scoring leaf is kept verbatim, so unknown query shapes degrade gracefully instead of
+     *   being dropped.
      *
      * @param array<string, mixed> $node
      * @param array<string, array<string, mixed>> $terms
      * @param array<int, array<string, mixed>> $otherContributions
+     * @param array<int, array<string, mixed>> $scoreFunctions
+     * @param string|null $combineMode
      *
      * @return void
      */
-    protected function walkNode(array $node, array &$terms, array &$otherContributions): void
+    protected function walkNode(array $node, array &$terms, array &$otherContributions, array &$scoreFunctions, ?string $combineMode = null): void
     {
         $value = (float)($node['value'] ?? 0.0);
 
@@ -90,7 +146,7 @@ class ExplanationParser implements ExplanationParserInterface
 
         if (str_starts_with($description, static::WEIGHT_NODE_PREFIX)) {
             if (preg_match(static::TERM_WEIGHT_PATTERN, $description, $matches)) {
-                $this->addTermWeight($terms, $matches['term'], $matches['field'], $value);
+                $this->addTermWeight($terms, $matches['term'], $matches['field'], $value, $combineMode ?? static::COMBINE_MODE_MAX);
 
                 return;
             }
@@ -106,14 +162,25 @@ class ExplanationParser implements ExplanationParserInterface
         $details = $node['details'] ?? [];
 
         if ($details !== []) {
+            $childCombineMode = $this->detectCombineMode($description) ?? $combineMode;
+
             foreach ($details as $childNode) {
-                $this->walkNode($childNode, $terms, $otherContributions);
+                $this->walkNode($childNode, $terms, $otherContributions, $scoreFunctions, $childCombineMode);
             }
 
             return;
         }
 
         if ($description === '') {
+            return;
+        }
+
+        if (preg_match(static::SCORE_FUNCTION_PATTERN, $description) === 1) {
+            $scoreFunctions[] = [
+                'description' => $description,
+                'value' => $value,
+            ];
+
             return;
         }
 
@@ -124,30 +191,67 @@ class ExplanationParser implements ExplanationParserInterface
     }
 
     /**
-     * The effective per-term value is the MAX over its field weights, not the sum: a `best_fields`
-     * multi_match combines per-field scores under a dis_max ("max of:") node, so only the best-scoring
-     * field actually contributes to `_score`. `field` records which one that was, so the UI can show
-     * where a term's contribution came from; the non-winning fields' own values are deliberately NOT
-     * part of the output — they contribute nothing to the score, and the UI shows contributing parts
-     * only. The per-field map exists only locally, to find the max.
+     * @param string $description
+     *
+     * @return string|null One of {@see COMBINE_MODE_MAX}/{@see COMBINE_MODE_SUM}, or null when
+     *   $description doesn't match a known combiner shape (the caller then keeps the inherited mode).
+     */
+    protected function detectCombineMode(string $description): ?string
+    {
+        if (preg_match(static::COMBINE_PATTERN_SUM, $description) === 1) {
+            return static::COMBINE_MODE_SUM;
+        }
+
+        if (preg_match(static::COMBINE_PATTERN_MAX, $description) === 1) {
+            return static::COMBINE_MODE_MAX;
+        }
+
+        return null;
+    }
+
+    /**
+     * The effective per-term value combines its per-field weights via $combineMode: MAX for a `dis_max`
+     * combiner (only the best-scoring field actually contributes to `_score`), SUM for a `bool`-should
+     * combiner (every matching field genuinely adds to `_score`). $combineMode is detected from the
+     * explain tree's own node descriptions by the caller ({@see walkNode}), defaulting to MAX only when no
+     * combiner node was seen at all.
+     *
+     * Confirmed live against a real basic shop's explain output: the top-level bool query combines
+     * the multi_match's weight with the internal `type:product_abstract` filter clause via a literal
+     * "sum of:" node (the filter clause is zero-valued and gets skipped before reaching this method, so
+     * that outer sum is otherwise invisible here) — so $combineMode is `sum`, NOT the `max` this class
+     * assumed before this generalization existed. For a term matching only ONE field (the common case),
+     * sum and max compute the identical number, so this was never visibly wrong; it becomes observable
+     * only for a term matching BOTH `full-text` and `full-text-boosted` on the same document, which this
+     * live check did not happen to exercise — the detection mechanism handles that case correctly either
+     * way, which is the actual point of not hardcoding a mode.
+     *
+     * `field` records the SINGLE LARGEST individual field weight either way: for MAX mode that field's
+     * weight equals `total` (it's literally the winner); for SUM mode it's a "primary contributor" hint
+     * only — `total` is the true sum across all fields, `field` does not claim to be the sole source of it.
+     * The per-field map exists only locally, to compute both.
      *
      * @param array<string, array<string, mixed>> $terms
      * @param string $term
      * @param string $field
      * @param float $value
+     * @param string $combineMode
      *
      * @return void
      */
-    protected function addTermWeight(array &$terms, string $term, string $field, float $value): void
+    protected function addTermWeight(array &$terms, string $term, string $field, float $value, string $combineMode): void
     {
         $fields = $terms[$term]['fieldWeights'] ?? [];
-        $fields[$field] = max($fields[$field] ?? 0.0, $value);
+        $fields[$field] = $combineMode === static::COMBINE_MODE_SUM
+            ? ($fields[$field] ?? 0.0) + $value
+            : max($fields[$field] ?? 0.0, $value);
 
-        $total = max($fields);
+        $total = $combineMode === static::COMBINE_MODE_SUM ? array_sum($fields) : max($fields);
+        $primaryField = array_search(max($fields), $fields, true);
 
         $terms[$term] = [
             'total' => $total,
-            'field' => array_search($total, $fields, true),
+            'field' => $primaryField,
             'fieldWeights' => $fields,
         ];
     }

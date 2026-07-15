@@ -1,4 +1,4 @@
-{# @var data.tiers array<array{key: string, labelKey: string, boost: int, rows: array<array{labelKey: string, matched: bool, highlightedHtml: string|null}>}> #}
+{# @var data.tiers array<array{key: string, labelKey: string, boost: int, rows: array<array{labelKeys: array<string>, matched: bool, highlightedHtml: string|null}>}> #}
 
 {% extends template('page-blank') %}
 
@@ -16,17 +16,26 @@
         <p class="text-small">{{ 'search_debug.token_source.subheading' | trans({'%title%': data.productTitle, '%sku%': data.productSku}) }}</p>
 
         {# Rows are driven by the product's REAL indexed document: one row per identified source value
-           present in that tier's array, plus one row per element no known source claims ("other indexed
-           value" — e.g. a searchable product attribute). A source that contributed nothing to the
-           document simply has no row. #}
+           present in that tier's array — including product attributes, labeled by their own attribute
+           key — plus one row per element no known source claims ("other indexed value"). A source has no
+           row only when it truly contributed nothing. When two or more sources contribute the SAME text
+           in the same tier, that's genuinely indistinguishable once merged — rather than guessing, the
+           row lists every colliding source's label (row.labelKeys has more than one entry) instead of
+           picking one. #}
         {% for tier in data.tiers %}
             <section class="token-source-tier">
-                <h2 class="token-source-tier__heading">{{ tier.labelKey | trans({'%boost%': tier.boost}) }}</h2>
+                {# %field% is only used by the generic fallback label (an ES field a shop's config
+                   doesn't have a translation key for) — harmless to pass unconditionally to the two
+                   well-known tiers' translations, which simply don't reference it. #}
+                <h2 class="token-source-tier__heading">{{ tier.labelKey | trans({'%boost%': tier.boost, '%field%': tier.key}) }}</h2>
 
                 <div class="token-source-tier__body">
                     {% for row in tier.rows %}
-                        <div class="token-source-field {{ row.matched ? 'token-source-field--matched' : 'token-source-field--unmatched' }}">
-                            <div class="token-source-field__label">{{ row.labelKey | trans }}</div>
+                        {% set isAmbiguous = row.labelKeys | length > 1 %}
+                        <div class="token-source-field {{ row.matched ? 'token-source-field--matched' : 'token-source-field--unmatched' }} {{ isAmbiguous ? 'token-source-field--ambiguous' : '' }}">
+                            <div class="token-source-field__label" title="{{ isAmbiguous ? ('search_debug.token_source.field.ambiguous_hint' | trans) : '' }}">
+                                {{ row.labelKeys | map(labelKey => labelKey | trans) | join(' / ') }}
+                            </div>
                             <div class="token-source-field__value">{%- if row.highlightedHtml is not null -%}
                                 {{- row.highlightedHtml | raw -}}
                             {%- else -%}
@@ -38,6 +47,11 @@
                     {% endfor %}
                 </div>
             </section>
+        {% else %}
+            {# No tiers at all: the fields this search actually used couldn't be determined (a hand-typed
+               URL, or a link generated before a search went through the debug-enabled query path) — there
+               is no fallback field list to guess with, so say so plainly rather than showing nothing. #}
+            <p class="token-source-field__no-match">{{ 'search_debug.token_source.fields_unknown' | trans }}</p>
         {% endfor %}
     </div>
 {% endblock %}

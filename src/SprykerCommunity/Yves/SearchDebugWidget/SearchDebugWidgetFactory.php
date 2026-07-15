@@ -9,17 +9,17 @@ declare(strict_types = 1);
 
 namespace SprykerCommunity\Yves\SearchDebugWidget;
 
-use SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface;
-use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighter;
-use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface;
-use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolver;
-use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolverInterface;
 use Spryker\Client\CategoryStorage\CategoryStorageClientInterface;
 use Spryker\Client\MerchantStorage\MerchantStorageClientInterface;
 use Spryker\Client\ProductCategoryStorage\ProductCategoryStorageClientInterface;
 use Spryker\Client\ProductStorage\ProductStorageClientInterface;
 use Spryker\Client\Store\StoreClientInterface;
 use Spryker\Yves\Kernel\AbstractFactory;
+use SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighter;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolver;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolverInterface;
 
 /**
  * @method \SprykerCommunity\Yves\SearchDebugWidget\SearchDebugWidgetConfig getConfig()
@@ -39,7 +39,6 @@ class SearchDebugWidgetFactory extends AbstractFactory
             $this->getSearchDebugClient(),
             $this->getStoreClient(),
             $this->createTokenHighlighter(),
-            $this->getConfig()->getFullTextBoostedBoostingValue(),
         );
     }
 

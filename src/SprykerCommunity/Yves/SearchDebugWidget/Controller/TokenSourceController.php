@@ -9,10 +9,10 @@ declare(strict_types = 1);
 
 namespace SprykerCommunity\Yves\SearchDebugWidget\Controller;
 
-use SprykerCommunity\Shared\SearchDebug\Plugin\SeeSearchDebugInfoPermissionPlugin;
 use Spryker\Yves\Kernel\Controller\AbstractController;
 use Spryker\Yves\Kernel\PermissionAwareTrait;
 use Spryker\Yves\Kernel\View\View;
+use SprykerCommunity\Shared\SearchDebug\Plugin\SeeSearchDebugInfoPermissionPlugin;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -34,6 +34,17 @@ class TokenSourceController extends AbstractController
      * @var string
      */
     protected const PARAM_TOKEN = 'token';
+
+    /**
+     * The real field=>boost pairs the SRP's search query used, forwarded from the search-debug overlay
+     * that generated this link — see `search-debug-product-info.twig`'s link and
+     * `SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReader`, which captured them live off
+     * that query. Purely informational display data: a missing or tampered value only means the page
+     * shows no tiers (there is no fallback), never a security or correctness concern for the real search.
+     *
+     * @var string
+     */
+    protected const PARAM_BOOSTS = 'boosts';
 
     /**
      * @param \Symfony\Component\HttpFoundation\Request $request
@@ -64,9 +75,11 @@ class TokenSourceController extends AbstractController
             throw new BadRequestHttpException('Both `sku` and `token` query parameters are required.');
         }
 
+        $fieldBoosts = $this->sanitizeFieldBoosts((array)($request->query->all()[static::PARAM_BOOSTS] ?? []));
+
         $result = $this->getFactory()
             ->createTokenSourceResolver()
-            ->resolve($productAbstractSku, $token, $this->getLocale());
+            ->resolve($productAbstractSku, $token, $this->getLocale(), $fieldBoosts);
 
         if ($result === null) {
             throw new NotFoundHttpException(sprintf('Product abstract with SKU %s not found.', $productAbstractSku));
@@ -82,5 +95,29 @@ class TokenSourceController extends AbstractController
             [],
             '@SearchDebugWidget/views/token-source/token-source.twig',
         );
+    }
+
+    /**
+     * Defensive against a hand-edited or malformed `boosts[...]` query string (e.g. a nested array value
+     * where a scalar boost is expected) — drops anything that doesn't look like `fieldName => intBoost`
+     * rather than letting a malformed URL throw.
+     *
+     * @param array<mixed> $rawFieldBoosts
+     *
+     * @return array<string, int>
+     */
+    protected function sanitizeFieldBoosts(array $rawFieldBoosts): array
+    {
+        $fieldBoosts = [];
+
+        foreach ($rawFieldBoosts as $fieldName => $boost) {
+            if (!is_string($fieldName) || is_array($boost)) {
+                continue;
+            }
+
+            $fieldBoosts[$fieldName] = (int)$boost;
+        }
+
+        return $fieldBoosts;
     }
 }

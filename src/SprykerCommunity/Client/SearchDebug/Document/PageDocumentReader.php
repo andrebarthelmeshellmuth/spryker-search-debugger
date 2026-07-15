@@ -13,11 +13,11 @@ use Elastica\Exception\ExceptionInterface;
 use Generated\Shared\Transfer\SearchContextTransfer;
 use Generated\Shared\Transfer\SearchDocumentTransfer;
 use Generated\Shared\Transfer\SynchronizationDataTransfer;
-use SprykerCommunity\Client\SearchDebug\SearchDebugConfig;
 use Spryker\Client\SearchElasticsearch\Dependency\Client\SearchElasticsearchToStoreClientInterface;
 use Spryker\Client\SearchElasticsearch\Reader\DocumentReaderInterface;
 use Spryker\Client\SearchElasticsearch\SearchContextExpander\SearchContextExpanderInterface;
 use Spryker\Service\Synchronization\SynchronizationServiceInterface;
+use SprykerCommunity\Client\SearchDebug\SearchDebugConfig;
 
 class PageDocumentReader implements PageDocumentReaderInterface
 {
@@ -58,7 +58,7 @@ class PageDocumentReader implements PageDocumentReaderInterface
         SearchContextExpanderInterface $searchContextExpander,
         SynchronizationServiceInterface $synchronizationService,
         SearchElasticsearchToStoreClientInterface $storeClient,
-        SearchDebugConfig $config
+        SearchDebugConfig $config,
     ) {
         $this->documentReader = $documentReader;
         $this->searchContextExpander = $searchContextExpander;

@@ -12,8 +12,8 @@ namespace SprykerCommunity\Client\SearchDebug\Plugin\Catalog;
 use Elastica\Result;
 use Elastica\ResultSet;
 use Generated\Shared\Search\PageIndexMap;
-use SprykerCommunity\Shared\SearchDebug\SearchDebugConfig;
 use Spryker\Client\SearchElasticsearch\Plugin\ResultFormatter\AbstractElasticsearchResultFormatterPlugin;
+use SprykerCommunity\Shared\SearchDebug\SearchDebugConfig;
 
 /**
  * @method \SprykerCommunity\Client\SearchDebug\SearchDebugFactory getFactory()
@@ -63,6 +63,8 @@ class SearchDebugResultFormatterPlugin extends AbstractElasticsearchResultFormat
      * - Returns the analyzer tokens of the search string, plus per-product debug data keyed by abstract
      *   product id: `_score`, the matched query tokens with their score contributions (parsed from the
      *   Elasticsearch explain tree) and any other score contributions verbatim.
+     * - Also returns the query's real field=>boost pairs, captured live off the query by
+     *   `SearchDebugQueryExpanderPlugin`/`QueryFieldBoostReader` earlier in the same request.
      * - Returns an empty array unless search debug output was requested AND the current customer holds
      *   the search debug permission.
      *
@@ -87,6 +89,7 @@ class SearchDebugResultFormatterPlugin extends AbstractElasticsearchResultFormat
         return [
             SearchDebugConfig::KEY_TOKENS => $queryTokens,
             SearchDebugConfig::KEY_PRODUCTS => $this->getProductDebugData($searchResult, $queryTokens),
+            SearchDebugConfig::KEY_FIELD_BOOSTS => $this->getFactory()->createQueryFieldBoostReader()->getFieldBoosts(),
         ];
     }
 
