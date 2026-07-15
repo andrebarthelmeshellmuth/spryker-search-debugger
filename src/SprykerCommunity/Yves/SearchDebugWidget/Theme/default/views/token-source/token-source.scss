@@ -84,6 +84,12 @@ $token-source-field-label-color: $setting-color-darker;
     background-color: $search-debug-feature-accent-color;
     color: $setting-color-white;
 
+    // The parent value box is `white-space: pre-line` (needed to preserve real line breaks in long
+    // product text) — this resets whitespace handling back to normal for the link's own content, so any
+    // incidental newline in the markup that builds it (ours or the shared icon atom's) collapses to a
+    // space instead of rendering as a stray visible line break right after the mark.
+    white-space: normal;
+
     .icon {
         width: rem(9);
         height: rem(9);

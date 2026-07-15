@@ -46,13 +46,11 @@
                                        to `replace()` on: TokenHighlighter escapes every non-mark fragment, so
                                        the literal (unescaped) substring `</mark>` can only ever come from
                                        TokenHighlighter's own template, never from product text. #}
-                                    {% set analysisLink %}<a
-                                            href="{{ url('search-debug/token-analysis', { text: row.element, token: data.token }) }}"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            class="token-source-mark__analysis-link"
-                                            title="{{ 'search_debug.token_analysis.open' | trans }}"
-                                        >{% include atom('icon') with { data: { name: 'search' } } only %}</a>{% endset %}
+                                    {# One line, deliberately: this whole block is captured verbatim (including
+                                       any literal newlines) and later injected into a `white-space: pre-line`
+                                       value box — a multi-line tag here would render as stray visible line
+                                       breaks right after the mark. #}
+                                    {% set analysisLink %}<a href="{{ url('search-debug/token-analysis', { text: row.element, token: data.token }) }}" target="_blank" rel="noopener noreferrer" class="token-source-mark__analysis-link" title="{{ 'search_debug.token_analysis.open' | trans }}">{% include atom('icon') with { data: { name: 'search' } } only %}</a>{% endset %}
                                     {{- row.highlightedHtml | replace({'</mark>': '</mark>' ~ analysisLink}) | raw -}}
                                 {%- else -%}
                                     {{- row.highlightedHtml | raw -}}
