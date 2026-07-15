@@ -53,6 +53,22 @@ class SearchDebugClient extends AbstractClient implements SearchDebugClientInter
      *
      * @api
      *
+     * @param string $text
+     *
+     * @return array<array{operation: string, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
+     */
+    public function getTextAnalysisStages(string $text): array
+    {
+        return $this->getFactory()
+            ->createSearchStringAnalyzer()
+            ->getAnalysisStages($text);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @api
+     *
      * @param string $resourceName
      * @param string $identifier
      * @param string $localeName

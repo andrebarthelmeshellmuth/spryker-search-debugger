@@ -312,7 +312,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      *         key: string,
      *         labelKey: string,
      *         boost: int,
-     *         rows: array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null}>,
+     *         rows: array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null, element: string|null}>,
      *     }>,
      * }|null
      */
@@ -366,7 +366,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      *     key: string,
      *     labelKey: string,
      *     boost: int,
-     *     rows: array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null}>,
+     *     rows: array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null, element: string|null}>,
      * }>
      */
     protected function buildTiers(
@@ -394,25 +394,28 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     }
 
     /**
-     * One row per identified source or GROUP of colliding sources (in canonical definition order, see
-     * {@see collectSourceKeysByValue()}), showing the matched elements highlighted or a compact "no
-     * match"; a value two or more sources both claim renders as a single row with multiple `labelKeys`
-     * instead of picking one and silently dropping the rest — the caller (the twig template) is expected
-     * to join and display all of them, honestly communicating that the value can't be attributed to just
-     * one. Elements no named source claims are matched against the product's own attribute values next
-     * (label = the real attribute key); anything still unidentified follows as one row each, ALWAYS
-     * showing their text — for those, the value itself is the diagnostic information.
+     * One row per MATCHED document element (in canonical source-definition order, see
+     * {@see collectSourceKeysByValue()}) — each carries its own raw `element` text, so a caller (the
+     * token-source page's magnifying-glass link) can open the analysis-path page for that EXACT element,
+     * not a source in the abstract. A source with no matching element at all still gets ONE summary "no
+     * match" row (nothing to link to there, so no reason to show one per element). A value two or more
+     * sources both claim renders with multiple `labelKeys` instead of picking one and silently dropping
+     * the rest — the caller is expected to join and display all of them, honestly communicating that the
+     * value can't be attributed to just one. Elements no named source claims are matched against the
+     * product's own attribute values next (label = the real attribute key); anything still unidentified
+     * follows as one row each, ALWAYS showing their text — for those, the value itself is the diagnostic
+     * information.
      *
      * @param array<int, string> $elements
      * @param array<string, array<int, string>> $sourceKeysByValue
      * @param array<string, string> $attributeLabelByValue
      * @param string $token
      *
-     * @return array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null}>
+     * @return array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null, element: string|null}>
      */
     protected function buildTierRows(array $elements, array $sourceKeysByValue, array $attributeLabelByValue, string $token): array
     {
-        $matchedHtmlByGroupKey = [];
+        $matchedRowsByGroupKey = [];
         $sourceKeysByGroupKey = [];
         $otherRows = [];
 
@@ -431,6 +434,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
                     'labelKeys' => [$attributeLabel ?? static::LABEL_KEY_OTHER],
                     'matched' => $matches !== [],
                     'highlightedHtml' => $this->tokenHighlighter->highlight($element, $matches),
+                    'element' => $matches !== [] ? $element : null,
                 ];
 
                 continue;
@@ -445,7 +449,12 @@ class TokenSourceResolver implements TokenSourceResolverInterface
                 continue;
             }
 
-            $matchedHtmlByGroupKey[$groupKey][] = $this->tokenHighlighter->highlight($element, $matches);
+            $matchedRowsByGroupKey[$groupKey][] = [
+                'labelKeys' => array_map(fn (string $sourceKey): string => static::SOURCE_DEFINITIONS[$sourceKey]['labelKey'], $sourceKeys),
+                'matched' => true,
+                'highlightedHtml' => $this->tokenHighlighter->highlight($element, $matches),
+                'element' => $element,
+            ];
         }
 
         $canonicalOrder = array_flip(array_keys(static::SOURCE_DEFINITIONS));
@@ -453,11 +462,17 @@ class TokenSourceResolver implements TokenSourceResolverInterface
 
         $rows = [];
         foreach ($sourceKeysByGroupKey as $groupKey => $sourceKeys) {
-            $matchedHtml = $matchedHtmlByGroupKey[$groupKey] ?? [];
+            if (isset($matchedRowsByGroupKey[$groupKey])) {
+                array_push($rows, ...$matchedRowsByGroupKey[$groupKey]);
+
+                continue;
+            }
+
             $rows[] = [
                 'labelKeys' => array_map(fn (string $sourceKey): string => static::SOURCE_DEFINITIONS[$sourceKey]['labelKey'], $sourceKeys),
-                'matched' => $matchedHtml !== [],
-                'highlightedHtml' => $matchedHtml !== [] ? implode("\n", $matchedHtml) : null,
+                'matched' => false,
+                'highlightedHtml' => null,
+                'element' => null,
             ];
         }
 

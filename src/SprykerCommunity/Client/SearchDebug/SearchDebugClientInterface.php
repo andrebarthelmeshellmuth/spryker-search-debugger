@@ -48,6 +48,25 @@ interface SearchDebugClientInterface
 
     /**
      * Specification:
+     * - Runs $text through the page index's INDEX-time analyzer, same as `getTextTokenOffsets()`, but
+     *   returns every intermediate stage instead of only the final one: each char filter (a single
+     *   whole-text pseudo-token, offsets 0..length — char filters run before tokenization, so there are
+     *   no per-token offsets yet), the tokenizer, and every token filter, in chain order.
+     * - Offsets are consistent across stages (a Lucene invariant: they're always relative to the
+     *   original $text, never re-based per stage), so a caller can reconstruct which token in an
+     *   earlier stage produced a given token in a later one purely from offset containment.
+     * - Returns an empty array for empty text or when Elasticsearch is unreachable.
+     *
+     * @api
+     *
+     * @param string $text
+     *
+     * @return array<array{operation: string, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
+     */
+    public function getTextAnalysisStages(string $text): array;
+
+    /**
+     * Specification:
      * - Reads one entity's document from the page search index, exactly as it was indexed.
      * - The document id is generated through the synchronization service key builder (the same format
      *   the publish pipeline writes with, e.g. `product_abstract:de:de_de:238`), using the current store.

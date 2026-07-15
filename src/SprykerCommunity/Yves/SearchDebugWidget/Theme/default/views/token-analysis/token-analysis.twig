@@ -1,0 +1,31 @@
+{# @var data.path array<array{text: string, operation: string|null}> #}
+
+{% extends template('page-blank') %}
+
+{% define data = {
+    text: _view.text,
+    token: _view.token,
+    path: _view.path,
+    title: 'search_debug.token_analysis.heading' | trans({'%token%': _view.token}),
+} %}
+
+{% block body %}
+    <div class="container token-analysis-page">
+        <h1>{{ 'search_debug.token_analysis.heading' | trans({'%token%': data.token}) }}</h1>
+
+        {# Always a linear PATH, never a tree: even a filter that fans one token into several (ngram,
+           decompounding, synonyms, ...) only ever contributes the ONE step that actually led to the
+           matched token — see AnalysisPathResolver's own docblock for why that's structurally guaranteed,
+           not just a display choice. #}
+        <div class="token-analysis-path">
+            {% for step in data.path %}
+                {% if step.operation is not null %}
+                    <div class="token-analysis-path__operation">{{ step.operation }}</div>
+                {% endif %}
+                <div class="token-analysis-path__step {{ loop.last ? 'token-analysis-path__step--final' : '' }}">
+                    {{ step.text }}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}

@@ -20,6 +20,11 @@ class SearchDebugWidgetRouteProviderPlugin extends AbstractRouteProviderPlugin
     public const ROUTE_NAME_TOKEN_SOURCE = 'search-debug/token-source';
 
     /**
+     * @var string
+     */
+    public const ROUTE_NAME_ANALYSIS_PATH = 'search-debug/token-analysis';
+
+    /**
      * @param \Spryker\Yves\Router\Route\RouteCollection $routeCollection
      *
      * @return \Spryker\Yves\Router\Route\RouteCollection
@@ -27,8 +32,10 @@ class SearchDebugWidgetRouteProviderPlugin extends AbstractRouteProviderPlugin
     public function addRoutes(RouteCollection $routeCollection): RouteCollection
     {
         $route = $this->buildRoute('/search-debug/token-source', 'SearchDebugWidget', 'TokenSource', 'indexAction');
-
         $routeCollection->add(static::ROUTE_NAME_TOKEN_SOURCE, $route);
+
+        $analysisPathRoute = $this->buildRoute('/search-debug/token-analysis', 'SearchDebugWidget', 'AnalysisPath', 'indexAction');
+        $routeCollection->add(static::ROUTE_NAME_ANALYSIS_PATH, $analysisPathRoute);
 
         return $routeCollection;
     }

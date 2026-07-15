@@ -4,8 +4,8 @@ Developer tools for inspecting, debugging and understanding OpenSearch/Elasticse
 
 ## Status
 
-🚧 Early development — the first tool (search relevance debugging) is functional; more are planned
-(analysis-pipeline visualization is next).
+🚧 Early development — the first tool (search relevance debugging, including per-token analysis-path
+visualization) is functional; more are planned.
 
 ## Search Debug — Spryker Community Extension
 
@@ -21,6 +21,14 @@ catalog search:
   **index-time analyzer**, so prefix/ngram matches (e.g. searching `öl` matching *Ölpapier*) and
   searchable-attribute contributions (Zed → Search Preferences) are attributed correctly — including
   values no known source claims, which are shown honestly as "other indexed value".
+- **Analysis-path page** — a second magnifier next to each matched fragment on the token-source page opens
+  a page showing exactly how that raw text became the matched token: one box per analyzer stage (char
+  filters, the tokenizer, every token filter, in chain order), connected by the ES operation that produced
+  each one — e.g. `Ölpapier` → *filter: lowercase* → `ölpapier` → *filter: fulltext_index_ngram_filter* →
+  `öl`. Always a straight line, never a tree: even a filter that fans one token into several (ngram,
+  decompounding, synonyms) only contributes the ONE step that actually led to the matched token — the
+  path is reconstructed by walking backward through Lucene's own offsets (which stay relative to the
+  original text across every stage), not by inspecting filter types, so it works for any analyzer chain.
 - **Zero analyzer configuration** — analyzer names are resolved from the live index's mapping
   (`analyzer` / `search_analyzer` of the `full-text` field, with Elasticsearch's own fallback rules), not
   from config, so the package works with any `page.json` customization or the vanilla core schema.
@@ -283,6 +291,16 @@ role), and assign that role to the users who should see debug output.
   own searchable attribute values (labeled with the real attribute key, e.g. "brand") — anything neither
   identifies still shows up, under a generic "other indexed value" label. Tiers render sorted by boost
   descending, with the real, live boost value shown next to each.
+- The analysis-path page (`AnalysisPathController`/`AnalysisPathResolver`) re-analyzes one matched
+  fragment's raw text with `_analyze?explain=true`, but reads the FULL per-stage breakdown
+  (`SearchStringAnalyzer::getAnalysisStages()`/`SearchDebugClientInterface::getTextAnalysisStages()`) —
+  char filters, the tokenizer, and every token filter — instead of collapsing straight to the final
+  tokens. `AnalysisPathResolver` then walks that stage list BACKWARD from the already-known matched
+  token's offset, picking at each step the one earlier-stage token whose offset range contains the
+  current one. Lucene offsets are always relative to the original text, never re-based per stage, so
+  containment alone determines lineage — no filter-specific logic needed, and no branching: only the one
+  lineage that produced the matched token is ever visited, regardless of how many sibling tokens an
+  earlier stage's token fanned out into.
 
 ## Limitations
 

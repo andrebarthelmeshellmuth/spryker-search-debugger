@@ -1,3 +1,6 @@
+// For $search-debug-feature-accent-color below.
+@import '../../components/molecules/search-debug-tokens/search-debug-palette';
+
 // Standalone debug utility page (opened via the SRP's per-token magnifying-glass link, in a new tab) —
 // kept deliberately plain, no product-card/grid styling to coordinate with.
 .token-source-page {
@@ -56,6 +59,10 @@ $token-source-field-label-color: $setting-color-darker;
 }
 
 .token-source-field__label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: rem(8);
     padding: rem(6) rem(14);
     border-radius: rem(6) rem(6) 0 0;
     background-color: $token-source-field-label-color;
@@ -63,6 +70,30 @@ $token-source-field-label-color: $setting-color-darker;
     font-family: monospace;
     font-size: rem(12);
     word-break: break-word;
+}
+
+// Opens the analysis-path page for this exact matched fragment — reuses the same feature-accent color
+// as the token-source link on the SRP overlay, so both read as the same "go deeper" affordance.
+.token-source-field__analysis-link {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: rem(18);
+    height: rem(18);
+    border-radius: 50%;
+    background-color: $search-debug-feature-accent-color;
+    color: $setting-color-white;
+
+    .icon {
+        width: rem(10);
+        height: rem(10);
+    }
+
+    &:hover,
+    &:focus {
+        background-color: darken($search-debug-feature-accent-color, 8%);
+    }
 }
 
 .token-source-field__value {

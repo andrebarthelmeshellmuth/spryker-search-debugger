@@ -1,4 +1,4 @@
-{# @var data.tiers array<array{key: string, labelKey: string, boost: int, rows: array<array{labelKeys: array<string>, matched: bool, highlightedHtml: string|null}>}> #}
+{# @var data.tiers array<array{key: string, labelKey: string, boost: int, rows: array<array{labelKeys: array<string>, matched: bool, highlightedHtml: string|null, element: string|null}>}> #}
 
 {% extends template('page-blank') %}
 
@@ -35,6 +35,24 @@
                         <div class="token-source-field {{ row.matched ? 'token-source-field--matched' : 'token-source-field--unmatched' }} {{ isAmbiguous ? 'token-source-field--ambiguous' : '' }}">
                             <div class="token-source-field__label" title="{{ isAmbiguous ? ('search_debug.token_source.field.ambiguous_hint' | trans) : '' }}">
                                 {{ row.labelKeys | map(labelKey => labelKey | trans) | join(' / ') }}
+                                {% if row.matched and row.element is not null %}
+                                    {# Opens the analysis-path page for THIS exact matched element — re-analyzed
+                                       server-side from `text`+`token` alone, no product/source context needed
+                                       there, so passing the raw element text through the URL is enough. #}
+                                    <a
+                                        href="{{ url('search-debug/token-analysis', { text: row.element, token: data.token }) }}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="token-source-field__analysis-link"
+                                        title="{{ 'search_debug.token_analysis.open' | trans }}"
+                                    >
+                                        {% include atom('icon') with {
+                                            data: {
+                                                name: 'search',
+                                            },
+                                        } only %}
+                                    </a>
+                                {% endif %}
                             </div>
                             <div class="token-source-field__value">{%- if row.highlightedHtml is not null -%}
                                 {{- row.highlightedHtml | raw -}}

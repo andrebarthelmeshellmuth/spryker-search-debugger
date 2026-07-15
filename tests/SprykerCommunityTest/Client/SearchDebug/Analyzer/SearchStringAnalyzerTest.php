@@ -149,4 +149,46 @@ class SearchStringAnalyzerTest extends Unit
         // Assert
         $this->assertSame([], $tokenOffsets);
     }
+
+    /**
+     * Every stage of the real index-time pipeline, in chain order: the tokenizer first (whole words,
+     * lowercasing not yet applied), then each token filter. This is the same `_analyze` shape
+     * `getTextTokenOffsets()` above reads, just without collapsing everything down to the final stage —
+     * a real round-trip is the only way to confirm the stage names/order this shop's config actually
+     * produces (`lowercase` then the edge-ngram filter — no char filters, no decompounder, no synonyms).
+     *
+     * @return void
+     */
+    public function testGetTextAnalysisStagesReturnsEveryPipelineStageInChainOrder(): void
+    {
+        // Act
+        $stages = $this->tester->getSearchDebugClient()->getTextAnalysisStages('Ölpapier');
+
+        // Assert
+        $this->assertCount(3, $stages);
+
+        $this->assertSame('tokenizer: standard', $stages[0]['operation']);
+        $this->assertSame([['token' => 'Ölpapier', 'startOffset' => 0, 'endOffset' => 8]], $stages[0]['tokens']);
+
+        $this->assertSame('filter: lowercase', $stages[1]['operation']);
+        $this->assertSame([['token' => 'ölpapier', 'startOffset' => 0, 'endOffset' => 8]], $stages[1]['tokens']);
+
+        $this->assertStringContainsString('filter: ', $stages[2]['operation']);
+        $this->assertContains(
+            ['token' => 'öl', 'startOffset' => 0, 'endOffset' => 8],
+            $stages[2]['tokens'],
+        );
+    }
+
+    /**
+     * @return void
+     */
+    public function testGetTextAnalysisStagesReturnsAnEmptyListForEmptyText(): void
+    {
+        // Act
+        $stages = $this->tester->getSearchDebugClient()->getTextAnalysisStages('');
+
+        // Assert
+        $this->assertSame([], $stages);
+    }
 }

@@ -1,0 +1,50 @@
+// For $search-debug-feature-accent-color below — the same dedicated feature accent used by the trigger
+// button and magnifying-glass links elsewhere in this widget.
+@import '../../components/molecules/search-debug-tokens/search-debug-palette';
+
+// Standalone debug utility page (opened via the token-source page's per-fragment magnifying-glass link,
+// in a new tab) — kept deliberately plain, same posture as token-source.scss.
+.token-analysis-page {
+    padding: rem(24) 0;
+}
+
+// One box per stage's string state, connected top to bottom by a labeled arrow showing the ES operation
+// that produced the NEXT box from this one — always a straight line, never a branching tree (see the
+// twig comment above the loop for why that's structurally guaranteed).
+.token-analysis-path {
+    margin-top: rem(24);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.token-analysis-path__step {
+    width: 100%;
+    padding: rem(10) rem(16);
+    border: 1px solid $setting-color-light;
+    border-radius: rem(8);
+    font-family: monospace;
+    font-size: rem(14);
+    text-align: center;
+    overflow-wrap: break-word;
+
+    // The final step is the actual matched token — the whole point of the page — so it's the one place
+    // color is allowed, reusing the search-debug feature accent rather than introducing a new color.
+    &--final {
+        border-color: $search-debug-feature-accent-color;
+        border-width: rem(2);
+        font-weight: fw(bold);
+    }
+}
+
+.token-analysis-path__operation {
+    margin: rem(6) 0;
+    color: $setting-color-darker;
+    font-family: monospace;
+    font-size: rem(12);
+    text-align: center;
+
+    &::before {
+        content: '↓ ';
+    }
+}
