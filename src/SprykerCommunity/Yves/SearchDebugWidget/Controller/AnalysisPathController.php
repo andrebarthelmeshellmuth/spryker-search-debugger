@@ -77,7 +77,7 @@ class AnalysisPathController extends AbstractController
 
         $path = $this->getFactory()
             ->createAnalysisPathResolver()
-            ->resolve($text, $offset['startOffset'], $offset['endOffset']);
+            ->resolve($text, $token, $offset['startOffset'], $offset['endOffset']);
 
         if ($path === null) {
             throw new NotFoundHttpException('Could not reconstruct an analysis path for this token.');

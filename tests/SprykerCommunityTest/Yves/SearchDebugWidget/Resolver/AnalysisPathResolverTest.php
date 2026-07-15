@@ -58,7 +58,7 @@ class AnalysisPathResolverTest extends Unit
         $resolver = new AnalysisPathResolver($searchDebugClientMock);
 
         // Act
-        $path = $resolver->resolve('Ölpapier', 0, 8);
+        $path = $resolver->resolve('Ölpapier', 'öl', 0, 8);
 
         // Assert
         $this->assertSame(
@@ -66,6 +66,54 @@ class AnalysisPathResolverTest extends Unit
                 ['text' => 'Ölpapier', 'operation' => null],
                 ['text' => 'ölpapier', 'operation' => 'filter: lowercase'],
                 ['text' => 'öl', 'operation' => 'filter: fulltext_index_ngram_filter'],
+            ],
+            $path,
+        );
+    }
+
+    /**
+     * Regression test: an edge-ngram filter reports every prefix of a word at the SAME whole-word
+     * offset (see the fixture in the test above — "öl", "ölp", "ölpapier" all span [0,8)), so matching
+     * the starting token by offset ALONE picks whichever one happens to come first in the array, not
+     * necessarily the one actually being asked about. Requesting the LONGEST sibling here (not the
+     * first array entry) would return "öl"'s path if `resolve()` silently ignored $token.
+     *
+     * @return void
+     */
+    public function testResolveDisambiguatesBetweenSiblingsThatShareTheExactSameOffset(): void
+    {
+        // Arrange
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->method('getTextAnalysisStages')->willReturn([
+            [
+                'operation' => 'tokenizer: standard',
+                'tokens' => [['token' => 'Ölpapier', 'startOffset' => 0, 'endOffset' => 8]],
+            ],
+            [
+                'operation' => 'filter: lowercase',
+                'tokens' => [['token' => 'ölpapier', 'startOffset' => 0, 'endOffset' => 8]],
+            ],
+            [
+                'operation' => 'filter: fulltext_index_ngram_filter',
+                'tokens' => [
+                    ['token' => 'öl', 'startOffset' => 0, 'endOffset' => 8],
+                    ['token' => 'ölp', 'startOffset' => 0, 'endOffset' => 8],
+                    ['token' => 'ölpapier', 'startOffset' => 0, 'endOffset' => 8],
+                ],
+            ],
+        ]);
+
+        $resolver = new AnalysisPathResolver($searchDebugClientMock);
+
+        // Act — same text and offsets as the test above, but asking about the LAST (longest) sibling.
+        $path = $resolver->resolve('Ölpapier', 'ölpapier', 0, 8);
+
+        // Assert
+        $this->assertSame(
+            [
+                ['text' => 'Ölpapier', 'operation' => null],
+                ['text' => 'ölpapier', 'operation' => 'filter: lowercase'],
+                ['text' => 'ölpapier', 'operation' => 'filter: fulltext_index_ngram_filter'],
             ],
             $path,
         );
@@ -100,7 +148,7 @@ class AnalysisPathResolverTest extends Unit
         $resolver = new AnalysisPathResolver($searchDebugClientMock);
 
         // Act
-        $path = $resolver->resolve('haustuere', 4, 9);
+        $path = $resolver->resolve('haustuere', 'tuere', 4, 9);
 
         // Assert — only the "tuere" lineage appears; "haus" is never part of the result.
         $this->assertSame(
@@ -124,7 +172,7 @@ class AnalysisPathResolverTest extends Unit
         $resolver = new AnalysisPathResolver($searchDebugClientMock);
 
         // Act
-        $path = $resolver->resolve('anything', 0, 3);
+        $path = $resolver->resolve('anything', 'any', 0, 3);
 
         // Assert
         $this->assertNull($path);
@@ -147,7 +195,7 @@ class AnalysisPathResolverTest extends Unit
         $resolver = new AnalysisPathResolver($searchDebugClientMock);
 
         // Act — offsets don't match the one real token at all (stale/re-indexed document scenario).
-        $path = $resolver->resolve('cable', 10, 15);
+        $path = $resolver->resolve('cable', 'cable', 10, 15);
 
         // Assert
         $this->assertNull($path);
@@ -179,7 +227,7 @@ class AnalysisPathResolverTest extends Unit
         $resolver = new AnalysisPathResolver($searchDebugClientMock);
 
         // Act
-        $path = $resolver->resolve('Cable', 0, 5);
+        $path = $resolver->resolve('Cable', 'cable', 0, 5);
 
         // Assert — stops at the point it can no longer find an ancestor, rather than throwing.
         $this->assertSame(

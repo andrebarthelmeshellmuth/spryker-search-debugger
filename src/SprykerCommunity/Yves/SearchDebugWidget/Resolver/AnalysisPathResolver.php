@@ -30,12 +30,13 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
      * {@inheritDoc}
      *
      * @param string $text
+     * @param string $token
      * @param int $startOffset
      * @param int $endOffset
      *
      * @return array<int, array{text: string, operation: string|null}>|null
      */
-    public function resolve(string $text, int $startOffset, int $endOffset): ?array
+    public function resolve(string $text, string $token, int $startOffset, int $endOffset): ?array
     {
         $stages = $this->searchDebugClient->getTextAnalysisStages($text);
 
@@ -43,8 +44,12 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
             return null;
         }
 
+        // Matching by offset ALONE is not enough to anchor the starting point: an edge-ngram filter
+        // reports every prefix of a word at the SAME whole-word offset (e.g. "ca", "cab", "cable" and
+        // "cables" all span the same range for the word "Cables") — the token TEXT is what actually
+        // picks out the one we were asked for among same-offset siblings.
         $lastStageIndex = array_key_last($stages);
-        $currentToken = $this->findToken($stages[$lastStageIndex]['tokens'], $startOffset, $endOffset);
+        $currentToken = $this->findToken($stages[$lastStageIndex]['tokens'], $token, $startOffset, $endOffset);
 
         if ($currentToken === null) {
             return null;
@@ -79,16 +84,21 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
 
     /**
      * @param array<array{token: string, startOffset: int, endOffset: int}> $tokens
+     * @param string $token
      * @param int $startOffset
      * @param int $endOffset
      *
      * @return array{token: string, startOffset: int, endOffset: int}|null
      */
-    protected function findToken(array $tokens, int $startOffset, int $endOffset): ?array
+    protected function findToken(array $tokens, string $token, int $startOffset, int $endOffset): ?array
     {
-        foreach ($tokens as $token) {
-            if ($token['startOffset'] === $startOffset && $token['endOffset'] === $endOffset) {
-                return $token;
+        foreach ($tokens as $candidate) {
+            if (
+                $candidate['token'] === $token
+                && $candidate['startOffset'] === $startOffset
+                && $candidate['endOffset'] === $endOffset
+            ) {
+                return $candidate;
             }
         }
 
