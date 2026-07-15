@@ -56,6 +56,15 @@ class SearchDebugConfig extends AbstractSharedConfig
     public const KEY_PRODUCTS = 'products';
 
     /**
+     * Key of the real field=>boost pairs the query's `multi_match` clause actually used (e.g.
+     * `['full-text' => 1, 'full-text-boosted' => 5]`), within the search debug result data — captured live
+     * off the query by `QueryFieldBoostReader`, never hardcoded or assumed.
+     *
+     * @var string
+     */
+    public const KEY_FIELD_BOOSTS = 'fieldBoosts';
+
+    /**
      * CSS class assigned to a query token's badge, `%d` being the 1-based color index.
      *
      * @see \SprykerCommunity\Yves\SearchDebugWidget\Theme\default\components\molecules\search-debug-tokens\search-debug-tokens.scss

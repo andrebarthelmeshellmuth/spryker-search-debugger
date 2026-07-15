@@ -15,6 +15,7 @@ use Elastica\Query\BoolQuery;
 use SprykerCommunity\Client\SearchDebug\SearchDebugFactory;
 use SprykerCommunity\Client\SearchDebug\Plugin\Catalog\SearchDebugQueryExpanderPlugin;
 use SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessCheckerInterface;
+use SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReaderInterface;
 use SprykerCommunityTest\Client\SearchDebug\Plugin\Fixtures\BaseQueryPlugin;
 
 /**
@@ -39,7 +40,14 @@ class SearchDebugQueryExpanderPluginTest extends Unit
     public function testExpandQueryEnablesExplainWhenSearchDebugIsEnabled(): void
     {
         // Arrange
-        $queryExpanderPlugin = $this->createQueryExpanderPlugin(true);
+        $queryFieldBoostReaderMock = $this->createMock(QueryFieldBoostReaderInterface::class);
+        $queryFieldBoostReaderMock
+            ->expects($this->once())
+            ->method('captureFromQuery')
+            ->with($this->isInstanceOf(BaseQueryPlugin::class))
+            ->willReturn(['full-text-boosted' => 5]);
+
+        $queryExpanderPlugin = $this->createQueryExpanderPlugin(true, $queryFieldBoostReaderMock);
 
         // Act
         $searchQuery = $queryExpanderPlugin->expandQuery(new BaseQueryPlugin());
@@ -50,14 +58,16 @@ class SearchDebugQueryExpanderPluginTest extends Unit
 
     /**
      * `explain` is real extra work on the search cluster, so an unpermitted caller must never reach it —
-     * see SearchDebugAccessCheckerTest for the permission gate this delegates to.
+     * see SearchDebugAccessCheckerTest for the permission gate this delegates to. The same gate must keep
+     * an unpermitted caller from triggering `QueryFieldBoostReader::captureFromQuery()` too: it is
+     * harmless in itself, but there is no reason to do the extra work when the result will never be shown.
      *
      * @return void
      */
     public function testExpandQueryLeavesTheQueryUntouchedWhenSearchDebugIsDisabled(): void
     {
         // Arrange
-        $queryExpanderPlugin = $this->createQueryExpanderPlugin(false);
+        $queryExpanderPlugin = $this->createQueryExpanderPlugin(false, null, $this->never());
         $expectedQuery = (new Query())->setQuery(new BoolQuery());
 
         // Act
@@ -70,22 +80,31 @@ class SearchDebugQueryExpanderPluginTest extends Unit
 
     /**
      * @param bool $isSearchDebugEnabled
+     * @param \SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReaderInterface|null $queryFieldBoostReaderMock
+     * @param \PHPUnit\Framework\MockObject\Rule\InvocationOrder|null $createQueryFieldBoostReaderInvocationRule
      *
      * @return \SprykerCommunity\Client\SearchDebug\Plugin\Catalog\SearchDebugQueryExpanderPlugin
      */
-    protected function createQueryExpanderPlugin(bool $isSearchDebugEnabled): SearchDebugQueryExpanderPlugin
-    {
+    protected function createQueryExpanderPlugin(
+        bool $isSearchDebugEnabled,
+        ?QueryFieldBoostReaderInterface $queryFieldBoostReaderMock = null,
+        $createQueryFieldBoostReaderInvocationRule = null
+    ): SearchDebugQueryExpanderPlugin {
         $searchDebugAccessCheckerMock = $this->createMock(SearchDebugAccessCheckerInterface::class);
         $searchDebugAccessCheckerMock
             ->method('isSearchDebugEnabled')
             ->willReturn($isSearchDebugEnabled);
 
         $searchDebugFactoryMock = $this->getMockBuilder(SearchDebugFactory::class)
-            ->onlyMethods(['createSearchDebugAccessChecker'])
+            ->onlyMethods(['createSearchDebugAccessChecker', 'createQueryFieldBoostReader'])
             ->getMock();
         $searchDebugFactoryMock
             ->method('createSearchDebugAccessChecker')
             ->willReturn($searchDebugAccessCheckerMock);
+        $searchDebugFactoryMock
+            ->expects($createQueryFieldBoostReaderInvocationRule ?? $this->any())
+            ->method('createQueryFieldBoostReader')
+            ->willReturn($queryFieldBoostReaderMock ?? $this->createMock(QueryFieldBoostReaderInterface::class));
 
         $queryExpanderPlugin = new SearchDebugQueryExpanderPlugin();
         $queryExpanderPlugin->setFactory($searchDebugFactoryMock);

@@ -116,8 +116,8 @@ class TokenSourceResolverTest extends Unit
         $this->assertSame(static::FULL_TEXT_BOOSTED_BOOSTING_VALUE, $result['tiers'][0]['boost']);
         $this->assertSame(
             [
-                ['labelKey' => 'search_debug.token_source.field.title', 'matched' => true, 'highlightedHtml' => 'HL[Steel Cable]'],
-                ['labelKey' => 'search_debug.token_source.field.sku', 'matched' => false, 'highlightedHtml' => null],
+                ['labelKeys' => ['search_debug.token_source.field.title'], 'matched' => true, 'highlightedHtml' => 'HL[Steel Cable]'],
+                ['labelKeys' => ['search_debug.token_source.field.sku'], 'matched' => false, 'highlightedHtml' => null],
             ],
             $boostedRows,
         );
@@ -127,7 +127,7 @@ class TokenSourceResolverTest extends Unit
         $this->assertSame(1, $result['tiers'][1]['boost']);
         $this->assertSame(
             [
-                ['labelKey' => 'search_debug.token_source.field.abstract_description', 'matched' => true, 'highlightedHtml' => 'HL[A cable for outdoor use]'],
+                ['labelKeys' => ['search_debug.token_source.field.abstract_description'], 'matched' => true, 'highlightedHtml' => 'HL[A cable for outdoor use]'],
             ],
             $fullTextRows,
         );
@@ -163,8 +163,8 @@ class TokenSourceResolverTest extends Unit
         // Assert
         $this->assertSame(
             [
-                ['labelKey' => 'search_debug.token_source.field.other', 'matched' => false, 'highlightedHtml' => 'TXT[rot]'],
-                ['labelKey' => 'search_debug.token_source.field.other', 'matched' => true, 'highlightedHtml' => 'HL[cable-ish attribute]'],
+                ['labelKeys' => ['search_debug.token_source.field.other'], 'matched' => false, 'highlightedHtml' => 'TXT[rot]'],
+                ['labelKeys' => ['search_debug.token_source.field.other'], 'matched' => true, 'highlightedHtml' => 'HL[cable-ish attribute]'],
             ],
             $result['tiers'][0]['rows'],
         );
@@ -198,8 +198,61 @@ class TokenSourceResolverTest extends Unit
         $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US');
 
         // Assert
-        $labelKeys = array_column($result['tiers'][0]['rows'], 'labelKey');
-        $this->assertSame(['search_debug.token_source.field.title'], $labelKeys);
+        $labelKeys = array_column($result['tiers'][0]['rows'], 'labelKeys');
+        $this->assertSame([['search_debug.token_source.field.title']], $labelKeys);
+    }
+
+    /**
+     * When two DIFFERENT named sources contribute the identical text to the same tier (e.g. a merchant
+     * named the same as the product), that text is genuinely indistinguishable once merged into one
+     * document element — the row must list BOTH source labels (labelKeys has more than one entry, in
+     * canonical order) rather than silently picking the first and dropping the other.
+     *
+     * @return void
+     */
+    public function testResolveShowsBothLabelsWhenTwoSourcesContributeIdenticalText(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createProductStorageClientMock([
+            'id_product_abstract' => 123,
+            'name' => 'Acme',
+            'sku' => 'STEEL-1',
+            'merchant_reference' => 'MER000005',
+        ]);
+
+        $merchantStorageClientMock = $this->createMock(MerchantStorageClientInterface::class);
+        $merchantStorageClientMock->method('findOne')
+            ->willReturn((new MerchantStorageTransfer())->setName('Acme'));
+
+        $searchDebugClientMock = $this->createSearchElasticsearchClientMock(
+            [
+                'full-text-boosted' => ['Acme', 'STEEL-1'],
+            ],
+        );
+
+        $resolver = $this->createResolver(
+            $productStorageClientMock,
+            $searchDebugClientMock,
+            null,
+            null,
+            $merchantStorageClientMock,
+        );
+
+        // Act
+        $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US');
+
+        // Assert
+        $this->assertSame(
+            [
+                [
+                    'labelKeys' => ['search_debug.token_source.field.title', 'search_debug.token_source.field.merchant_name'],
+                    'matched' => false,
+                    'highlightedHtml' => null,
+                ],
+                ['labelKeys' => ['search_debug.token_source.field.sku'], 'matched' => false, 'highlightedHtml' => null],
+            ],
+            $result['tiers'][0]['rows'],
+        );
     }
 
     /**
@@ -316,22 +369,215 @@ class TokenSourceResolverTest extends Unit
         // Assert
         $this->assertSame(
             [
-                'search_debug.token_source.field.title',
-                'search_debug.token_source.field.sku',
-                'search_debug.token_source.field.direct_categories',
-                'search_debug.token_source.field.merchant_name',
+                ['search_debug.token_source.field.title'],
+                ['search_debug.token_source.field.sku'],
+                ['search_debug.token_source.field.direct_categories'],
+                ['search_debug.token_source.field.merchant_name'],
             ],
-            array_column($result['tiers'][0]['rows'], 'labelKey'),
+            array_column($result['tiers'][0]['rows'], 'labelKeys'),
         );
         $this->assertSame(
             [
-                'search_debug.token_source.field.concrete_names',
-                'search_debug.token_source.field.concrete_skus',
-                'search_debug.token_source.field.concrete_descriptions',
-                'search_debug.token_source.field.indirect_categories',
+                ['search_debug.token_source.field.concrete_names'],
+                ['search_debug.token_source.field.concrete_skus'],
+                ['search_debug.token_source.field.concrete_descriptions'],
+                ['search_debug.token_source.field.indirect_categories'],
             ],
-            array_column($result['tiers'][1]['rows'], 'labelKey'),
+            array_column($result['tiers'][1]['rows'], 'labelKeys'),
         );
+    }
+
+    /**
+     * Tiers are driven entirely by $fieldBoosts — however many fields the query actually searched, sorted
+     * boost-descending — not a hardcoded two-tier list. A field not covered by `TIER_LABEL_KEYS` (any
+     * `PageIndexMap` field other than the two well-known ones) still gets its own tier, labeled with the
+     * generic fallback rather than dropped.
+     *
+     * @return void
+     */
+    public function testResolveBuildsTiersFromFieldBoostsSortedDescendingWithGenericLabelForAnUnknownField(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createProductStorageClientMock([
+            'id_product_abstract' => 123,
+            'name' => 'Steel Cable',
+            'sku' => 'STEEL-1',
+        ]);
+
+        $searchDebugClientMock = $this->createSearchElasticsearchClientMock(
+            [
+                'full-text-boosted' => ['Steel Cable'],
+                'custom-field' => ['a custom value'],
+                'full-text' => ['a description'],
+            ],
+        );
+
+        $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
+
+        // Act
+        $result = $resolver->resolve(
+            static::PRODUCT_ABSTRACT_SKU,
+            static::TOKEN,
+            'en_US',
+            ['full-text' => 1, 'full-text-boosted' => 5, 'custom-field' => 3],
+        );
+
+        // Assert
+        $this->assertSame(['full-text-boosted', 'custom-field', 'full-text'], array_column($result['tiers'], 'key'));
+        $this->assertSame([5, 3, 1], array_column($result['tiers'], 'boost'));
+        $this->assertSame(
+            [
+                'search_debug.token_source.tier.full_text_boosted',
+                'search_debug.token_source.tier.generic',
+                'search_debug.token_source.tier.full_text',
+            ],
+            array_column($result['tiers'], 'labelKey'),
+        );
+    }
+
+    /**
+     * An empty (or omitted) $fieldBoosts falls back to exactly the old, hardcoded two-tier behavior:
+     * `full-text-boosted` at the constructor-injected boosting value, `full-text` at ES's implicit boost
+     * of 1 — same as calling `resolve()` without the 4th argument at all.
+     *
+     * @return void
+     */
+    public function testResolveFallsBackToTheDefaultTwoTierBehaviorWhenFieldBoostsIsExplicitlyEmpty(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createProductStorageClientMock([
+            'id_product_abstract' => 123,
+            'name' => 'Steel Cable',
+            'sku' => 'STEEL-1',
+        ]);
+
+        $searchDebugClientMock = $this->createSearchElasticsearchClientMock(
+            [
+                'full-text-boosted' => ['Steel Cable'],
+                'full-text' => ['a description'],
+            ],
+        );
+
+        $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
+
+        // Act
+        $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US', []);
+
+        // Assert
+        $this->assertSame(['full-text-boosted', 'full-text'], array_column($result['tiers'], 'key'));
+        $this->assertSame([static::FULL_TEXT_BOOSTED_BOOSTING_VALUE, 1], array_column($result['tiers'], 'boost'));
+    }
+
+    /**
+     * A document element that no named `SOURCE_DEFINITIONS` source claims is checked against the
+     * product's own attribute values next: if it matches one, the row is labeled with the raw attribute
+     * key (e.g. "brand") instead of falling straight to the generic "other" label.
+     *
+     * @return void
+     */
+    public function testResolveLabelsAnUnidentifiedElementWithItsAttributeKeyWhenItMatchesAProductAttribute(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createProductStorageClientMock([
+            'id_product_abstract' => 123,
+            'name' => 'Steel Cable',
+            'sku' => 'STEEL-1',
+            'attributes' => ['brand' => 'Acme'],
+        ]);
+
+        $searchDebugClientMock = $this->createSearchElasticsearchClientMock(
+            [
+                'full-text-boosted' => ['Acme'],
+            ],
+        );
+
+        $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
+
+        // Act
+        $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US');
+
+        // Assert
+        $this->assertSame(
+            [
+                ['labelKeys' => ['brand'], 'matched' => false, 'highlightedHtml' => 'TXT[Acme]'],
+            ],
+            $result['tiers'][0]['rows'],
+        );
+    }
+
+    /**
+     * A document element neither a named source NOR any product attribute value claims still falls back
+     * to the generic "other indexed value" label — this existing behavior must keep working once
+     * attribute-based labeling is checked first.
+     *
+     * @return void
+     */
+    public function testResolveStillLabelsAnElementAsOtherWhenNoAttributeValueMatchesEither(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createProductStorageClientMock([
+            'id_product_abstract' => 123,
+            'name' => 'Steel Cable',
+            'sku' => 'STEEL-1',
+            'attributes' => ['brand' => 'Acme'],
+        ]);
+
+        $searchDebugClientMock = $this->createSearchElasticsearchClientMock(
+            [
+                'full-text-boosted' => ['some unrelated value'],
+            ],
+        );
+
+        $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
+
+        // Act
+        $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US');
+
+        // Assert
+        $this->assertSame(
+            [
+                ['labelKeys' => ['search_debug.token_source.field.other'], 'matched' => false, 'highlightedHtml' => 'TXT[some unrelated value]'],
+            ],
+            $result['tiers'][0]['rows'],
+        );
+    }
+
+    /**
+     * Concrete-level attribute values (from `getBulkProductConcreteStorageData()`) feed the same
+     * value=>attributeKey map as the abstract-level `attributes`, so a value only present on a concrete
+     * variant is still labeled with its real attribute key rather than falling to "other".
+     *
+     * @return void
+     */
+    public function testResolveLabelsAnUnidentifiedElementWithAConcreteLevelAttributeKey(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createProductStorageClientMock([
+            'id_product_abstract' => 123,
+            'name' => 'Cable',
+            'sku' => 'ABSTRACT-1',
+            'attribute_map' => ['product_concrete_ids' => ['CONCRETE-1' => 11]],
+        ]);
+        $productStorageClientMock->method('getBulkProductConcreteStorageData')
+            ->with([11], 'en_US')
+            ->willReturn([
+                ['name' => 'Cable Red', 'sku' => 'CONCRETE-1', 'description' => '', 'attributes' => ['color' => 'Red']],
+            ]);
+
+        $searchDebugClientMock = $this->createSearchElasticsearchClientMock(
+            [
+                'full-text' => ['Cable Red', 'CONCRETE-1', 'Red'],
+            ],
+        );
+
+        $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
+
+        // Act
+        $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US');
+
+        // Assert
+        $labelKeys = array_merge(...array_column($result['tiers'][1]['rows'], 'labelKeys'));
+        $this->assertContains('color', $labelKeys);
     }
 
     /**

@@ -12,8 +12,8 @@ namespace SprykerCommunity\Client\SearchDebug\Schema;
 use Elastica\Client;
 use Elastica\Exception\ExceptionInterface;
 use Generated\Shared\Transfer\SearchIndexSchemaTransfer;
-use SprykerCommunity\Client\SearchDebug\SearchDebugConfig;
 use Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolverInterface;
+use SprykerCommunity\Client\SearchDebug\SearchDebugConfig;
 
 class IndexSchemaReader implements IndexSchemaReaderInterface
 {
@@ -63,7 +63,7 @@ class IndexSchemaReader implements IndexSchemaReaderInterface
         Client $elasticaClient,
         IndexNameResolverInterface $indexNameResolver,
         IndexSchemaMapperInterface $indexSchemaMapper,
-        SearchDebugConfig $config
+        SearchDebugConfig $config,
     ) {
         $this->elasticaClient = $elasticaClient;
         $this->indexNameResolver = $indexNameResolver;

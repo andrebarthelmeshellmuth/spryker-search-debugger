@@ -12,12 +12,12 @@ namespace SprykerCommunity\Yves\SearchDebugWidget\Resolver;
 use Generated\Shared\Search\PageIndexMap;
 use Generated\Shared\Transfer\CategoryNodeStorageTransfer;
 use Generated\Shared\Transfer\MerchantStorageCriteriaTransfer;
-use SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface;
 use Spryker\Client\CategoryStorage\CategoryStorageClientInterface;
 use Spryker\Client\MerchantStorage\MerchantStorageClientInterface;
 use Spryker\Client\ProductCategoryStorage\ProductCategoryStorageClientInterface;
 use Spryker\Client\ProductStorage\ProductStorageClientInterface;
 use Spryker\Client\Store\StoreClientInterface;
+use SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface;
 
 class TokenSourceResolver implements TokenSourceResolverInterface
 {
@@ -74,6 +74,17 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     protected const STORAGE_KEY_ATTRIBUTE_MAP = 'attribute_map';
 
     /**
+     * Both abstract and concrete storage documents carry a flat `attributes` map (machine attribute key =>
+     * localized value, e.g. `{"brand": "Example Company", "farbe": "Rot"}`) — confirmed live against this
+     * shop's own product storage data. Already fetched by this resolver (no extra client call, no Zed
+     * round trip needed) via the same `findProductAbstractStorageDataByMapping()`/
+     * `getBulkProductConcreteStorageData()` calls used for name/sku/description.
+     *
+     * @var string
+     */
+    protected const STORAGE_KEY_ATTRIBUTES = 'attributes';
+
+    /**
      * @var string
      */
     protected const STORAGE_KEY_PRODUCT_CONCRETE_IDS = 'product_concrete_ids';
@@ -126,23 +137,39 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     protected const KEY_MERCHANT_NAME = 'merchantName';
 
     /**
-     * Label for document elements no known source claims — e.g. searchable product attributes
-     * (Zed > Search Preferences, `spy_product_search_attribute_map`) or any custom map-expander plugin.
+     * Label for document elements no known source AND no product attribute claims — e.g. a custom map
+     * expander plugin contributing something this resolver has no way to identify.
      *
      * @var string
      */
     protected const LABEL_KEY_OTHER = 'search_debug.token_source.field.other';
 
     /**
-     * One definition per known source value feeding the two full-text fields: display label and the
-     * ES-level field ("tier") the indexing pipeline writes it into — mirrors
-     * `ProductAbstractSearchDataMapper::buildPageMap()` (name/sku → boosted) and the category/merchant
-     * expanders (direct category + merchant name → boosted, everything else → unboosted).
+     * Fallback tier label for a field $fieldBoosts reports that isn't one of the two well-known
+     * `PageIndexMap` constants below (see {@link TIER_LABEL_KEYS}) — interpolates the raw field name and
+     * boost directly rather than requiring a translation key per possible project-specific field name.
+     *
+     * @var string
+     */
+    protected const LABEL_KEY_TIER_GENERIC = 'search_debug.token_source.tier.generic';
+
+    /**
+     * One definition per known NAMED source value feeding the full-text fields: display label and the
+     * ES-level field ("tier") the indexing pipeline writes it into.
+     *
+     * This tier assignment is THIS demo shop's default `ProductPageSearchDependencyProvider` wiring
+     * (name/sku/direct-category/merchant-name → boosted, everything else → unboosted) — it is PHP plugin
+     * registration code (`getProductAbstractMapExpanderPlugins()`), not something the cluster or Zed
+     * exposes generically, so a project registering a different set of map-expander plugins (or moving a
+     * field between tiers) needs to edit this list to match its own wiring; nothing here can discover
+     * that automatically. See the package README's "Limitations" section.
      *
      * Unlike earlier revisions of this class, this list no longer decides WHAT gets checked — the real
      * indexed document does. It only assigns readable labels to document elements it can identify; an
-     * element no entry claims still shows up, under the {@link LABEL_KEY_OTHER} label, so a new
-     * contributor on the indexing side degrades to a generic label rather than disappearing.
+     * element no entry claims is checked against the product's own attribute values next (see
+     * `collectAttributeLabelsByValue()`), and only falls back to the generic {@link LABEL_KEY_OTHER} label
+     * if neither identifies it — so a new contributor on the indexing side degrades gracefully rather than
+     * disappearing.
      *
      * @var array<string, array{labelKey: string, tier: string}>
      */
@@ -186,7 +213,10 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     ];
 
     /**
-     * Tier display order: boosted first, matching the order the SRP's own token badges read in.
+     * Nicer labels for the two well-known `PageIndexMap` fields, when $fieldBoosts (the query's real,
+     * live field=>boost pairs) reports them — actual tier ORDER at render time is boost-descending, driven
+     * by $fieldBoosts, not by this list; a field not listed here still gets its own tier, with a generic
+     * label (see {@link LABEL_KEY_TIER_GENERIC}), not silently dropped.
      *
      * @var array<string, string>
      */
@@ -267,7 +297,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
         SearchDebugClientInterface $searchDebugClient,
         StoreClientInterface $storeClient,
         TokenHighlighterInterface $tokenHighlighter,
-        int $fullTextBoostedBoostingValue
+        int $fullTextBoostedBoostingValue,
     ) {
         $this->productStorageClient = $productStorageClient;
         $this->productCategoryStorageClient = $productCategoryStorageClient;
@@ -283,6 +313,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      * @param string $productAbstractSku
      * @param string $token
      * @param string $localeName
+     * @param array<string, int> $fieldBoosts
      *
      * @return array{
      *     productTitle: string,
@@ -291,11 +322,11 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      *         key: string,
      *         labelKey: string,
      *         boost: int,
-     *         rows: array<int, array{labelKey: string, matched: bool, highlightedHtml: string|null}>,
+     *         rows: array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null}>,
      *     }>,
      * }|null
      */
-    public function resolve(string $productAbstractSku, string $token, string $localeName): ?array
+    public function resolve(string $productAbstractSku, string $token, string $localeName, array $fieldBoosts = []): ?array
     {
         $productData = $this->productStorageClient->findProductAbstractStorageDataByMapping(
             static::MAPPING_TYPE_SKU,
@@ -314,11 +345,12 @@ class TokenSourceResolver implements TokenSourceResolverInterface
         );
 
         $sourceKeysByValue = $this->collectSourceKeysByValue($productData, $localeName);
+        $attributeLabelByValue = $this->collectAttributeLabelsByValue($productData, $localeName);
 
         return [
             'productTitle' => (string)($productData[static::STORAGE_KEY_NAME] ?? ''),
             'productSku' => (string)($productData[static::STORAGE_KEY_SKU] ?? ''),
-            'tiers' => $this->buildTiers($documentData ?? [], $sourceKeysByValue, $token),
+            'tiers' => $this->buildTiers($documentData ?? [], $sourceKeysByValue, $attributeLabelByValue, $token, $fieldBoosts),
         ];
     }
 
@@ -326,35 +358,44 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      * Attributes each tier's real document elements: analyzes every element with the index-time
      * analyzer, marks the ones containing the token, and labels each element via the per-tier
      * value-to-source lookup — falling back to the generic "other indexed value" label for elements no
-     * known source claims (searchable attributes, custom expanders).
+     * known source or attribute claims.
+     *
+     * Which tiers exist, and in what order, is driven entirely by $fieldBoosts — the query's real,
+     * live field=>boost pairs (see `resolveFieldBoosts()`) — sorted boost-descending, not a fixed count:
+     * a query searching three fields shows three tiers, one searching five shows five.
      *
      * @param array<string, mixed> $documentData
-     * @param array<string, array<string, string>> $sourceKeysByValue
+     * @param array<string, array<string, array<int, string>>> $sourceKeysByValue
+     * @param array<string, string> $attributeLabelByValue
      * @param string $token
+     * @param array<string, int> $fieldBoosts
      *
      * @return array<int, array{
      *     key: string,
      *     labelKey: string,
      *     boost: int,
-     *     rows: array<int, array{labelKey: string, matched: bool, highlightedHtml: string|null}>,
+     *     rows: array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null}>,
      * }>
      */
-    protected function buildTiers(array $documentData, array $sourceKeysByValue, string $token): array
-    {
-        $tierBoosts = [
-            PageIndexMap::FULL_TEXT_BOOSTED => $this->fullTextBoostedBoostingValue,
-            PageIndexMap::FULL_TEXT => 1,
-        ];
+    protected function buildTiers(
+        array $documentData,
+        array $sourceKeysByValue,
+        array $attributeLabelByValue,
+        string $token,
+        array $fieldBoosts,
+    ): array {
+        $fieldBoosts = $this->resolveFieldBoosts($fieldBoosts);
+        arsort($fieldBoosts);
 
         $tiers = [];
-        foreach (static::TIER_LABEL_KEYS as $tier => $tierLabelKey) {
+        foreach ($fieldBoosts as $tier => $boost) {
             $elements = array_map('strval', (array)($documentData[$tier] ?? []));
 
             $tiers[] = [
                 'key' => $tier,
-                'labelKey' => $tierLabelKey,
-                'boost' => $tierBoosts[$tier],
-                'rows' => $this->buildTierRows($elements, $sourceKeysByValue[$tier] ?? [], $token),
+                'labelKey' => static::TIER_LABEL_KEYS[$tier] ?? static::LABEL_KEY_TIER_GENERIC,
+                'boost' => $boost,
+                'rows' => $this->buildTierRows($elements, $sourceKeysByValue[$tier] ?? [], $attributeLabelByValue, $token),
             ];
         }
 
@@ -362,20 +403,48 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     }
 
     /**
-     * One row per identified source (in canonical definition order), showing the matched elements
-     * highlighted or a compact "no match"; unidentified elements follow as one row each, ALWAYS showing
-     * their text — for those, the value itself is the diagnostic information.
+     * Falls back to this demo shop's own default field=>boost pairs when $fieldBoosts is empty — e.g. a
+     * link generated before this parameter existed, or a hand-typed URL. The default mirrors
+     * `CatalogSearchQueryPlugin::createFulltextSearchQuery()`'s two fields: `full-text-boosted` at this
+     * shop's configured boost, `full-text` at Elasticsearch's implicit boost of 1 (no `^` suffix).
+     *
+     * @param array<string, int> $fieldBoosts
+     *
+     * @return array<string, int>
+     */
+    protected function resolveFieldBoosts(array $fieldBoosts): array
+    {
+        if ($fieldBoosts !== []) {
+            return $fieldBoosts;
+        }
+
+        return [
+            PageIndexMap::FULL_TEXT_BOOSTED => $this->fullTextBoostedBoostingValue,
+            PageIndexMap::FULL_TEXT => 1,
+        ];
+    }
+
+    /**
+     * One row per identified source or GROUP of colliding sources (in canonical definition order, see
+     * {@see collectSourceKeysByValue()}), showing the matched elements highlighted or a compact "no
+     * match"; a value two or more sources both claim renders as a single row with multiple `labelKeys`
+     * instead of picking one and silently dropping the rest — the caller (the twig template) is expected
+     * to join and display all of them, honestly communicating that the value can't be attributed to just
+     * one. Elements no named source claims are matched against the product's own attribute values next
+     * (label = the real attribute key); anything still unidentified follows as one row each, ALWAYS
+     * showing their text — for those, the value itself is the diagnostic information.
      *
      * @param array<int, string> $elements
-     * @param array<string, string> $sourceKeyByValue
+     * @param array<string, array<int, string>> $sourceKeysByValue
+     * @param array<string, string> $attributeLabelByValue
      * @param string $token
      *
-     * @return array<int, array{labelKey: string, matched: bool, highlightedHtml: string|null}>
+     * @return array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null}>
      */
-    protected function buildTierRows(array $elements, array $sourceKeyByValue, string $token): array
+    protected function buildTierRows(array $elements, array $sourceKeysByValue, array $attributeLabelByValue, string $token): array
     {
-        $matchedHtmlBySourceKey = [];
-        $presentSourceKeys = [];
+        $matchedHtmlByGroupKey = [];
+        $sourceKeysByGroupKey = [];
         $otherRows = [];
 
         foreach ($elements as $element) {
@@ -384,11 +453,13 @@ class TokenSourceResolver implements TokenSourceResolverInterface
             }
 
             $matches = $this->findTokenMatches($element, $token);
-            $sourceKey = $sourceKeyByValue[$element] ?? null;
+            $sourceKeys = $sourceKeysByValue[$element] ?? [];
 
-            if ($sourceKey === null) {
+            if ($sourceKeys === []) {
+                $attributeLabel = $attributeLabelByValue[$element] ?? null;
+
                 $otherRows[] = [
-                    'labelKey' => static::LABEL_KEY_OTHER,
+                    'labelKeys' => [$attributeLabel ?? static::LABEL_KEY_OTHER],
                     'matched' => $matches !== [],
                     'highlightedHtml' => $this->tokenHighlighter->highlight($element, $matches),
                 ];
@@ -396,21 +467,26 @@ class TokenSourceResolver implements TokenSourceResolverInterface
                 continue;
             }
 
-            $presentSourceKeys[$sourceKey] = true;
-            if ($matches !== []) {
-                $matchedHtmlBySourceKey[$sourceKey][] = $this->tokenHighlighter->highlight($element, $matches);
-            }
-        }
+            // $sourceKeys is already in canonical order (built that way by collectSourceKeysByValue()),
+            // so the group key doubles as a stable identity for "this exact combination of sources".
+            $groupKey = implode('|', $sourceKeys);
+            $sourceKeysByGroupKey[$groupKey] = $sourceKeys;
 
-        $rows = [];
-        foreach (static::SOURCE_DEFINITIONS as $sourceKey => $definition) {
-            if (!isset($presentSourceKeys[$sourceKey])) {
+            if ($matches === []) {
                 continue;
             }
 
-            $matchedHtml = $matchedHtmlBySourceKey[$sourceKey] ?? [];
+            $matchedHtmlByGroupKey[$groupKey][] = $this->tokenHighlighter->highlight($element, $matches);
+        }
+
+        $canonicalOrder = array_flip(array_keys(static::SOURCE_DEFINITIONS));
+        uasort($sourceKeysByGroupKey, fn (array $a, array $b): int => $canonicalOrder[$a[0]] <=> $canonicalOrder[$b[0]]);
+
+        $rows = [];
+        foreach ($sourceKeysByGroupKey as $groupKey => $sourceKeys) {
+            $matchedHtml = $matchedHtmlByGroupKey[$groupKey] ?? [];
             $rows[] = [
-                'labelKey' => $definition['labelKey'],
+                'labelKeys' => array_map(fn (string $sourceKey): string => static::SOURCE_DEFINITIONS[$sourceKey]['labelKey'], $sourceKeys),
                 'matched' => $matchedHtml !== [],
                 'highlightedHtml' => $matchedHtml !== [] ? implode("\n", $matchedHtml) : null,
             ];
@@ -438,15 +514,19 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     }
 
     /**
-     * Builds the per-tier lookup of raw source value => source key used to label document elements.
+     * Builds the per-tier lookup of raw source value => source keys used to label document elements.
      * The indexing pipeline writes each source value into its tier verbatim, so plain string equality
-     * identifies an element's origin; a value contributed by two sources in the SAME tier keeps the
-     * first (canonical-order) source's label.
+     * identifies an element's origin — but the SAME string can legitimately be contributed by two
+     * DIFFERENT sources (e.g. a merchant name that happens to equal the product title): once merged into
+     * one document element, those are genuinely indistinguishable, not a case this resolver can resolve
+     * with more cleverness. Rather than silently keeping one source and dropping the other (the earlier
+     * behavior), every colliding source key is kept, in canonical definition order — {@see buildTierRows()}
+     * renders a value with multiple source keys as one honestly-ambiguous row instead of guessing.
      *
      * @param array<string, mixed> $productData
      * @param string $localeName
      *
-     * @return array<string, array<string, string>>
+     * @return array<string, array<string, array<int, string>>>
      */
     protected function collectSourceKeysByValue(array $productData, string $localeName): array
     {
@@ -469,7 +549,12 @@ class TokenSourceResolver implements TokenSourceResolverInterface
                     continue;
                 }
 
-                $sourceKeysByValue[$definition['tier']][$value] ??= $sourceKey;
+                $existingSourceKeys = $sourceKeysByValue[$definition['tier']][$value] ?? [];
+                if (!in_array($sourceKey, $existingSourceKeys, true)) {
+                    $existingSourceKeys[] = $sourceKey;
+                }
+
+                $sourceKeysByValue[$definition['tier']][$value] = $existingSourceKeys;
             }
         }
 
@@ -514,6 +599,75 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     }
 
     /**
+     * Labels document elements no NAMED source claims (see `SOURCE_DEFINITIONS`) by matching them against
+     * the product's own searchable attribute values — both abstract- and concrete-level `attributes`, a
+     * flat machine-key => localized-value map already present on both storage documents. This means a
+     * shop's Search Preferences attributes (Zed > Catalog > Manage Attributes) show up under their real
+     * attribute key instead of the generic "other indexed value" label — with zero Zed calls, since this
+     * data is already reachable via the same Yves storage clients this resolver already uses.
+     *
+     * A value shared by two different attributes keeps the first-seen attribute key — unlike
+     * `collectSourceKeysByValue()`'s NAMED sources (which now show every colliding source honestly, see
+     * that method's docblock), this is a smaller, still-open simplification: two attributes on the same
+     * product sharing the identical value is a narrower case than a named source colliding with anything,
+     * and this label is only ever consulted as a fallback after every named source has already missed —
+     * a named-source collision reaching a row is always shown fully; only an attribute-vs-attribute
+     * collision can still pick just one label. Worth the same treatment later if it turns out to matter.
+     *
+     * @param array<string, mixed> $productData
+     * @param string $localeName
+     *
+     * @return array<string, string>
+     */
+    protected function collectAttributeLabelsByValue(array $productData, string $localeName): array
+    {
+        $attributeLabelByValue = [];
+
+        foreach ((array)($productData[static::STORAGE_KEY_ATTRIBUTES] ?? []) as $attributeKey => $value) {
+            $this->addAttributeLabel($attributeLabelByValue, (string)$attributeKey, $value);
+        }
+
+        $productConcreteIds = $productData[static::STORAGE_KEY_ATTRIBUTE_MAP][static::STORAGE_KEY_PRODUCT_CONCRETE_IDS] ?? [];
+
+        if ($productConcreteIds) {
+            $concreteStorageData = $this->productStorageClient->getBulkProductConcreteStorageData(
+                array_values(array_map('intval', (array)$productConcreteIds)),
+                $localeName,
+            );
+
+            foreach ($concreteStorageData as $concreteData) {
+                foreach ((array)($concreteData[static::STORAGE_KEY_ATTRIBUTES] ?? []) as $attributeKey => $value) {
+                    $this->addAttributeLabel($attributeLabelByValue, (string)$attributeKey, $value);
+                }
+            }
+        }
+
+        return $attributeLabelByValue;
+    }
+
+    /**
+     * @param array<string, string> $attributeLabelByValue
+     * @param string $attributeKey
+     * @param mixed $value
+     *
+     * @return void
+     */
+    protected function addAttributeLabel(array &$attributeLabelByValue, string $attributeKey, $value): void
+    {
+        if (!is_scalar($value)) {
+            return;
+        }
+
+        $value = (string)$value;
+
+        if ($value === '') {
+            return;
+        }
+
+        $attributeLabelByValue[$value] ??= $attributeKey;
+    }
+
+    /**
      * @param array<string, mixed> $productData
      * @param string $localeName
      * @param string $storeName
@@ -546,9 +700,11 @@ class TokenSourceResolver implements TokenSourceResolverInterface
 
     /**
      * Recursively walks each direct category's ancestor chain. `CategoryNodeStorageTransfer::getParents()`
-     * semantics (immediate parent only vs. already-flattened full chain) weren't conclusively confirmed
-     * from static reading — recursing either way is safe: if the chain is already flat, recursion into
-     * each terminal node's empty `getParents()` is simply a no-op.
+     * returns the IMMEDIATE parent only, each one itself carrying its own further-nested `getParents()`,
+     * terminating at the root category with an empty list — confirmed live against this shop's own
+     * category storage data (e.g. node 74 "Asset Management" -> 72 "Sustainability Solutions" -> 36
+     * "Services" -> 1 "Demoshop", each level's `node_id` correctly populated). The recursion below is
+     * therefore genuinely necessary, not a defensive no-op for an already-flattened list.
      *
      * @param array<int> $directCategoryNodeIds
      * @param string $localeName
@@ -585,7 +741,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     protected function collectAncestorNames(
         CategoryNodeStorageTransfer $categoryNodeStorageTransfer,
         array &$namesByNodeId,
-        int $depth
+        int $depth,
     ): void {
         if ($depth > static::MAX_CATEGORY_ANCESTOR_DEPTH) {
             return;

@@ -9,9 +9,9 @@ declare(strict_types = 1);
 
 namespace SprykerCommunity\Client\SearchDebug\AccessChecker;
 
+use Spryker\Client\Permission\PermissionClientInterface;
 use SprykerCommunity\Shared\SearchDebug\Plugin\SeeSearchDebugInfoPermissionPlugin;
 use SprykerCommunity\Shared\SearchDebug\SearchDebugConfig;
-use Spryker\Client\Permission\PermissionClientInterface;
 
 /**
  * The single gate for search debug output, checked by both the query expander (which enables the

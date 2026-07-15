@@ -1,0 +1,31 @@
+@import 'search-debug-palette';
+
+// Token badge styling, shared by both search-debug components: the headline (search-debug-tokens) and the
+// per-product matched-token list (search-debug-product-info). A shared PARTIAL (underscore-prefixed, not
+// a compiled component entry) — both components `@import` it directly, so neither depends on the other's
+// compiled bundle happening to be present. Partial imports have no bundling-order/duplication risk by
+// construction, unlike a component-to-component index.ts import would.
+//
+// Built on the shop's own helper-badge-chip so the badges keep the theme's chip metrics; only the palette
+// (see _search-debug-palette.scss) is custom, and the color classes below are generated from it.
+@mixin search-debug-widget-search-debug-token($name: '.search-debug-token') {
+    #{$name} {
+        @include helper-badge-chip;
+        margin: rem(2) rem(4) rem(2) 0;
+        border-radius: rem(999);
+        font-weight: fw(bold);
+        white-space: nowrap;
+
+        @each $color in $search-debug-token-colors {
+            &--color-#{index($search-debug-token-colors, $color)} {
+                background: $color;
+                // Keep the label legible on both the light and the dark entries of the palette.
+                color: if(lightness($color) > 55%, #000, #fff);
+            }
+        }
+
+        @content;
+    }
+}
+
+@include search-debug-widget-search-debug-token();

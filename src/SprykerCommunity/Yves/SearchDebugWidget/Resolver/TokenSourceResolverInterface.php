@@ -14,18 +14,32 @@ interface TokenSourceResolverInterface
     /**
      * Shows, for one product and one already-matched search token, which of the product's raw source
      * fields the token actually came from — information Elasticsearch's own explain output cannot
-     * provide, because source fields are flattened into two untagged arrays (`full-text` /
+     * provide, because source fields are flattened into untagged arrays (e.g. `full-text` /
      * `full-text-boosted`) before indexing.
      *
-     * Works document-driven: reads the product's REAL indexed document (whose per-tier arrays still
-     * hold one element per contributed source value), marks the elements containing the token, and
-     * labels each element by matching it against the known source values — elements no known source
-     * claims (e.g. searchable product attributes, custom map expanders) are still shown, under a
-     * generic "other indexed value" label.
+     * Works document-driven, in two layers: reads the product's REAL indexed document (whose per-tier
+     * arrays still hold one element per contributed source value), marks the elements containing the
+     * token, and labels each element by matching it first against the known NAMED source values (title,
+     * SKU, description, category, merchant name, ...), then — for elements no named source claims —
+     * against the product's own searchable attribute values (labeled with the real attribute key, e.g.
+     * "brand"). Elements neither layer identifies are still shown, under a generic "other indexed value"
+     * label, so a document element degrades gracefully rather than disappearing.
+     *
+     * A value two or more sources contribute identically (e.g. a merchant name that happens to equal the
+     * product title) is genuinely indistinguishable once merged into one document element — rather than
+     * silently attributing it to just one, that row's `labelKeys` lists every colliding source, so the
+     * page can show the ambiguity honestly instead of guessing.
+     *
+     * Tiers themselves are driven by $fieldBoosts (the query's real, live field=>boost pairs — see
+     * `SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReaderInterface`): however many fields the
+     * query actually searched, not a fixed count, sorted by boost descending. An empty $fieldBoosts (e.g.
+     * an old link generated before this parameter existed) falls back to this demo shop's own default.
      *
      * @param string $productAbstractSku
      * @param string $token
      * @param string $localeName
+     * @param array<string, int> $fieldBoosts The query's real field=>boost pairs, e.g.
+     *   `['full-text' => 1, 'full-text-boosted' => 5]`. Empty falls back to a demo-shop-specific default.
      *
      * @return array{
      *     productTitle: string,
@@ -34,9 +48,9 @@ interface TokenSourceResolverInterface
      *         key: string,
      *         labelKey: string,
      *         boost: int,
-     *         rows: array<int, array{labelKey: string, matched: bool, highlightedHtml: string|null}>,
+     *         rows: array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null}>,
      *     }>,
      * }|null Null when no product abstract has that SKU.
      */
-    public function resolve(string $productAbstractSku, string $token, string $localeName): ?array;
+    public function resolve(string $productAbstractSku, string $token, string $localeName, array $fieldBoosts = []): ?array;
 }

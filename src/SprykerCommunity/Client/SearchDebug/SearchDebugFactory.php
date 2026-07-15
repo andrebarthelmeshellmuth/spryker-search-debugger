@@ -21,6 +21,7 @@ use Spryker\Client\SearchElasticsearch\Reader\DocumentReaderInterface;
 use Spryker\Client\SearchElasticsearch\SearchContextExpander\SearchContextExpander;
 use Spryker\Client\SearchElasticsearch\SearchContextExpander\SearchContextExpanderInterface;
 use Spryker\Client\SearchElasticsearch\SearchElasticsearchConfig;
+use Spryker\Client\Store\StoreClientInterface;
 use Spryker\Service\Synchronization\SynchronizationServiceInterface;
 use Spryker\Shared\SearchElasticsearch\ElasticaClient\ElasticaClientFactory;
 use SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessChecker;
@@ -31,6 +32,8 @@ use SprykerCommunity\Client\SearchDebug\Document\PageDocumentReader;
 use SprykerCommunity\Client\SearchDebug\Document\PageDocumentReaderInterface;
 use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser;
 use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParserInterface;
+use SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReader;
+use SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReaderInterface;
 use SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaMapper;
 use SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaMapperInterface;
 use SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaReader;
@@ -98,6 +101,14 @@ class SearchDebugFactory extends AbstractFactory
     }
 
     /**
+     * @return \SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReaderInterface
+     */
+    public function createQueryFieldBoostReader(): QueryFieldBoostReaderInterface
+    {
+        return new QueryFieldBoostReader();
+    }
+
+    /**
      * @return \SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessCheckerInterface
      */
     public function createSearchDebugAccessChecker(): SearchDebugAccessCheckerInterface
@@ -109,15 +120,27 @@ class SearchDebugFactory extends AbstractFactory
      * COMPOSITION over the core SearchElasticsearch module, deliberately: this module does not extend or
      * override it, so the host project's right to extend `Pyz\Client\SearchElasticsearch` stays untouched.
      * The vendor pieces used here are all public and instantiable; the shared `ElasticaClientFactory`
-     * static-caches the client, so this shares the exact connection the shop's own search uses.
+     * static-caches the client, so this shares the exact connection the shop's own search uses. This is
+     * the same composition core itself uses for the identical purpose — see
+     * `Spryker\Client\SearchElasticsearch\SearchElasticsearchFactory::getElasticaClient()`, which likewise
+     * builds its `ElasticaClientFactory` via its own `createElasticaClientFactory()` method rather than
+     * inline, a convention followed here too.
      *
      * @return \Elastica\Client
      */
     public function getElasticaClient(): Client
     {
-        return (new ElasticaClientFactory())->createClient(
+        return $this->createElasticaClientFactory()->createClient(
             $this->createSearchElasticsearchConfig()->getClientConfig(),
         );
+    }
+
+    /**
+     * @return \Spryker\Shared\SearchElasticsearch\ElasticaClient\ElasticaClientFactory
+     */
+    public function createElasticaClientFactory(): ElasticaClientFactory
+    {
+        return new ElasticaClientFactory();
     }
 
     /**
@@ -186,7 +209,7 @@ class SearchDebugFactory extends AbstractFactory
     /**
      * @return \Spryker\Client\Store\StoreClientInterface
      */
-    public function getStoreClient()
+    public function getStoreClient(): StoreClientInterface
     {
         return $this->getProvidedDependency(SearchDebugDependencyProvider::CLIENT_STORE);
     }
