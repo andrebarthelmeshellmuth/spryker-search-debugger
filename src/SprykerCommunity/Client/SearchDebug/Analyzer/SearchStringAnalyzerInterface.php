@@ -24,4 +24,11 @@ interface SearchStringAnalyzerInterface
      * @return array<array{token: string, startOffset: int, endOffset: int}>
      */
     public function getTokenOffsets(string $text): array;
+
+    /**
+     * @param string $text
+     *
+     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
+     */
+    public function getAnalysisStages(string $text): array;
 }

@@ -1,3 +1,6 @@
+// For $search-debug-feature-accent-color below.
+@import '../../components/molecules/search-debug-tokens/search-debug-palette';
+
 // Standalone debug utility page (opened via the SRP's per-token magnifying-glass link, in a new tab) —
 // kept deliberately plain, no product-card/grid styling to coordinate with.
 .token-source-page {
@@ -63,6 +66,39 @@ $token-source-field-label-color: $setting-color-darker;
     font-family: monospace;
     font-size: rem(12);
     word-break: break-word;
+}
+
+// Opens the analysis-path page for the specific matched fragment it sits next to — injected right after
+// each `<mark>` (see the twig template), so it's inline with the mark it belongs to, wherever in the
+// (possibly long, scrollable) value text that mark happens to be. Reuses the same feature-accent color
+// as the token-source link on the SRP overlay, so both read as the same "go deeper" affordance.
+.token-source-mark__analysis-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: rem(16);
+    height: rem(16);
+    margin-left: rem(4);
+    vertical-align: middle;
+    border-radius: 50%;
+    background-color: $search-debug-feature-accent-color;
+    color: $setting-color-white;
+
+    // The parent value box is `white-space: pre-line` (needed to preserve real line breaks in long
+    // product text) — this resets whitespace handling back to normal for the link's own content, so any
+    // incidental newline in the markup that builds it (ours or the shared icon atom's) collapses to a
+    // space instead of rendering as a stray visible line break right after the mark.
+    white-space: normal;
+
+    .icon {
+        width: rem(9);
+        height: rem(9);
+    }
+
+    &:hover,
+    &:focus {
+        background-color: darken($search-debug-feature-accent-color, 8%);
+    }
 }
 
 .token-source-field__value {

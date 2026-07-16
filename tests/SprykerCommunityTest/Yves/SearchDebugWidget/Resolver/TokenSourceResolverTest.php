@@ -118,8 +118,8 @@ class TokenSourceResolverTest extends Unit
         $this->assertSame(static::FIELD_BOOSTS['full-text-boosted'], $result['tiers'][0]['boost']);
         $this->assertSame(
             [
-                ['labelKeys' => ['search_debug.token_source.field.title'], 'matched' => true, 'highlightedHtml' => 'HL[Steel Cable]'],
-                ['labelKeys' => ['search_debug.token_source.field.sku'], 'matched' => false, 'highlightedHtml' => null],
+                ['labelKeys' => ['search_debug.token_source.field.title'], 'matched' => true, 'highlightedHtml' => 'HL[Steel Cable]', 'element' => 'Steel Cable'],
+                ['labelKeys' => ['search_debug.token_source.field.sku'], 'matched' => false, 'highlightedHtml' => null, 'element' => null],
             ],
             $boostedRows,
         );
@@ -129,7 +129,7 @@ class TokenSourceResolverTest extends Unit
         $this->assertSame(1, $result['tiers'][1]['boost']);
         $this->assertSame(
             [
-                ['labelKeys' => ['search_debug.token_source.field.abstract_description'], 'matched' => true, 'highlightedHtml' => 'HL[A cable for outdoor use]'],
+                ['labelKeys' => ['search_debug.token_source.field.abstract_description'], 'matched' => true, 'highlightedHtml' => 'HL[A cable for outdoor use]', 'element' => 'A cable for outdoor use'],
             ],
             $fullTextRows,
         );
@@ -165,8 +165,8 @@ class TokenSourceResolverTest extends Unit
         // Assert
         $this->assertSame(
             [
-                ['labelKeys' => ['search_debug.token_source.field.other'], 'matched' => false, 'highlightedHtml' => 'TXT[rot]'],
-                ['labelKeys' => ['search_debug.token_source.field.other'], 'matched' => true, 'highlightedHtml' => 'HL[cable-ish attribute]'],
+                ['labelKeys' => ['search_debug.token_source.field.other'], 'matched' => false, 'highlightedHtml' => 'TXT[rot]', 'element' => null],
+                ['labelKeys' => ['search_debug.token_source.field.other'], 'matched' => true, 'highlightedHtml' => 'HL[cable-ish attribute]', 'element' => 'cable-ish attribute'],
             ],
             $result['tiers'][0]['rows'],
         );
@@ -250,10 +250,55 @@ class TokenSourceResolverTest extends Unit
                     'labelKeys' => ['search_debug.token_source.field.title', 'search_debug.token_source.field.merchant_name'],
                     'matched' => false,
                     'highlightedHtml' => null,
+                    'element' => null,
                 ],
-                ['labelKeys' => ['search_debug.token_source.field.sku'], 'matched' => false, 'highlightedHtml' => null],
+                ['labelKeys' => ['search_debug.token_source.field.sku'], 'matched' => false, 'highlightedHtml' => null, 'element' => null],
             ],
             $result['tiers'][0]['rows'],
+        );
+    }
+
+    /**
+     * A source contributed by multiple document elements (e.g. concrete names — one per variant) shows
+     * one row PER MATCHED element, each carrying its own raw `element` text, rather than combining them
+     * into a single box — a matched fragment's magnifying-glass link needs its own exact source text.
+     *
+     * @return void
+     */
+    public function testResolveShowsOneRowPerMatchedElementWhenASourceHasMultipleMatchingElements(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createProductStorageClientMock([
+            'id_product_abstract' => 123,
+            'name' => 'Cable',
+            'sku' => 'ABSTRACT-1',
+            'attribute_map' => ['product_concrete_ids' => ['CONCRETE-1' => 11, 'CONCRETE-2' => 12]],
+        ]);
+        $productStorageClientMock->method('getBulkProductConcreteStorageData')
+            ->with([11, 12], 'en_US')
+            ->willReturn([
+                ['name' => 'Cable A', 'sku' => 'CONCRETE-1', 'description' => ''],
+                ['name' => 'Cable B', 'sku' => 'CONCRETE-2', 'description' => ''],
+            ]);
+
+        $searchDebugClientMock = $this->createSearchElasticsearchClientMock(
+            [
+                'full-text' => ['Cable A', 'Cable B'],
+            ],
+        );
+
+        $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
+
+        // Act
+        $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US', static::FIELD_BOOSTS);
+
+        // Assert
+        $this->assertSame(
+            [
+                ['labelKeys' => ['search_debug.token_source.field.concrete_names'], 'matched' => true, 'highlightedHtml' => 'HL[Cable A]', 'element' => 'Cable A'],
+                ['labelKeys' => ['search_debug.token_source.field.concrete_names'], 'matched' => true, 'highlightedHtml' => 'HL[Cable B]', 'element' => 'Cable B'],
+            ],
+            $result['tiers'][1]['rows'],
         );
     }
 
@@ -501,7 +546,7 @@ class TokenSourceResolverTest extends Unit
         // Assert
         $this->assertSame(
             [
-                ['labelKeys' => ['brand'], 'matched' => false, 'highlightedHtml' => 'TXT[Acme]'],
+                ['labelKeys' => ['brand'], 'matched' => false, 'highlightedHtml' => 'TXT[Acme]', 'element' => null],
             ],
             $result['tiers'][0]['rows'],
         );
@@ -538,7 +583,7 @@ class TokenSourceResolverTest extends Unit
         // Assert
         $this->assertSame(
             [
-                ['labelKeys' => ['search_debug.token_source.field.other'], 'matched' => false, 'highlightedHtml' => 'TXT[some unrelated value]'],
+                ['labelKeys' => ['search_debug.token_source.field.other'], 'matched' => false, 'highlightedHtml' => 'TXT[some unrelated value]', 'element' => null],
             ],
             $result['tiers'][0]['rows'],
         );

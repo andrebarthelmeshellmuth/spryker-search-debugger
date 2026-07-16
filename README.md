@@ -4,8 +4,8 @@ Developer tools for inspecting, debugging and understanding OpenSearch/Elasticse
 
 ## Status
 
-🚧 Early development — the first tool (search relevance debugging) is functional; more are planned
-(analysis-pipeline visualization is next).
+🚧 Early development — the first tool (search relevance debugging, including per-token analysis-path
+visualization) is functional; more are planned.
 
 ## Search Debug — Spryker Community Extension
 
@@ -21,6 +21,22 @@ catalog search:
   **index-time analyzer**, so prefix/ngram matches (e.g. searching `öl` matching *Ölpapier*) and
   searchable-attribute contributions (Zed → Search Preferences) are attributed correctly — including
   values no known source claims, which are shown honestly as "other indexed value".
+- **Analysis-path page** — a second magnifier next to each matched fragment on the token-source page opens
+  a page showing exactly how that raw text became the matched token: one box per analyzer stage (char
+  filters, the tokenizer, every token filter, in chain order), connected by the ES operation that produced
+  each one — e.g. `Ölpapier` → *filter: lowercase* → `ölpapier` → *filter: fulltext_index_ngram_filter* →
+  `öl`. Always a straight line, never a tree: even a filter that fans one token into several (ngram,
+  decompounding, synonyms) only contributes the ONE step that actually led to the matched token — the
+  path is reconstructed by walking backward through Lucene's own offsets (which stay relative to the
+  original text across every stage), not by inspecting filter types, so it works for any analyzer chain.
+  Each operation also shows that filter's own configuration, read live from the index's analysis settings
+  (e.g. `filter: fulltext_index_ngram_filter` → `edge_ngram (min_gram: 2, max_gram: 20)`) — built-in
+  components used by name only (`lowercase`, `standard`) show no definition, since nothing was customized.
+- **Component-config page** — when a filter's configuration is too long to show inline (a `stop`/`synonym`
+  filter's word list can run into the hundreds), the analysis-path page's definition line shows a preview
+  plus a "view full definition" link instead of dumping everything into one line. It opens a new tab
+  showing that ONE component's config in full, re-fetched server-side by kind+name — nothing is smuggled
+  through the URL.
 - **Zero analyzer configuration** — analyzer names are resolved from the live index's mapping
   (`analyzer` / `search_analyzer` of the `full-text` field, with Elasticsearch's own fallback rules), not
   from config, so the package works with any `page.json` customization or the vanilla core schema.
@@ -283,6 +299,26 @@ role), and assign that role to the users who should see debug output.
   own searchable attribute values (labeled with the real attribute key, e.g. "brand") — anything neither
   identifies still shows up, under a generic "other indexed value" label. Tiers render sorted by boost
   descending, with the real, live boost value shown next to each.
+- The analysis-path page (`AnalysisPathController`/`AnalysisPathResolver`) re-analyzes one matched
+  fragment's raw text with `_analyze?explain=true`, but reads the FULL per-stage breakdown
+  (`SearchStringAnalyzer::getAnalysisStages()`/`SearchDebugClientInterface::getTextAnalysisStages()`) —
+  char filters, the tokenizer, and every token filter — instead of collapsing straight to the final
+  tokens. `AnalysisPathResolver` then walks that stage list BACKWARD from the already-known matched
+  token's offset, picking at each step the one earlier-stage token whose offset range contains the
+  current one. Lucene offsets are always relative to the original text, never re-based per stage, so
+  containment alone determines lineage — no filter-specific logic needed, and no branching: only the one
+  lineage that produced the matched token is ever visited, regardless of how many sibling tokens an
+  earlier stage's token fanned out into.
+- Each stage's operation is enriched with its own configuration by `ComponentDefinitionFormatter`, which
+  looks the component up by name in the live index's analysis settings (`IndexSchemaReader::findComponent()`,
+  fed by `IndexSchemaMapper` parsing the `tokenizer`/`filter`/`char_filter` blocks of `_settings.analysis`
+  — the SAME live schema call already used to resolve analyzer names, so this is not extra I/O). PHP's
+  `true`/`false` → `"1"`/`""` string-cast quirk is handled explicitly, and a config list longer than 5
+  items is shown as a preview with a total count, flagged `truncated` rather than dumped verbatim — a real
+  `synonym`/`stop` filter's word list can run into the hundreds. When a stage IS truncated,
+  `ComponentConfigController` re-fetches that same component (`SearchDebugClientInterface::getComponentConfig()`)
+  and `ComponentConfigFormatter` renders its config in full for the component-config page — same two shape
+  hazards handled again, just without the length cap, since showing everything is the whole point there.
 
 ## Limitations
 

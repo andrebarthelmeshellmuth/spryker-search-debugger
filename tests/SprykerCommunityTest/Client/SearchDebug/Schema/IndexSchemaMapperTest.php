@@ -159,4 +159,69 @@ class IndexSchemaMapperTest extends Unit
         $this->assertSame(['lowercase', 'fulltext_index_ngram_filter'], $searchAnalyzerTransfer->getFilterNames());
         $this->assertSame([], $searchAnalyzerTransfer->getCharFilterNames());
     }
+
+    /**
+     * The real `page.json` shape for this shop's one custom filter — `type` plus type-specific config
+     * keys, verbatim.
+     *
+     * @return void
+     */
+    public function testMapCarriesFilterDefinitionsFromTheAnalysisSettings(): void
+    {
+        // Arrange
+        $analysisSettings = [
+            'filter' => [
+                'fulltext_index_ngram_filter' => [
+                    'type' => 'edge_ngram',
+                    'min_gram' => 2,
+                    'max_gram' => 20,
+                ],
+            ],
+        ];
+
+        // Act
+        $filterTransfer = (new IndexSchemaMapper())
+            ->mapToSearchIndexSchemaTransfer('idx', [], $analysisSettings)
+            ->getFilters()[0];
+
+        // Assert
+        $this->assertSame('fulltext_index_ngram_filter', $filterTransfer->getName());
+        $this->assertSame('edge_ngram', $filterTransfer->getType());
+        $this->assertSame(['min_gram' => 2, 'max_gram' => 20], $filterTransfer->getConfig());
+    }
+
+    /**
+     * Same shape, different settings key — tokenizer and char_filter definitions map identically to
+     * filter definitions (all three are `{"type": "...", ...}` blocks in Elasticsearch's analysis
+     * settings), so one assertion per key is enough to cover the shared mapping code.
+     *
+     * @return void
+     */
+    public function testMapCarriesTokenizerAndCharFilterDefinitionsFromTheAnalysisSettings(): void
+    {
+        // Arrange
+        $analysisSettings = [
+            'tokenizer' => [
+                'my_tokenizer' => ['type' => 'ngram', 'min_gram' => 3, 'max_gram' => 4],
+            ],
+            'char_filter' => [
+                'my_char_filter' => ['type' => 'html_strip'],
+            ],
+        ];
+
+        // Act
+        $searchIndexSchemaTransfer = (new IndexSchemaMapper())
+            ->mapToSearchIndexSchemaTransfer('idx', [], $analysisSettings);
+
+        // Assert
+        $tokenizerTransfer = $searchIndexSchemaTransfer->getTokenizers()[0];
+        $this->assertSame('my_tokenizer', $tokenizerTransfer->getName());
+        $this->assertSame('ngram', $tokenizerTransfer->getType());
+        $this->assertSame(['min_gram' => 3, 'max_gram' => 4], $tokenizerTransfer->getConfig());
+
+        $charFilterTransfer = $searchIndexSchemaTransfer->getCharFilters()[0];
+        $this->assertSame('my_char_filter', $charFilterTransfer->getName());
+        $this->assertSame('html_strip', $charFilterTransfer->getType());
+        $this->assertSame([], $charFilterTransfer->getConfig());
+    }
 }

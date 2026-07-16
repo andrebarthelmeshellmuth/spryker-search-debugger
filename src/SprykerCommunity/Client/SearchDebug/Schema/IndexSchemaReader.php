@@ -11,6 +11,7 @@ namespace SprykerCommunity\Client\SearchDebug\Schema;
 
 use Elastica\Client;
 use Elastica\Exception\ExceptionInterface;
+use Generated\Shared\Transfer\SearchAnalysisComponentTransfer;
 use Generated\Shared\Transfer\SearchIndexSchemaTransfer;
 use Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolverInterface;
 use SprykerCommunity\Client\SearchDebug\SearchDebugConfig;
@@ -99,5 +100,31 @@ class IndexSchemaReader implements IndexSchemaReaderInterface
         static::$searchIndexSchemaTransferCache[$indexName] = $searchIndexSchemaTransfer;
 
         return $searchIndexSchemaTransfer;
+    }
+
+    /**
+     * @param string $componentKind One of the `IndexSchemaMapper::COMPONENT_KIND_*` constants.
+     * @param string $componentName
+     *
+     * @return \Generated\Shared\Transfer\SearchAnalysisComponentTransfer|null
+     */
+    public function findComponent(string $componentKind, string $componentName): ?SearchAnalysisComponentTransfer
+    {
+        $indexSchema = $this->getPageIndexSchema();
+
+        $components = match ($componentKind) {
+            IndexSchemaMapper::COMPONENT_KIND_TOKENIZER => $indexSchema->getTokenizers(),
+            IndexSchemaMapper::COMPONENT_KIND_FILTER => $indexSchema->getFilters(),
+            IndexSchemaMapper::COMPONENT_KIND_CHAR_FILTER => $indexSchema->getCharFilters(),
+            default => [],
+        };
+
+        foreach ($components as $component) {
+            if ($component->getName() === $componentName) {
+                return $component;
+            }
+        }
+
+        return null;
     }
 }

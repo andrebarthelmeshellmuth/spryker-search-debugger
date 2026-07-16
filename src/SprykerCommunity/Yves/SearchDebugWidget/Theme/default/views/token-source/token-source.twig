@@ -1,4 +1,4 @@
-{# @var data.tiers array<array{key: string, labelKey: string, boost: int, rows: array<array{labelKeys: array<string>, matched: bool, highlightedHtml: string|null}>}> #}
+{# @var data.tiers array<array{key: string, labelKey: string, boost: int, rows: array<array{labelKeys: array<string>, matched: bool, highlightedHtml: string|null, element: string|null}>}> #}
 
 {% extends template('page-blank') %}
 
@@ -32,12 +32,29 @@
                 <div class="token-source-tier__body">
                     {% for row in tier.rows %}
                         {% set isAmbiguous = row.labelKeys | length > 1 %}
+
                         <div class="token-source-field {{ row.matched ? 'token-source-field--matched' : 'token-source-field--unmatched' }} {{ isAmbiguous ? 'token-source-field--ambiguous' : '' }}">
                             <div class="token-source-field__label" title="{{ isAmbiguous ? ('search_debug.token_source.field.ambiguous_hint' | trans) : '' }}">
                                 {{ row.labelKeys | map(labelKey => labelKey | trans) | join(' / ') }}
                             </div>
                             <div class="token-source-field__value">{%- if row.highlightedHtml is not null -%}
-                                {{- row.highlightedHtml | raw -}}
+                                {%- if row.matched and row.element is not null -%}
+                                    {# The analysis-path link is injected right after every `</mark>` in the
+                                       ALREADY-BUILT highlighted HTML, not passed into TokenHighlighter itself —
+                                       that class stays a pure, storage-free string transform with no
+                                       URL/routing/translation concerns of its own. `</mark>` is a safe anchor
+                                       to `replace()` on: TokenHighlighter escapes every non-mark fragment, so
+                                       the literal (unescaped) substring `</mark>` can only ever come from
+                                       TokenHighlighter's own template, never from product text. #}
+                                    {# One line, deliberately: this whole block is captured verbatim (including
+                                       any literal newlines) and later injected into a `white-space: pre-line`
+                                       value box — a multi-line tag here would render as stray visible line
+                                       breaks right after the mark. #}
+                                    {% set analysisLink %}<a href="{{ url('search-debug/token-analysis', { text: row.element, token: data.token }) }}" target="_blank" rel="noopener noreferrer" class="token-source-mark__analysis-link" title="{{ 'search_debug.token_analysis.open' | trans }}">{% include atom('icon') with { data: { name: 'search' } } only %}</a>{% endset %}
+                                    {{- row.highlightedHtml | replace({'</mark>': '</mark>' ~ analysisLink}) | raw -}}
+                                {%- else -%}
+                                    {{- row.highlightedHtml | raw -}}
+                                {%- endif -%}
                             {%- else -%}
                                 <span class="token-source-field__no-match">{{ 'search_debug.token_source.no_match' | trans }}</span>
                             {%- endif -%}</div>

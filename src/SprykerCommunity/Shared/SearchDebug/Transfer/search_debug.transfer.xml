@@ -10,6 +10,9 @@
         <property name="indexName" type="string"/>
         <property name="fields" type="SearchIndexField[]" singular="field"/>
         <property name="analyzers" type="SearchAnalyzer[]" singular="analyzer"/>
+        <property name="tokenizers" type="SearchAnalysisComponent[]" singular="tokenizer"/>
+        <property name="filters" type="SearchAnalysisComponent[]" singular="filter"/>
+        <property name="charFilters" type="SearchAnalysisComponent[]" singular="charFilter"/>
     </transfer>
 
     <!-- analyzerName/searchAnalyzerName hold the RESOLVED analyzer names — Elasticsearch's own fallback
@@ -29,6 +32,18 @@
         <property name="tokenizerName" type="string"/>
         <property name="charFilterNames" type="string[]" singular="charFilterName"/>
         <property name="filterNames" type="string[]" singular="filterName"/>
+    </transfer>
+
+    <!-- One named tokenizer/filter/char_filter definition, verbatim from the index's analysis settings —
+         `type` is the Elasticsearch component type (e.g. "edge_ngram"), `config` is every other configured
+         key as-is (e.g. min_gram/max_gram). Deliberately untyped: ES component config shapes vary per
+         `type` and this transfer has no reason to know all of them. A BUILT-IN component referenced by
+         name only (e.g. "lowercase", "standard") has no entry anywhere this is hydrated from — it was
+         never customized, so there is nothing here to look up for it. -->
+    <transfer name="SearchAnalysisComponent" strict="true">
+        <property name="name" type="string"/>
+        <property name="type" type="string"/>
+        <property name="config" type="array"/>
     </transfer>
 
 </transfers>

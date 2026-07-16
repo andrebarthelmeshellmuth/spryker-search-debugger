@@ -10,20 +10,17 @@ declare(strict_types = 1);
 namespace SprykerCommunityTest\Client\SearchDebug\Analyzer;
 
 use Codeception\Test\Unit;
-use Generated\Shared\Transfer\StoreTransfer;
-use Spryker\Client\Store\StoreClientInterface;
-use SprykerCommunity\Client\SearchDebug\SearchDebugDependencyProvider;
+use SprykerCommunityTest\Client\SearchDebug\Fixture\TestPageIndexTrait;
 
 /**
- * INTEGRATION TEST — talks to a real Elasticsearch.
- *
- * This is deliberately not mocked. The whole point of the analyzer is that the tokens it reports are the
- * ones Elasticsearch really produces for a query, and the two things that can silently be wrong — the
- * resolved index name and the analyzer name (`fulltext_search_analyzer`, defined in
- * `src/Pyz/Shared/Search/Schema/page.json`) — are exactly the things a mocked Elastica client would
- * happily accept while returning nothing useful. A wrong analyzer name here does not throw: the analyzer
- * swallows Elasticsearch errors and returns an empty token list, so the debug headline would just quietly
- * disappear. Only a real round-trip catches that.
+ * INTEGRATION TEST — talks to a real Elasticsearch, but against a TEST-OWNED index (`TestPageIndexTrait`),
+ * not the host shop's real `page.json`/live index. This is deliberate: the two things that can silently
+ * be wrong — the resolved index name and the analyzer name — are exactly the things a mocked Elastica
+ * client would happily accept while returning nothing useful, so a real round-trip stays essential. But
+ * asserting against a SHARED shop index means every content change to that shop's `page.json` breaks
+ * these exact-value assertions (as happened when this shop's own config grew richer) — a test-owned index
+ * with its own deliberately stable analysis config decouples the two, and makes these tests portable to
+ * any shop installing this package, not just this one.
  *
  * Auto-generated group annotations
  *
@@ -33,43 +30,38 @@ use SprykerCommunity\Client\SearchDebug\SearchDebugDependencyProvider;
  * @group Analyzer
  * @group SearchStringAnalyzerTest
  * Add your own group annotations below this line
- *
- * @property \SprykerCommunityTest\Client\SearchDebug\SearchDebugClientTester $tester
  */
 class SearchStringAnalyzerTest extends Unit
 {
-    /**
-     * @var string
-     */
-    protected const STORE_NAME = 'DE';
+    use TestPageIndexTrait;
 
     /**
-     * Only the store lookup is stubbed — it otherwise reads the store list from Redis, which is infra this
-     * test has no interest in. The index name is still built by the real IndexNameResolver (prefix + store +
-     * source identifier) and the `_analyze` call still goes to a real Elasticsearch, which is the point.
-     *
      * @return void
      */
     protected function _before(): void
     {
-        $storeClientMock = $this->createMock(StoreClientInterface::class);
-        $storeClientMock
-            ->method('getCurrentStore')
-            ->willReturn((new StoreTransfer())->setName(static::STORE_NAME));
-
-        $this->tester->setDependency(SearchDebugDependencyProvider::CLIENT_STORE, $storeClientMock);
+        $this->createTestPageIndex();
     }
 
     /**
-     * The query-time analyzer is `standard` tokenizer + `lowercase`, with no edge-ngram (that one is
-     * index-time only) and no stemmer — so a hyphenated compound splits into whole lowercased words.
+     * @return void
+     */
+    protected function _after(): void
+    {
+        $this->deleteTestPageIndex();
+    }
+
+    /**
+     * The query-time analyzer runs `lowercase`, the synonym/word-delimiter/stop-words/min-length filters,
+     * but no edge-ngram (that one is index-time only) — a hyphenated compound therefore splits into whole
+     * lowercased words, none of which are synonym sources, stopwords, or delimiter-worthy.
      *
      * @return void
      */
     public function testGetSearchStringTokensReturnsTheQueryTimeAnalyzerTokens(): void
     {
         // Act
-        $tokens = $this->tester->getSearchDebugClient()->getSearchStringTokens('Eisen-Hammer');
+        $tokens = $this->createTestSearchStringAnalyzer()->getTokens('Eisen-Hammer');
 
         // Assert
         $this->assertSame(['eisen', 'hammer'], $tokens);
@@ -81,7 +73,7 @@ class SearchStringAnalyzerTest extends Unit
     public function testGetSearchStringTokensLowercasesASingleTerm(): void
     {
         // Act
-        $tokens = $this->tester->getSearchDebugClient()->getSearchStringTokens('CABLE');
+        $tokens = $this->createTestSearchStringAnalyzer()->getTokens('CABLE');
 
         // Assert
         $this->assertSame(['cable'], $tokens);
@@ -95,7 +87,7 @@ class SearchStringAnalyzerTest extends Unit
     public function testGetSearchStringTokensReturnsAnEmptyListForAnEmptySearchString(): void
     {
         // Act
-        $tokens = $this->tester->getSearchDebugClient()->getSearchStringTokens('');
+        $tokens = $this->createTestSearchStringAnalyzer()->getTokens('');
 
         // Assert
         $this->assertSame([], $tokens);
@@ -106,8 +98,8 @@ class SearchStringAnalyzerTest extends Unit
      * one) — Elasticsearch's `explain` response therefore nests tokens under `tokenfilters[]`, not under
      * a top-level `analyzer` key. Only a real round-trip catches a wrong assumption about that shape.
      *
-     * This is deliberately the INDEX-time analyzer, unlike `getSearchStringTokens()` above — it includes
-     * the edge-ngram filter, so a word explodes into every 2-to-20-char prefix, each one reported at the
+     * This is deliberately the INDEX-time analyzer, unlike `getTokens()` above — it includes the
+     * edge-ngram filter, so a word explodes into every 2-to-20-char prefix, each one reported at the
      * OFFSET OF THE WHOLE WORD it came from (not the prefix's own span) — e.g. "ei" here is
      * `startOffset: 0, endOffset: 5`, the same span as "eisen", not `endOffset: 2`. That's intentional and
      * relied upon downstream (`TokenHighlighter`): highlighting a short query token like "öl" that only
@@ -119,7 +111,7 @@ class SearchStringAnalyzerTest extends Unit
     public function testGetTextTokenOffsetsReturnsTokensWithOffsetsIntoTheOriginalText(): void
     {
         // Act
-        $tokenOffsets = $this->tester->getSearchDebugClient()->getTextTokenOffsets('Eisen-Hammer');
+        $tokenOffsets = $this->createTestSearchStringAnalyzer()->getTokenOffsets('Eisen-Hammer');
 
         // Assert
         $this->assertSame(
@@ -144,9 +136,99 @@ class SearchStringAnalyzerTest extends Unit
     public function testGetTextTokenOffsetsReturnsAnEmptyListForEmptyText(): void
     {
         // Act
-        $tokenOffsets = $this->tester->getSearchDebugClient()->getTextTokenOffsets('');
+        $tokenOffsets = $this->createTestSearchStringAnalyzer()->getTokenOffsets('');
 
         // Assert
         $this->assertSame([], $tokenOffsets);
+    }
+
+    /**
+     * Every stage of the real index-time pipeline, in chain order: the char filter first (whole-text,
+     * before tokenization), then the tokenizer, then each token filter. This is the same `_analyze`
+     * shape `getTokenOffsets()` above reads, just without collapsing everything down to the final stage.
+     *
+     * `TestPageIndexTrait`'s config is deliberately rich, to exercise every `definition`/
+     * `definitionTruncated` shape against real Elasticsearch rather than only invented unit-test
+     * fixtures: a char filter (`unit_symbol_normalizer`, a no-op for this input — no µ/& in "Ölpapier"),
+     * the standard tokenizer, `lowercase`, `fulltext_synonyms` (a no-op for this input too, but its OWN
+     * definition is still reported — the >5-item synonym list makes `definitionTruncated` true regardless
+     * of whether THIS text happened to match one), `fulltext_word_delimiter` (a `word_delimiter_graph`
+     * with several BOOLEAN config values). Note: Elasticsearch's live `_settings` response reports these
+     * booleans as the STRINGS `"true"`/`"false"`, not native JSON booleans (confirmed live, same
+     * normalization behavior as `min_gram`/`max_gram` coming back as strings) — so
+     * `ComponentDefinitionFormatter`'s explicit `is_bool()` handling is defensive-correctness for the
+     * shape ES's settings API COULD return, not something this specific live round-trip exercises; either
+     * code path produces the same `"true"`/`"false"` text here.
+     *
+     * @return void
+     */
+    public function testGetTextAnalysisStagesReturnsEveryPipelineStageInChainOrder(): void
+    {
+        // Act
+        $stages = $this->createTestSearchStringAnalyzer()->getAnalysisStages('Ölpapier');
+
+        // Assert
+        $this->assertCount(8, $stages);
+
+        $this->assertSame('char filter: unit_symbol_normalizer', $stages[0]['operation']);
+        $this->assertSame([['token' => 'Ölpapier', 'startOffset' => 0, 'endOffset' => 8]], $stages[0]['tokens']);
+        $this->assertSame('mapping (mappings: µ => u, & => and)', $stages[0]['definition']);
+        $this->assertFalse($stages[0]['definitionTruncated']);
+
+        $this->assertSame('tokenizer: standard', $stages[1]['operation']);
+        $this->assertSame([['token' => 'Ölpapier', 'startOffset' => 0, 'endOffset' => 8]], $stages[1]['tokens']);
+        // "standard" is a built-in tokenizer, used by name only, with nothing custom configured for it.
+        $this->assertNull($stages[1]['definition']);
+
+        $this->assertSame('filter: lowercase', $stages[2]['operation']);
+        $this->assertSame([['token' => 'ölpapier', 'startOffset' => 0, 'endOffset' => 8]], $stages[2]['tokens']);
+        // "lowercase" is likewise a built-in filter — nothing custom to show for it either.
+        $this->assertNull($stages[2]['definition']);
+
+        $this->assertSame('filter: fulltext_synonyms', $stages[3]['operation']);
+        $this->assertSame([['token' => 'ölpapier', 'startOffset' => 0, 'endOffset' => 8]], $stages[3]['tokens']);
+        $this->assertStringStartsWith('synonym (synonyms: ', $stages[3]['definition']);
+        $this->assertStringContainsString('… (6 total)', $stages[3]['definition']);
+        $this->assertTrue($stages[3]['definitionTruncated']);
+
+        $this->assertSame('filter: fulltext_word_delimiter', $stages[4]['operation']);
+        $this->assertSame([['token' => 'ölpapier', 'startOffset' => 0, 'endOffset' => 8]], $stages[4]['tokens']);
+        // Not a single `assertSame` on the whole string: Elasticsearch does not guarantee returning this
+        // JSON-object-shaped config's keys in declaration order (confirmed live — see
+        // `IndexSchemaReaderTest::testFindComponentReturnsBooleanConfigValuesAsStrings()`), so only the
+        // prefix and the presence of each key: value pair are meaningful to assert on, not their order.
+        $this->assertStringStartsWith('word_delimiter_graph (', $stages[4]['definition']);
+        $this->assertStringContainsString('generate_word_parts: true', $stages[4]['definition']);
+        $this->assertStringContainsString('catenate_words: true', $stages[4]['definition']);
+        $this->assertStringContainsString('preserve_original: true', $stages[4]['definition']);
+        $this->assertFalse($stages[4]['definitionTruncated']);
+
+        $this->assertSame('filter: fulltext_stop_words', $stages[5]['operation']);
+        $this->assertSame([['token' => 'ölpapier', 'startOffset' => 0, 'endOffset' => 8]], $stages[5]['tokens']);
+        $this->assertSame('stop (stopwords: und, oder, der, die, das)', $stages[5]['definition']);
+        $this->assertFalse($stages[5]['definitionTruncated']);
+
+        $this->assertSame('filter: fulltext_min_length', $stages[6]['operation']);
+        $this->assertSame([['token' => 'ölpapier', 'startOffset' => 0, 'endOffset' => 8]], $stages[6]['tokens']);
+        $this->assertSame('length (min: 2)', $stages[6]['definition']);
+
+        $this->assertSame('filter: fulltext_index_ngram_filter', $stages[7]['operation']);
+        $this->assertContains(
+            ['token' => 'öl', 'startOffset' => 0, 'endOffset' => 8],
+            $stages[7]['tokens'],
+        );
+        $this->assertSame('edge_ngram (min_gram: 2, max_gram: 20)', $stages[7]['definition']);
+    }
+
+    /**
+     * @return void
+     */
+    public function testGetTextAnalysisStagesReturnsAnEmptyListForEmptyText(): void
+    {
+        // Act
+        $stages = $this->createTestSearchStringAnalyzer()->getAnalysisStages('');
+
+        // Assert
+        $this->assertSame([], $stages);
     }
 }
