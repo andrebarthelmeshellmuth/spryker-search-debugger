@@ -39,14 +39,26 @@ class AnalysisPathResolverTest extends Unit
         $searchDebugClientMock->method('getTextAnalysisStages')->willReturn([
             [
                 'operation' => 'tokenizer: standard',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
                 'tokens' => [['token' => 'Ölpapier', 'startOffset' => 0, 'endOffset' => 8]],
             ],
             [
                 'operation' => 'filter: lowercase',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
                 'tokens' => [['token' => 'ölpapier', 'startOffset' => 0, 'endOffset' => 8]],
             ],
             [
                 'operation' => 'filter: fulltext_index_ngram_filter',
+                'definition' => 'edge_ngram (min_gram: 2, max_gram: 20)',
+                'componentKind' => 'filter',
+                'componentName' => 'fulltext_index_ngram_filter',
+                'definitionTruncated' => false,
                 'tokens' => [
                     ['token' => 'öl', 'startOffset' => 0, 'endOffset' => 8],
                     ['token' => 'ölp', 'startOffset' => 0, 'endOffset' => 8],
@@ -63,9 +75,9 @@ class AnalysisPathResolverTest extends Unit
         // Assert
         $this->assertSame(
             [
-                ['text' => 'Ölpapier', 'operation' => null],
-                ['text' => 'ölpapier', 'operation' => 'filter: lowercase'],
-                ['text' => 'öl', 'operation' => 'filter: fulltext_index_ngram_filter'],
+                ['text' => 'Ölpapier', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
+                ['text' => 'ölpapier', 'operation' => 'filter: lowercase', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
+                ['text' => 'öl', 'operation' => 'filter: fulltext_index_ngram_filter', 'definition' => 'edge_ngram (min_gram: 2, max_gram: 20)', 'componentKind' => 'filter', 'componentName' => 'fulltext_index_ngram_filter', 'definitionTruncated' => false],
             ],
             $path,
         );
@@ -87,14 +99,26 @@ class AnalysisPathResolverTest extends Unit
         $searchDebugClientMock->method('getTextAnalysisStages')->willReturn([
             [
                 'operation' => 'tokenizer: standard',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
                 'tokens' => [['token' => 'Ölpapier', 'startOffset' => 0, 'endOffset' => 8]],
             ],
             [
                 'operation' => 'filter: lowercase',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
                 'tokens' => [['token' => 'ölpapier', 'startOffset' => 0, 'endOffset' => 8]],
             ],
             [
                 'operation' => 'filter: fulltext_index_ngram_filter',
+                'definition' => 'edge_ngram (min_gram: 2, max_gram: 20)',
+                'componentKind' => 'filter',
+                'componentName' => 'fulltext_index_ngram_filter',
+                'definitionTruncated' => false,
                 'tokens' => [
                     ['token' => 'öl', 'startOffset' => 0, 'endOffset' => 8],
                     ['token' => 'ölp', 'startOffset' => 0, 'endOffset' => 8],
@@ -111,9 +135,9 @@ class AnalysisPathResolverTest extends Unit
         // Assert
         $this->assertSame(
             [
-                ['text' => 'Ölpapier', 'operation' => null],
-                ['text' => 'ölpapier', 'operation' => 'filter: lowercase'],
-                ['text' => 'ölpapier', 'operation' => 'filter: fulltext_index_ngram_filter'],
+                ['text' => 'Ölpapier', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
+                ['text' => 'ölpapier', 'operation' => 'filter: lowercase', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
+                ['text' => 'ölpapier', 'operation' => 'filter: fulltext_index_ngram_filter', 'definition' => 'edge_ngram (min_gram: 2, max_gram: 20)', 'componentKind' => 'filter', 'componentName' => 'fulltext_index_ngram_filter', 'definitionTruncated' => false],
             ],
             $path,
         );
@@ -134,10 +158,18 @@ class AnalysisPathResolverTest extends Unit
         $searchDebugClientMock->method('getTextAnalysisStages')->willReturn([
             [
                 'operation' => 'tokenizer: standard',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
                 'tokens' => [['token' => 'haustuere', 'startOffset' => 0, 'endOffset' => 9]],
             ],
             [
                 'operation' => 'filter: decompound',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
                 'tokens' => [
                     ['token' => 'haus', 'startOffset' => 0, 'endOffset' => 4],
                     ['token' => 'tuere', 'startOffset' => 4, 'endOffset' => 9],
@@ -153,8 +185,61 @@ class AnalysisPathResolverTest extends Unit
         // Assert — only the "tuere" lineage appears; "haus" is never part of the result.
         $this->assertSame(
             [
-                ['text' => 'haustuere', 'operation' => null],
-                ['text' => 'tuere', 'operation' => 'filter: decompound'],
+                ['text' => 'haustuere', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
+                ['text' => 'tuere', 'operation' => 'filter: decompound', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
+            ],
+            $path,
+        );
+    }
+
+    /**
+     * When a stage's config was too long to preview in full (see `ComponentDefinitionFormatter`'s
+     * `truncated` flag), the resulting path entry must carry `componentKind`/`componentName` alongside
+     * `definitionTruncated: true` — everything a "view full definition" link needs to re-fetch the
+     * untruncated config via `SearchDebugClientInterface::getComponentConfig()`.
+     *
+     * @return void
+     */
+    public function testResolveCarriesComponentKindAndNameWhenTheDefinitionWasTruncated(): void
+    {
+        // Arrange
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->method('getTextAnalysisStages')->willReturn([
+            [
+                'operation' => 'tokenizer: standard',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
+                'tokens' => [['token' => 'cables', 'startOffset' => 0, 'endOffset' => 6]],
+            ],
+            [
+                'operation' => 'filter: my_stop',
+                'definition' => 'stop (stopwords: a, an, the, and, or, … (7 total))',
+                'componentKind' => 'filter',
+                'componentName' => 'my_stop',
+                'definitionTruncated' => true,
+                'tokens' => [['token' => 'cables', 'startOffset' => 0, 'endOffset' => 6]],
+            ],
+        ]);
+
+        $resolver = new AnalysisPathResolver($searchDebugClientMock);
+
+        // Act
+        $path = $resolver->resolve('cables', 'cables', 0, 6);
+
+        // Assert
+        $this->assertSame(
+            [
+                ['text' => 'cables', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
+                [
+                    'text' => 'cables',
+                    'operation' => 'filter: my_stop',
+                    'definition' => 'stop (stopwords: a, an, the, and, or, … (7 total))',
+                    'componentKind' => 'filter',
+                    'componentName' => 'my_stop',
+                    'definitionTruncated' => true,
+                ],
             ],
             $path,
         );
@@ -188,6 +273,10 @@ class AnalysisPathResolverTest extends Unit
         $searchDebugClientMock->method('getTextAnalysisStages')->willReturn([
             [
                 'operation' => 'tokenizer: standard',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
                 'tokens' => [['token' => 'cable', 'startOffset' => 0, 'endOffset' => 5]],
             ],
         ]);
@@ -215,11 +304,19 @@ class AnalysisPathResolverTest extends Unit
         $searchDebugClientMock->method('getTextAnalysisStages')->willReturn([
             [
                 'operation' => 'tokenizer: standard',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
                 // Deliberately does NOT contain offset [0,5) — simulates a broken/inconsistent stage.
                 'tokens' => [['token' => 'unrelated', 'startOffset' => 20, 'endOffset' => 29]],
             ],
             [
                 'operation' => 'filter: lowercase',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
                 'tokens' => [['token' => 'cable', 'startOffset' => 0, 'endOffset' => 5]],
             ],
         ]);
@@ -232,7 +329,7 @@ class AnalysisPathResolverTest extends Unit
         // Assert — stops at the point it can no longer find an ancestor, rather than throwing.
         $this->assertSame(
             [
-                ['text' => 'cable', 'operation' => null],
+                ['text' => 'cable', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
             ],
             $path,
         );

@@ -34,7 +34,7 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
      * @param int $startOffset
      * @param int $endOffset
      *
-     * @return array<int, array{text: string, operation: string|null}>|null
+     * @return array<int, array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool}>|null
      */
     public function resolve(string $text, string $token, int $startOffset, int $endOffset): ?array
     {
@@ -55,7 +55,7 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
             return null;
         }
 
-        $path = [['text' => $currentToken['token'], 'operation' => null]];
+        $path = [$this->originPathEntry($currentToken['token'])];
 
         for ($stageIndex = $lastStageIndex; $stageIndex > 0; $stageIndex--) {
             $parentToken = $this->findContainingToken(
@@ -71,15 +71,41 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
             }
 
             // $path[0] is the entry we already resolved for $currentToken — the stage we're looking at
-            // right now (stages[$stageIndex]) is exactly the operation that produced it from $parentToken.
+            // right now (stages[$stageIndex]) is exactly the operation (and its definition) that produced
+            // it from $parentToken.
             $path[0]['operation'] = $stages[$stageIndex]['operation'];
+            $path[0]['definition'] = $stages[$stageIndex]['definition'];
+            $path[0]['componentKind'] = $stages[$stageIndex]['componentKind'];
+            $path[0]['componentName'] = $stages[$stageIndex]['componentName'];
+            $path[0]['definitionTruncated'] = $stages[$stageIndex]['definitionTruncated'];
 
-            array_unshift($path, ['text' => $parentToken['token'], 'operation' => null]);
+            array_unshift($path, $this->originPathEntry($parentToken['token']));
 
             $currentToken = $parentToken;
         }
 
         return $path;
+    }
+
+    /**
+     * A freshly unshifted/seeded path entry — nothing has produced it FROM an earlier stage yet, so
+     * every "how did we get here" field starts null/false, to potentially be filled in one loop
+     * iteration later.
+     *
+     * @param string $text
+     *
+     * @return array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool}
+     */
+    protected function originPathEntry(string $text): array
+    {
+        return [
+            'text' => $text,
+            'operation' => null,
+            'definition' => null,
+            'componentKind' => null,
+            'componentName' => null,
+            'definitionTruncated' => false,
+        ];
     }
 
     /**

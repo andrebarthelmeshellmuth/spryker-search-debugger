@@ -1,0 +1,69 @@
+// For $setting-color-* below — kept deliberately plain/greyscale, same posture as the other two
+// debug utility pages this one is reached from (token-source.scss, token-analysis.scss).
+@import '../../components/molecules/search-debug-tokens/search-debug-palette';
+
+// Standalone debug utility page (opened via the token-analysis page's "view full definition" link, in a
+// new tab, only when a config value was too long to show inline there).
+.component-config-page {
+    padding: rem(24) 0;
+}
+
+.component-config-page__heading {
+    margin-bottom: rem(8);
+}
+
+.component-config-list {
+    margin-top: rem(24);
+}
+
+// One card per config key, e.g. "stopwords" — the value box scrolls in place rather than pushing the
+// rest of the page down, since this is exactly the place a long list (hundreds of stopwords/synonyms)
+// legitimately belongs in full.
+.component-config-field {
+    margin-bottom: rem(16);
+
+    &:last-child {
+        margin-bottom: 0;
+    }
+}
+
+.component-config-field__key {
+    margin: 0;
+    padding: rem(8) rem(14);
+    border-radius: rem(6) rem(6) 0 0;
+    background-color: $setting-color-darker;
+    color: $setting-color-white;
+    font-family: monospace;
+    font-size: rem(13);
+    word-break: break-word;
+}
+
+.component-config-field__value {
+    max-height: rem(240);
+    padding: rem(10) rem(14);
+    overflow-y: auto;
+    border: 1px solid $setting-color-light;
+    border-top: none;
+    border-radius: 0 0 rem(8) rem(8);
+    font-family: monospace;
+    font-size: rem(13);
+    word-break: break-word;
+}
+
+.component-config-field__list {
+    margin: 0;
+    padding-left: rem(18);
+
+    li {
+        margin-bottom: rem(4);
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+}
+
+.component-config-field__empty {
+    color: $setting-color-darker;
+    font-style: italic;
+}

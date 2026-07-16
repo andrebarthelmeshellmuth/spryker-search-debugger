@@ -9,6 +9,7 @@ declare(strict_types = 1);
 
 namespace SprykerCommunity\Client\SearchDebug\Schema;
 
+use Generated\Shared\Transfer\SearchAnalysisComponentTransfer;
 use Generated\Shared\Transfer\SearchAnalyzerTransfer;
 use Generated\Shared\Transfer\SearchIndexFieldTransfer;
 use Generated\Shared\Transfer\SearchIndexSchemaTransfer;
@@ -24,9 +25,34 @@ class IndexSchemaMapper implements IndexSchemaMapperInterface
     public const DEFAULT_ANALYZER_NAME = 'standard';
 
     /**
+     * The three `analysisSettings` keys that share the `{"type": "...", ...}` component shape — also
+     * used as the `componentKind` values other classes (e.g. `SearchStringAnalyzer`,
+     * `IndexSchemaReader::findComponent()`) pass around to look one up, so they always match these
+     * settings keys exactly with no separate translation step.
+     *
+     * @var string
+     */
+    public const COMPONENT_KIND_TOKENIZER = 'tokenizer';
+
+    /**
+     * @var string
+     */
+    public const COMPONENT_KIND_FILTER = 'filter';
+
+    /**
+     * @var string
+     */
+    public const COMPONENT_KIND_CHAR_FILTER = 'char_filter';
+
+    /**
      * @var string
      */
     protected const FIELD_TYPE_TEXT = 'text';
+
+    /**
+     * @var string
+     */
+    protected const SETTINGS_KEY_TYPE = 'type';
 
     /**
      * @param string $indexName
@@ -48,6 +74,24 @@ class IndexSchemaMapper implements IndexSchemaMapperInterface
         foreach ($analysisSettings['analyzer'] ?? [] as $analyzerName => $analyzerDefinition) {
             $searchIndexSchemaTransfer->addAnalyzer(
                 $this->mapToSearchAnalyzerTransfer((string)$analyzerName, (array)$analyzerDefinition),
+            );
+        }
+
+        foreach ($analysisSettings[static::COMPONENT_KIND_TOKENIZER] ?? [] as $tokenizerName => $tokenizerDefinition) {
+            $searchIndexSchemaTransfer->addTokenizer(
+                $this->mapToSearchAnalysisComponentTransfer((string)$tokenizerName, (array)$tokenizerDefinition),
+            );
+        }
+
+        foreach ($analysisSettings[static::COMPONENT_KIND_FILTER] ?? [] as $filterName => $filterDefinition) {
+            $searchIndexSchemaTransfer->addFilter(
+                $this->mapToSearchAnalysisComponentTransfer((string)$filterName, (array)$filterDefinition),
+            );
+        }
+
+        foreach ($analysisSettings[static::COMPONENT_KIND_CHAR_FILTER] ?? [] as $charFilterName => $charFilterDefinition) {
+            $searchIndexSchemaTransfer->addCharFilter(
+                $this->mapToSearchAnalysisComponentTransfer((string)$charFilterName, (array)$charFilterDefinition),
             );
         }
 
@@ -96,5 +140,25 @@ class IndexSchemaMapper implements IndexSchemaMapperInterface
             ->setTokenizerName((string)($analyzerDefinition['tokenizer'] ?? ''))
             ->setCharFilterNames(array_map('strval', (array)($analyzerDefinition['char_filter'] ?? [])))
             ->setFilterNames(array_map('strval', (array)($analyzerDefinition['filter'] ?? [])));
+    }
+
+    /**
+     * Shared by tokenizer/filter/char_filter settings blocks — all three share the identical
+     * `{"type": "...", ...type-specific config}` shape in Elasticsearch's analysis settings.
+     *
+     * @param string $name
+     * @param array<string, mixed> $definition
+     *
+     * @return \Generated\Shared\Transfer\SearchAnalysisComponentTransfer
+     */
+    protected function mapToSearchAnalysisComponentTransfer(string $name, array $definition): SearchAnalysisComponentTransfer
+    {
+        $type = (string)($definition[static::SETTINGS_KEY_TYPE] ?? '');
+        unset($definition[static::SETTINGS_KEY_TYPE]);
+
+        return (new SearchAnalysisComponentTransfer())
+            ->setName($name)
+            ->setType($type)
+            ->setConfig($definition);
     }
 }

@@ -18,6 +18,8 @@ use Spryker\Yves\Kernel\AbstractFactory;
 use SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\AnalysisPathResolver;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\AnalysisPathResolverInterface;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\ComponentConfigFormatter;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\ComponentConfigFormatterInterface;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighter;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolver;
@@ -50,6 +52,14 @@ class SearchDebugWidgetFactory extends AbstractFactory
     public function createAnalysisPathResolver(): AnalysisPathResolverInterface
     {
         return new AnalysisPathResolver($this->getSearchDebugClient());
+    }
+
+    /**
+     * @return \SprykerCommunity\Yves\SearchDebugWidget\Resolver\ComponentConfigFormatterInterface
+     */
+    public function createComponentConfigFormatter(): ComponentConfigFormatterInterface
+    {
+        return new ComponentConfigFormatter();
     }
 
     /**

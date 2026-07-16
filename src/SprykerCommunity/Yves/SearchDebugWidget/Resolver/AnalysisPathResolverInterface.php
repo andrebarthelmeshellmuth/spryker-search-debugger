@@ -30,9 +30,16 @@ interface AnalysisPathResolverInterface
      * @param int $startOffset
      * @param int $endOffset
      *
-     * @return array<int, array{text: string, operation: string|null}>|null Null when $token isn't found
-     *   at that offset in the last analysis stage at all (e.g. stale offsets from a re-indexed document).
-     *   The first entry's `operation` is always null (it's the origin, nothing produced it).
+     * @return array<int, array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool}>|null
+     *   Null when $token isn't found at that offset in the last analysis stage at all (e.g. stale offsets
+     *   from a re-indexed document). The first entry's `operation`/`definition`/`componentKind`/
+     *   `componentName` are always null and `definitionTruncated` always false (it's the origin, nothing
+     *   produced it). `definition` is the operation's own configuration (e.g.
+     *   "edge_ngram (min_gram: 2, max_gram: 20)"), or null when it's a built-in Elasticsearch component
+     *   used by name only, with nothing custom configured for it. `componentKind`/`componentName` are
+     *   only non-null alongside a non-null `definition`, and identify which component to pass to
+     *   `SearchDebugClientInterface::getComponentConfig()` for its FULL, untruncated config — worth doing
+     *   only when `definitionTruncated` is true (i.e. `definition` itself left something out).
      */
     public function resolve(string $text, string $token, int $startOffset, int $endOffset): ?array;
 }

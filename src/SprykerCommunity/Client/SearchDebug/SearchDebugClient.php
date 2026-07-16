@@ -55,13 +55,40 @@ class SearchDebugClient extends AbstractClient implements SearchDebugClientInter
      *
      * @param string $text
      *
-     * @return array<array{operation: string, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
+     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
      */
     public function getTextAnalysisStages(string $text): array
     {
         return $this->getFactory()
             ->createSearchStringAnalyzer()
             ->getAnalysisStages($text);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @api
+     *
+     * @param string $componentKind
+     * @param string $componentName
+     *
+     * @return array{name: string, type: string, config: array<string, mixed>}|null
+     */
+    public function getComponentConfig(string $componentKind, string $componentName): ?array
+    {
+        $component = $this->getFactory()
+            ->createIndexSchemaReader()
+            ->findComponent($componentKind, $componentName);
+
+        if ($component === null) {
+            return null;
+        }
+
+        return [
+            'name' => $component->getName(),
+            'type' => $component->getType(),
+            'config' => $component->getConfig(),
+        ];
     }
 
     /**

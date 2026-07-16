@@ -28,7 +28,7 @@ interface SearchStringAnalyzerInterface
     /**
      * @param string $text
      *
-     * @return array<array{operation: string, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
+     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
      */
     public function getAnalysisStages(string $text): array;
 }

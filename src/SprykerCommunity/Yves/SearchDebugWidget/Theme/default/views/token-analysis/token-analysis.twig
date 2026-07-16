@@ -1,4 +1,4 @@
-{# @var data.path array<array{text: string, operation: string|null}> #}
+{# @var data.path array<array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool}> #}
 
 {% extends template('page-blank') %}
 
@@ -6,12 +6,12 @@
     text: _view.text,
     token: _view.token,
     path: _view.path,
-    title: 'search_debug.token_analysis.heading' | trans({'%token%': _view.token}),
+    title: 'search_debug.token_analysis.heading' | trans,
 } %}
 
 {% block body %}
     <div class="container token-analysis-page">
-        <h1>{{ 'search_debug.token_analysis.heading' | trans({'%token%': data.token}) }}</h1>
+        <h1 class="token-analysis-page__heading">{{ 'search_debug.token_analysis.heading' | trans }}</h1>
 
         {# Always a linear PATH, never a tree: even a filter that fans one token into several (ngram,
            decompounding, synonyms, ...) only ever contributes the ONE step that actually led to the
@@ -20,7 +20,17 @@
         <div class="token-analysis-path">
             {% for step in data.path %}
                 {% if step.operation is not null %}
-                    <div class="token-analysis-path__operation">{{ step.operation }}</div>
+                    <div class="token-analysis-path__operation">
+                        {{ step.operation }}
+                        {%- if step.definition is not null %}
+                            <span class="token-analysis-path__definition">
+                                {{- step.definition -}}
+                                {%- if step.definitionTruncated -%}
+                                    <a href="{{ url('search-debug/component-config', { type: step.componentKind, name: step.componentName }) }}" target="_blank" rel="noopener noreferrer" class="token-analysis-path__definition-link">{{ 'search_debug.token_analysis.view_full_definition' | trans }}</a>
+                                {%- endif -%}
+                            </span>
+                        {%- endif %}
+                    </div>
                 {% endif %}
                 <div class="token-analysis-path__step {{ loop.last ? 'token-analysis-path__step--final' : '' }}">
                     {{ step.text }}

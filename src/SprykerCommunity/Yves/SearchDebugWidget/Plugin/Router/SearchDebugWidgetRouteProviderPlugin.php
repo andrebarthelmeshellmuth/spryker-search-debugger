@@ -25,6 +25,11 @@ class SearchDebugWidgetRouteProviderPlugin extends AbstractRouteProviderPlugin
     public const ROUTE_NAME_ANALYSIS_PATH = 'search-debug/token-analysis';
 
     /**
+     * @var string
+     */
+    public const ROUTE_NAME_COMPONENT_CONFIG = 'search-debug/component-config';
+
+    /**
      * @param \Spryker\Yves\Router\Route\RouteCollection $routeCollection
      *
      * @return \Spryker\Yves\Router\Route\RouteCollection
@@ -36,6 +41,9 @@ class SearchDebugWidgetRouteProviderPlugin extends AbstractRouteProviderPlugin
 
         $analysisPathRoute = $this->buildRoute('/search-debug/token-analysis', 'SearchDebugWidget', 'AnalysisPath', 'indexAction');
         $routeCollection->add(static::ROUTE_NAME_ANALYSIS_PATH, $analysisPathRoute);
+
+        $componentConfigRoute = $this->buildRoute('/search-debug/component-config', 'SearchDebugWidget', 'ComponentConfig', 'indexAction');
+        $routeCollection->add(static::ROUTE_NAME_COMPONENT_CONFIG, $componentConfigRoute);
 
         return $routeCollection;
     }

@@ -1,0 +1,42 @@
+{# @var data.config array<string, string|array<string>> #}
+
+{% extends template('page-blank') %}
+
+{% define data = {
+    name: _view.name,
+    type: _view.type,
+    config: _view.config,
+    title: 'search_debug.component_config.heading' | trans({'%name%': _view.name}),
+} %}
+
+{% block body %}
+    <div class="container component-config-page">
+        <h1 class="component-config-page__heading">{{ 'search_debug.component_config.heading' | trans({'%name%': data.name}) }}</h1>
+        <p class="text-small">{{ 'search_debug.component_config.type' | trans({'%type%': data.type}) }}</p>
+
+        <div class="component-config-list">
+            {% for key, value in data.config %}
+                <section class="component-config-field">
+                    <h2 class="component-config-field__key">{{ key }}</h2>
+                    <div class="component-config-field__value">
+                        {%- if value is iterable -%}
+                            {%- if value | length > 0 -%}
+                                <ul class="component-config-field__list">
+                                    {%- for item in value -%}
+                                        <li>{{ item }}</li>
+                                    {%- endfor -%}
+                                </ul>
+                            {%- else -%}
+                                <span class="component-config-field__empty">{{ 'search_debug.component_config.empty_list' | trans }}</span>
+                            {%- endif -%}
+                        {%- else -%}
+                            {{- value -}}
+                        {%- endif -%}
+                    </div>
+                </section>
+            {% else %}
+                <p class="component-config-field__empty">{{ 'search_debug.component_config.no_config' | trans }}</p>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}

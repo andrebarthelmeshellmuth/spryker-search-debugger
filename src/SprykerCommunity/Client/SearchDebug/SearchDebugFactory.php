@@ -26,6 +26,8 @@ use Spryker\Service\Synchronization\SynchronizationServiceInterface;
 use Spryker\Shared\SearchElasticsearch\ElasticaClient\ElasticaClientFactory;
 use SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessChecker;
 use SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessCheckerInterface;
+use SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatter;
+use SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatterInterface;
 use SprykerCommunity\Client\SearchDebug\Analyzer\SearchStringAnalyzer;
 use SprykerCommunity\Client\SearchDebug\Analyzer\SearchStringAnalyzerInterface;
 use SprykerCommunity\Client\SearchDebug\Document\PageDocumentReader;
@@ -54,7 +56,16 @@ class SearchDebugFactory extends AbstractFactory
             $this->createIndexNameResolver(),
             $this->createIndexSchemaReader(),
             $this->getConfig(),
+            $this->createComponentDefinitionFormatter(),
         );
+    }
+
+    /**
+     * @return \SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatterInterface
+     */
+    public function createComponentDefinitionFormatter(): ComponentDefinitionFormatterInterface
+    {
+        return new ComponentDefinitionFormatter();
     }
 
     /**

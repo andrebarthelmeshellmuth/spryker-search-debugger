@@ -8,6 +8,10 @@
     padding: rem(24) 0;
 }
 
+.token-analysis-page__heading {
+    margin-bottom: rem(24);
+}
+
 // One box per stage's string state, connected top to bottom by a labeled arrow showing the ES operation
 // that produced the NEXT box from this one — always a straight line, never a branching tree (see the
 // twig comment above the loop for why that's structurally guaranteed).
@@ -18,11 +22,17 @@
     align-items: center;
 }
 
+// Styled to READ as a button (fully rounded, filled) purely so each step visually reads as one discrete
+// "token" chip — not an actual `<button>` element, since nothing here is clickable. Sized to its own
+// text (min-width as a floor for very short tokens, max-width as a ceiling for very long ones) rather
+// than stretching to the full page width — a "cable" chip shouldn't be as wide as the container.
 .token-analysis-path__step {
-    width: 100%;
+    min-width: rem(120);
+    max-width: 90%;
     padding: rem(10) rem(16);
     border: 1px solid $setting-color-light;
-    border-radius: rem(8);
+    border-radius: rem(24);
+    background-color: $setting-color-lightest;
     font-family: monospace;
     font-size: rem(14);
     text-align: center;
@@ -46,5 +56,31 @@
 
     &::before {
         content: '↓ ';
+    }
+}
+
+// The operation's own configuration (e.g. "edge_ngram (min_gram: 2, max_gram: 20)") — set apart from the
+// operation name itself (lighter weight, on its own line) since it's supplementary detail, not the
+// primary "what happened here" label.
+.token-analysis-path__definition {
+    display: block;
+    // Same muted tone as .token-analysis-path__operation above it (rather than something lighter) —
+    // $setting-color-light (#dadada) was too faint to read comfortably against the white page.
+    color: $setting-color-darker;
+    font-style: italic;
+}
+
+// Only rendered when the definition above it left something out (a long config list, or an overall
+// character cap) — opens the full, untruncated config in a new tab. Not italic (unlike its container),
+// so it visually reads as the one actionable part of an otherwise inert supplementary line.
+.token-analysis-path__definition-link {
+    margin-left: rem(4);
+    color: $search-debug-feature-accent-color;
+    font-style: normal;
+    text-decoration: underline;
+
+    &:hover,
+    &:focus {
+        color: darken($search-debug-feature-accent-color, 8%);
     }
 }
