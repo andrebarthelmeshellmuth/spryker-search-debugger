@@ -60,6 +60,7 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
         for ($stageIndex = $lastStageIndex; $stageIndex > 0; $stageIndex--) {
             $parentToken = $this->findContainingToken(
                 $stages[$stageIndex - 1]['tokens'],
+                $currentToken['token'],
                 $currentToken['startOffset'],
                 $currentToken['endOffset'],
             );
@@ -132,17 +133,29 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
     }
 
     /**
-     * Picks the token whose range fully contains [$childStartOffset, $childEndOffset) — the TIGHTEST
-     * such match, in the unlikely case more than one candidate contains it (defensive tie-break only; a
-     * well-formed filter chain shouldn't produce that ambiguity).
+     * Picks the token whose range fully contains [$childStartOffset, $childEndOffset). Prefers an
+     * IDENTICAL-TEXT candidate over the tightest-span heuristic when one exists — offset containment
+     * alone is not enough once a synonym filter is in the chain: a synonym-injected token (e.g. "button")
+     * shares the EXACT SAME offset as the word that triggered it (e.g. "switch") through every later
+     * pass-through stage (word_delimiter, stop, length, ...), so without a text preference, the
+     * tightest-span tie-break (arbitrary "first one wins" for equal spans) can silently swap the lineage
+     * onto the WRONG same-offset sibling at the very first backward step and never recover — the
+     * displayed path would then show "switch" persisting through every stage and "button" appearing out
+     * of nowhere at the final one, attributing the transformation to the wrong filter entirely. Confirmed
+     * live against a real product description matching the synonym pair "switch, button".
+     *
+     * Falls back to the tightest-span match when no exact-text candidate exists — still correct for
+     * genuine transformations (lowercasing, edge-ngram truncation, decompounding) where the child's text
+     * legitimately differs from its parent's.
      *
      * @param array<array{token: string, startOffset: int, endOffset: int}> $tokens
+     * @param string $childText
      * @param int $childStartOffset
      * @param int $childEndOffset
      *
      * @return array{token: string, startOffset: int, endOffset: int}|null
      */
-    protected function findContainingToken(array $tokens, int $childStartOffset, int $childEndOffset): ?array
+    protected function findContainingToken(array $tokens, string $childText, int $childStartOffset, int $childEndOffset): ?array
     {
         $bestMatch = null;
         $bestSpan = null;
@@ -150,6 +163,10 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
         foreach ($tokens as $token) {
             if ($token['startOffset'] > $childStartOffset || $token['endOffset'] < $childEndOffset) {
                 continue;
+            }
+
+            if ($token['token'] === $childText) {
+                return $token;
             }
 
             $span = $token['endOffset'] - $token['startOffset'];

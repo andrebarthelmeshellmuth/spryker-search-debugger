@@ -114,15 +114,16 @@ class ExplanationParserTest extends Unit
     }
 
     /**
-     * An unattributable weight node (e.g. a Synonym over several terms) must be kept verbatim: descending
-     * into it would surface its multiplicative TF/IDF internals as if they were additive score parts.
+     * A genuinely unattributable weight node (neither a plain term nor a recognized Synonym group) must
+     * be kept verbatim: descending into it would surface its multiplicative TF/IDF internals as if they
+     * were additive score parts.
      *
      * @return void
      */
     public function testParseKeepsAnUnrecognizedWeightNodeVerbatimInsteadOfDescendingIntoIt(): void
     {
         // Arrange
-        $description = 'weight(Synonym(full-text:cable full-text:cabel) in 42) [PerFieldSimilarity], result of:';
+        $description = 'weight(ConstantScore(full-text:cable) in 42) [PerFieldSimilarity], result of:';
         $explanation = [
             'value' => 3.5,
             'description' => $description,
@@ -141,6 +142,227 @@ class ExplanationParserTest extends Unit
             [['description' => $description, 'value' => 3.5]],
             $result[ExplanationParser::KEY_OTHER_CONTRIBUTIONS],
         );
+    }
+
+    /**
+     * Regression test: confirmed live against a real product ("Cherry Optical Mouse ...") matching this
+     * shop's "switch, button" synonym rule and the query "brenne switch". Elasticsearch scores a synonym
+     * group as ONE INSEPARABLE node — "weight(Synonym(full-text:button full-text:switch) in N)" — not one
+     * node per term, so it cannot be attributed to "switch" or "button" independently without either
+     * double-counting the value (attributing it to both) or dropping it from the visible per-token sum
+     * entirely (the bug this test guards against: before this fix, the node fell through to
+     * `otherContributions` UNLABELED, and the query's other matched-token totals visibly fell short of
+     * the document's real `_score`).
+     *
+     * @return void
+     */
+    public function testParseAttributesASynonymGroupWeightToACombinedTermKey(): void
+    {
+        // Arrange — the exact shape confirmed live, trimmed to the parts this parser reads.
+        $description = 'weight(Synonym(full-text:button full-text:switch) in 12803) [PerFieldSimilarity], result of:';
+        $explanation = [
+            'value' => 5.428672,
+            'description' => $description,
+            'details' => [
+                ['value' => 2.2, 'description' => 'boost', 'details' => []],
+            ],
+        ];
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['brenne', 'switch', 'button']);
+
+        // Assert — sorted, joined key; nothing left behind in otherContributions.
+        $this->assertSame(
+            ['button, switch' => ['total' => 5.428672, 'field' => 'full-text']],
+            $result[ExplanationParser::KEY_MATCHED_TOKENS],
+        );
+        $this->assertSame([], $result[ExplanationParser::KEY_OTHER_CONTRIBUTIONS]);
+    }
+
+    /**
+     * A synonym rule can list any number of equivalent words — this parser must not assume exactly 2.
+     *
+     * @return void
+     */
+    public function testParseAttributesASynonymGroupWithMoreThanTwoTermsToOneCombinedKey(): void
+    {
+        // Arrange
+        $description = 'weight(Synonym(full-text:accu full-text:battery full-text:cell full-text:power) in 7) [PerFieldSimilarity], result of:';
+        $explanation = ['value' => 4.0, 'description' => $description, 'details' => []];
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['power']);
+
+        // Assert
+        $this->assertSame(
+            ['accu, battery, cell, power' => ['total' => 4.0, 'field' => 'full-text']],
+            $result[ExplanationParser::KEY_MATCHED_TOKENS],
+        );
+    }
+
+    /**
+     * A synonym group whose terms are NOT among the user's actual query tokens (e.g. it matched via a
+     * different query position, or the query itself changed) belongs under "other contributions", same
+     * as any other non-query term — not silently dropped or force-matched.
+     *
+     * @return void
+     */
+    public function testParseMovesASynonymGroupThatIsNotAQueryTokenToTheOtherContributions(): void
+    {
+        // Arrange
+        $description = 'weight(Synonym(full-text:accu full-text:battery) in 7) [PerFieldSimilarity], result of:';
+        $explanation = ['value' => 4.0, 'description' => $description, 'details' => []];
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+
+        // Assert
+        $this->assertSame([], $result[ExplanationParser::KEY_MATCHED_TOKENS]);
+        $this->assertSame(
+            [['description' => 'full-text:accu, battery', 'value' => 4.0]],
+            $result[ExplanationParser::KEY_OTHER_CONTRIBUTIONS],
+        );
+    }
+
+    /**
+     * The SAME synonym group scored via two different fields (this shop's real "full-text" AND
+     * "full-text-boosted") must combine through the identical MAX/SUM logic a single real term already
+     * gets — reused, not reimplemented, for the combined key.
+     *
+     * @return void
+     */
+    public function testParseCombinesASynonymGroupsPerFieldWeightsTheSameWayAsARealTerm(): void
+    {
+        // Arrange
+        $explanation = [
+            'value' => 45.650497,
+            'description' => 'max of:',
+            'details' => [
+                [
+                    'value' => 5.428672,
+                    'description' => 'weight(Synonym(full-text:button full-text:switch) in 12803) [PerFieldSimilarity], result of:',
+                    'details' => [],
+                ],
+                [
+                    'value' => 45.650497,
+                    'description' => 'weight(Synonym(full-text-boosted:button full-text-boosted:switch) in 12803) [PerFieldSimilarity], result of:',
+                    'details' => [],
+                ],
+            ],
+        ];
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['switch', 'button']);
+
+        // Assert
+        $matchedToken = $result[ExplanationParser::KEY_MATCHED_TOKENS]['button, switch'];
+        $this->assertSame(45.650497, $matchedToken['total']);
+        $this->assertSame('full-text-boosted', $matchedToken['field']);
+    }
+
+    /**
+     * Regression test: confirmed live against the SAME real product/query as the tests above, but this
+     * time reproducing the EXACT nesting Elasticsearch actually returned — unlike the simplified 2-level
+     * fixture above, a synonym-expanded term wraps EACH field's weight in its own extra, SINGLE-CHILD
+     * "sum of:" node (plain non-synonym term matches get no such wrapper — confirmed by comparing against
+     * a real explain for a plain-term query on the same document). Before this fix, that inner "sum of:"
+     * was trusted as a combine-mode signal and overrode the ancestor "max of:" that actually governs how
+     * the two FIELDS combine (dis_max — only the winning field counts), causing the two per-field
+     * weights to be SUMMED instead of MAX'd: 5.428672 + 45.650497 = 51.079169, inflating the matched
+     * token's total past the document's real `_score` of 45.650497 — the exact bug report this guards.
+     *
+     * @return void
+     */
+    public function testParseTreatsASingleChildWrapperNodeAsCombineModeNeutral(): void
+    {
+        // Arrange — mirrors the real explain tree's shape: sum of: > max of: > sum of: (1 child each) > weight(...)
+        $explanation = [
+            'value' => 45.650497,
+            'description' => 'sum of:',
+            'details' => [
+                [
+                    'value' => 45.650497,
+                    'description' => 'max of:',
+                    'details' => [
+                        [
+                            'value' => 5.428672,
+                            'description' => 'sum of:',
+                            'details' => [
+                                [
+                                    'value' => 5.428672,
+                                    'description' => 'weight(Synonym(full-text:button full-text:switch) in 12803) [PerFieldSimilarity], result of:',
+                                    'details' => [],
+                                ],
+                            ],
+                        ],
+                        [
+                            'value' => 45.650497,
+                            'description' => 'sum of:',
+                            'details' => [
+                                [
+                                    'value' => 45.650497,
+                                    'description' => 'weight(Synonym(full-text-boosted:button full-text-boosted:switch) in 12803) [PerFieldSimilarity], result of:',
+                                    'details' => [],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+                // The zero-valued internal filter clause every catalog query includes — present in the
+                // real tree, kept here so this fixture is a faithful, complete reproduction.
+                [
+                'value' => 0.0,
+                'description' => 'match on required clause, product of:',
+                'details' => [
+                    ['value' => 1.0, 'description' => '*:*', 'details' => []],
+                ]],
+            ],
+        ];
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['brenne', 'switch', 'button']);
+
+        // Assert — MAX of the two fields (45.650497), not their sum (51.079169).
+        $matchedToken = $result[ExplanationParser::KEY_MATCHED_TOKENS]['button, switch'];
+        $this->assertSame(45.650497, $matchedToken['total']);
+        $this->assertSame('full-text-boosted', $matchedToken['field']);
+        $this->assertSame([], $result[ExplanationParser::KEY_OTHER_CONTRIBUTIONS]);
+    }
+
+    /**
+     * The same single-child-wrapper neutrality applies to a plain (non-synonym) term too, even though a
+     * real plain-term match doesn't happen to produce this shape today (confirmed live) — the fix is
+     * general, not synonym-specific, and must not regress the ordinary per-field dis_max case either.
+     *
+     * @return void
+     */
+    public function testParseTreatsASingleChildWrapperNodeAsCombineModeNeutralForAPlainTermToo(): void
+    {
+        // Arrange
+        $explanation = [
+            'value' => 19.84,
+            'description' => 'max of:',
+            'details' => [
+                [
+                    'value' => 5.98,
+                    'description' => 'sum of:',
+                    'details' => [$this->createWeightNode('full-text', 'cable', 5.98)],
+                ],
+                [
+                    'value' => 19.84,
+                    'description' => 'sum of:',
+                    'details' => [$this->createWeightNode('full-text-boosted', 'cable', 19.84)],
+                ],
+            ],
+        ];
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+
+        // Assert — still MAX (19.84), not SUM (25.82), despite the single-child "sum of:" wrappers.
+        $matchedToken = $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable'];
+        $this->assertSame(19.84, $matchedToken['total']);
+        $this->assertSame('full-text-boosted', $matchedToken['field']);
     }
 
     /**
