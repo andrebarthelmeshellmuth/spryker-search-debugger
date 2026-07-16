@@ -321,6 +321,22 @@ role), and assign that role to the users who should see debug output.
   and `ComponentConfigFormatter` renders its config in full for the component-config page — same two shape
   hazards handled again, just without the length cap, since showing everything is the whole point there.
 
+## Extending the overlay
+
+Other packages can contribute additional score sections to the per-product SRP overlay via
+`SprykerCommunity\Client\SearchDebug\Dependency\Plugin\ProductDebugDataExpanderPluginInterface`
+(registered by overriding `SearchDebugDependencyProvider::getProductDebugDataExpanderPlugins()` on
+project level). Each plugin receives the parsed per-hit debug data plus the raw document `_source`
+and may append generically-rendered sections (title, `label: calculation = value` lines, a summary
+line and a free-text formula line) — e.g.
+[spryker-community/search-ranking](https://github.com/andrebarthelmeshellmuth/spryker-search-ranking)
+explains its business-signal `function_score` this way.
+
+For a `function_score`-wrapped query the explain parser additionally exposes the WRAPPED query's own
+relevance as `queryScore` (shown as "Text match score", the number the matched-token breakdown adds
+up against), suppresses Elasticsearch's float-max `maxBoost` sentinel from the output, and the
+overlay closes with the final `_score` actually used for ranking.
+
 ## Limitations
 
 - **Assumes Spryker's default single-resource catalog search model.** `TokenSourceResolver` always resolves

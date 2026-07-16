@@ -663,6 +663,118 @@ class ExplanationParserTest extends Unit
      *
      * @return array<string, mixed>
      */
+
+    /**
+     * The EXACT tree a real script_score function_score produces (captured live from the
+     * search-ranking business-signal query, ES 7, boost_mode "replace"): the script node's value is the
+     * final score, its `_score:` child carries the wrapped query's own relevance, the term breakdown
+     * lives underneath that, and a float-max `maxBoost` sentinel sits next to the script node.
+     *
+     * @return void
+     */
+    public function testParseExtractsQueryScoreAndTermBreakdownFromARealScriptScoreTree(): void
+    {
+        // Arrange
+        $explanation = $this->createScriptScoreExplanationTree(2.7416, 6.9244);
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+
+        // Assert: the wrapped query's own relevance is exposed separately ...
+        $this->assertSame(6.9244, $result[ExplanationParser::KEY_QUERY_SCORE]);
+
+        // ... the familiar term breakdown still works through the wrapper ...
+        $this->assertSame(6.9244, $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable']['total']);
+
+        // ... the script function itself is recorded with the FINAL value ...
+        $this->assertCount(1, $result[ExplanationParser::KEY_SCORE_FUNCTIONS]);
+        $this->assertSame(2.7416, $result[ExplanationParser::KEY_SCORE_FUNCTIONS][0]['value']);
+    }
+
+    /**
+     * The float-max `maxBoost` sentinel (3.4028235E38) every function_score explain contains must never
+     * surface as a score contribution — it is a cap marker, not a score part.
+     *
+     * @return void
+     */
+    public function testParseSuppressesTheMaxBoostSentinel(): void
+    {
+        // Arrange
+        $explanation = $this->createScriptScoreExplanationTree(2.7416, 6.9244);
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+
+        // Assert
+        $this->assertSame([], $result[ExplanationParser::KEY_OTHER_CONTRIBUTIONS]);
+    }
+
+    /**
+     * Without a function_score wrapper there is no separate query score — the key must still exist
+     * (null), so consumers can distinguish "no wrapper" from "wrapper with score 0".
+     *
+     * @return void
+     */
+    public function testParseReturnsNullQueryScoreWithoutAScriptScoreWrapper(): void
+    {
+        // Arrange
+        $explanation = $this->createWeightNode('full-text', 'cable', 6.9244);
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+
+        // Assert
+        $this->assertNull($result[ExplanationParser::KEY_QUERY_SCORE]);
+    }
+
+    /**
+     * Live-captured shape (abbreviated to the structurally relevant nodes) of
+     * `function_score` + `script_score` + `boost_mode: replace` explain output.
+     *
+     * @param float $finalScore
+     * @param float $queryScore
+     *
+     * @return array<string, mixed>
+     */
+    protected function createScriptScoreExplanationTree(float $finalScore, float $queryScore): array
+    {
+        return [
+            'value' => $finalScore,
+            'description' => 'sum of:',
+            'details' => [
+                [
+                    'value' => $finalScore,
+                    'description' => 'min of:',
+                    'details' => [
+                        [
+                            'value' => $finalScore,
+                            'description' => 'script score function, computed with script:"Script{type=inline, lang=\'painless\', idOrCode=\'(1 + Math.sqrt(_score)) * (params.w0 * ...)\'}"',
+                            'details' => [
+                                [
+                                    'value' => $queryScore,
+                                    'description' => '_score: ',
+                                    'details' => [
+                                        $this->createWeightNode('full-text', 'cable', $queryScore),
+                                    ],
+                                ],
+                            ],
+                        ],
+                        [
+                            'value' => 3.4028235E38,
+                            'description' => 'maxBoost',
+                            'details' => [],
+                        ],
+                    ],
+                ],
+                [
+                    'value' => 0.0,
+                    'description' => 'match on required clause, product of:',
+                    'details' => [],
+                ],
+            ],
+        ];
+    }
+
     protected function createWeightNode(string $field, string $term, float $value): array
     {
         return [

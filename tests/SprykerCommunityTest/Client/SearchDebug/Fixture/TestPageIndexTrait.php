@@ -80,9 +80,11 @@ trait TestPageIndexTrait
     {
         $index = $this->getTestPageIndex();
 
-        if ($index->exists()) {
-            $index->delete();
+        if (!$index->exists()) {
+            return;
         }
+
+        $index->delete();
     }
 
     /**
