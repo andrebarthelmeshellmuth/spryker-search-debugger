@@ -144,6 +144,99 @@ class AnalysisPathResolverTest extends Unit
     }
 
     /**
+     * Regression test: confirmed live against a real product description matching this shop's
+     * "switch, button" synonym rule. A synonym filter INJECTS an additional token at the EXACT SAME
+     * offset as the word that triggered it — unlike edge-ngram siblings (which are all substrings of
+     * each other, so the tightest-span heuristic naturally picks the right one), a synonym-injected
+     * token shares an IDENTICAL span with a sibling that has completely UNRELATED text. Offset
+     * containment alone can't disambiguate that; only a same-text preference can — without it, resolving
+     * "button" would silently walk back through "switch" at every pass-through stage after the
+     * injection and only reveal "button" again at the very last stage, attributing the transformation to
+     * the wrong filter entirely.
+     *
+     * @return void
+     */
+    public function testResolveFollowsTheInjectedSynonymNotTheOriginalWordItWasInjectedAlongside(): void
+    {
+        // Arrange
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->method('getTextAnalysisStages')->willReturn([
+            [
+                'operation' => 'tokenizer: standard',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
+                'tokens' => [['token' => 'Switch', 'startOffset' => 0, 'endOffset' => 6]],
+            ],
+            [
+                'operation' => 'filter: lowercase',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
+                'tokens' => [['token' => 'switch', 'startOffset' => 0, 'endOffset' => 6]],
+            ],
+            [
+                'operation' => 'filter: fulltext_synonyms',
+                'definition' => 'synonym (synonyms: switch, button => switch, button)',
+                'componentKind' => 'filter',
+                'componentName' => 'fulltext_synonyms',
+                'definitionTruncated' => false,
+                // Both siblings span the SAME offset — "button" was injected, not derived by
+                // transforming "switch"'s text.
+                'tokens' => [
+                    ['token' => 'switch', 'startOffset' => 0, 'endOffset' => 6],
+                    ['token' => 'button', 'startOffset' => 0, 'endOffset' => 6],
+                ],
+            ],
+            [
+                // A pure pass-through stage — both siblings survive unchanged, still at the same offset.
+                'operation' => 'filter: fulltext_min_length',
+                'definition' => 'length (min: 2)',
+                'componentKind' => 'filter',
+                'componentName' => 'fulltext_min_length',
+                'definitionTruncated' => false,
+                'tokens' => [
+                    ['token' => 'switch', 'startOffset' => 0, 'endOffset' => 6],
+                    ['token' => 'button', 'startOffset' => 0, 'endOffset' => 6],
+                ],
+            ],
+        ]);
+
+        $resolver = new AnalysisPathResolver($searchDebugClientMock);
+
+        // Act — asking about "button", the injected sibling, not "switch", the original word.
+        $path = $resolver->resolve('Switch', 'button', 0, 6);
+
+        // Assert — "button" stays "button" through the pass-through stage; only the synonym stage
+        // itself shows the transformation from "switch".
+        $this->assertSame(
+            [
+                ['text' => 'Switch', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
+                ['text' => 'switch', 'operation' => 'filter: lowercase', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
+                [
+                    'text' => 'button',
+                    'operation' => 'filter: fulltext_synonyms',
+                    'definition' => 'synonym (synonyms: switch, button => switch, button)',
+                    'componentKind' => 'filter',
+                    'componentName' => 'fulltext_synonyms',
+                    'definitionTruncated' => false,
+                ],
+                [
+                    'text' => 'button',
+                    'operation' => 'filter: fulltext_min_length',
+                    'definition' => 'length (min: 2)',
+                    'componentKind' => 'filter',
+                    'componentName' => 'fulltext_min_length',
+                    'definitionTruncated' => false,
+                ],
+            ],
+            $path,
+        );
+    }
+
+    /**
      * A filter fanning ONE token into several (ngram, decompounding, synonyms, ...) must never turn the
      * result into a tree: only the ONE sibling whose range contains the target token is followed — the
      * others are never even inspected for their own ancestry. Simulated here with a decompounding-style
