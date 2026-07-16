@@ -261,6 +261,132 @@ class ExplanationParserTest extends Unit
     }
 
     /**
+     * Regression test: confirmed live against the shop's REAL, actual production query — a `cross_fields`
+     * multi_match, not the `best_fields` shape the tests above exercise. This is a STRUCTURALLY DIFFERENT
+     * way a synonym group shows up: no `Synonym(...)` node at all — Lucene scores "switch" and "button" as
+     * two entirely separate, independently-attributable `weight(field:term)` leaves, combined by an
+     * ordinary "max of:" node exactly like a real term's per-FIELD weights would be. Before this fix, both
+     * leaves got attributed IN FULL as separate matched tokens (5.417414 AND 5.236648), when only the
+     * winning one should count (Lucene itself already computed the "max of:" node's value as 5.417414) —
+     * inflating the displayed per-token sum past the document's real `_score`. This is the live search
+     * page bug report this guards: query "brenne switch" on a real "Brennenstuhl socket strip" product,
+     * displayed as "12, 5, 5" not adding up to the real total of ~18.27.
+     *
+     * @return void
+     */
+    public function testParseCollapsesACrossFieldsSynonymAlternativesNodeToOneCombinedKey(): void
+    {
+        // Arrange — the exact shape confirmed live (trimmed to the "switch"/"button" position; the real
+        // tree also has a sibling "max of:" for "brenne", handled as an ordinary per-field term already
+        // covered by testParseTakesTheMaxOverFieldsAsATokenTotalRatherThanTheSum).
+        $explanation = [
+            'value' => 5.417414,
+            'description' => 'max of:',
+            'details' => [
+                $this->createWeightNode('full-text', 'switch', 5.417414),
+                $this->createWeightNode('full-text', 'button', 5.236648),
+            ],
+        ];
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['brenne', 'switch', 'button']);
+
+        // Assert — the node's OWN value (the max Lucene already computed), not the sum of both leaves.
+        $this->assertSame(
+            ['button, switch' => ['total' => 5.417414, 'field' => 'full-text']],
+            $result[ExplanationParser::KEY_MATCHED_TOKENS],
+        );
+        $this->assertSame([], $result[ExplanationParser::KEY_OTHER_CONTRIBUTIONS]);
+    }
+
+    /**
+     * The SAME "max of:" shape, but for a REAL term matched on two different fields (no synonym involved)
+     * — must NOT be treated as a synonym-alternatives position, since all children share the identical
+     * term text. This is what distinguishes the two cases: term-text diversity among the children, not
+     * the node shape, which is otherwise identical to the synonym case above.
+     *
+     * @return void
+     */
+    public function testParseDoesNotCollapseAMaxOfNodeWhoseChildrenShareTheSameTerm(): void
+    {
+        // Arrange
+        $explanation = [
+            'value' => 19.84,
+            'description' => 'max of:',
+            'details' => [
+                $this->createWeightNode('full-text', 'cable', 5.98),
+                $this->createWeightNode('full-text-boosted', 'cable', 19.84),
+            ],
+        ];
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+
+        // Assert — the ordinary per-field term path, not a combined key.
+        $this->assertArrayHasKey('cable', $result[ExplanationParser::KEY_MATCHED_TOKENS]);
+        $this->assertArrayNotHasKey('cable, cable', $result[ExplanationParser::KEY_MATCHED_TOKENS]);
+        $this->assertSame(19.84, $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable']['total']);
+    }
+
+    /**
+     * A "max of:" node with only ONE child is never a real dis_max between alternatives (there's nothing
+     * to choose between) — must fall through to normal recursion rather than being (mis)treated as a
+     * single-term "synonym group of one".
+     *
+     * @return void
+     */
+    public function testParseDoesNotCollapseAMaxOfNodeWithOnlyOneChild(): void
+    {
+        // Arrange
+        $explanation = [
+            'value' => 5.5,
+            'description' => 'max of:',
+            'details' => [
+                $this->createWeightNode('full-text', 'cable', 5.5),
+            ],
+        ];
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+
+        // Assert
+        $this->assertSame(
+            ['cable' => ['total' => 5.5, 'field' => 'full-text']],
+            $result[ExplanationParser::KEY_MATCHED_TOKENS],
+        );
+    }
+
+    /**
+     * A "max of:" node whose children are NOT directly-attributable term-weight leaves (e.g. a nested
+     * wrapper, or an unrecognized shape) must fall through to normal recursion rather than being
+     * incorrectly collapsed — this parser only special-cases the shape it can actually verify.
+     *
+     * @return void
+     */
+    public function testParseDoesNotCollapseAMaxOfNodeWithANonLeafChild(): void
+    {
+        // Arrange
+        $explanation = [
+            'value' => 19.84,
+            'description' => 'max of:',
+            'details' => [
+                $this->createWeightNode('full-text', 'cable', 5.98),
+                [
+                    'value' => 19.84,
+                    'description' => 'sum of:',
+                    'details' => [$this->createWeightNode('full-text-boosted', 'cable', 19.84)],
+                ],
+            ],
+        ];
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+
+        // Assert — still resolves correctly via normal recursion, just not via the fast-path collapse.
+        $this->assertSame(19.84, $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable']['total']);
+    }
+
+    /**
      * Regression test: confirmed live against the SAME real product/query as the tests above, but this
      * time reproducing the EXACT nesting Elasticsearch actually returned — unlike the simplified 2-level
      * fixture above, a synonym-expanded term wraps EACH field's weight in its own extra, SINGLE-CHILD
