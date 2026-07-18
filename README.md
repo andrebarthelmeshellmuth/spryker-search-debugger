@@ -375,6 +375,18 @@ how the number is shown.
   *source field* a value in `full-text`/`full-text-boosted` came from (that's the whole reason this feature
   exists), so if your project registers different map-expander plugins, or moves a field between tiers,
   edit `SOURCE_DEFINITIONS` to match your project's actual wiring — that's the one place to check.
+- **Category pages don't get debug output — deliberately, not because they can't.** The sample
+  `CatalogController` (step 5) only sets `isSearchDebugContext` inside `executeFulltextSearchAction()`,
+  even though `reduceRestrictedParameters()` — the method that actually turns that flag into the request
+  parameter the query plugins read — is shared with the category listing action underneath it. A category
+  page CAN carry a free-text `q` too (Spryker lets a customer search *within* a category), but most
+  category page loads have no query string at all, so there'd usually be nothing meaningful to explain;
+  enabling it there would mean paying Elasticsearch's real `explain` cost on every category page view for
+  output that's thrown away most of the time. This is an easy, mechanical extension if you want it: the
+  per-product overlay itself already lives in the SHARED `page-layout-catalog.twig` (search and category
+  pages both render through it), so it starts appearing automatically once debug data exists — the only
+  change needed is overriding `executeIndexAction()` the same way `executeFulltextSearchAction()` already
+  is, setting the same `isSearchDebugContext` flag at the top.
 
 ## Testing
 
