@@ -3,6 +3,17 @@
 Developer tools for inspecting, debugging and understanding OpenSearch/Elasticsearch queries in Spryker.
 Search Debug helps Search Engineers explain ranking decisions—quickly enough that they can confidently answer the business question: "Why did this product rank above that one?"
 
+## What does this do?
+
+A permission-gated user browsing the storefront search results gets a per-product overlay with the real
+Elasticsearch `_score`, which query tokens matched, and — one click deeper — the exact BM25 boost/idf/tf
+numbers behind each match, pinned open for comparing two products side by side:
+
+![The SRP score overlay, pinned open, showing matched tokens with their BM25 breakdown and the final score used for ranking](docs/screenshots/srp-overlay.png)
+
+No more "because Elasticsearch said so" — every number on the page traces back to a real, inspectable part
+of the query.
+
 ## Status
 
 🚧 Early development — the first tool (search relevance debugging, including per-token analysis-path
@@ -15,13 +26,20 @@ catalog search:
 
 - **SRP score overlay** — permission-gated customers see, per product on the search results page, the raw
   Elasticsearch `_score`, the analyzer tokens of their query, and which tokens matched with which score
-  contribution (parsed from the Elasticsearch `explain` tree into a compact per-token breakdown).
+  contribution (parsed from the Elasticsearch `explain` tree into a compact per-token breakdown). A matched
+  token scored by BM25Similarity expands into its own boost/idf/tf breakdown (document frequency, term
+  frequency, field length vs. average field length — every number BM25 actually computes with), collapsed
+  behind its own toggle so the headline total stays the default view. The overlay stays open on click (a
+  pin-toggle button, independent of continued hover) for copying values or comparing two products side by
+  side.
 - **Token-source page** — a magnifier next to each matched token opens a page that attributes the token
   back to the raw product fields it was indexed from (name, SKU, variants, descriptions, categories,
   merchant name). It reads the product's **real indexed document** and analyzes its elements with the
   **index-time analyzer**, so prefix/ngram matches (e.g. searching `öl` matching *Ölpapier*) and
   searchable-attribute contributions (Zed → Search Preferences) are attributed correctly — including
   values no known source claims, which are shown honestly as "other indexed value".
+
+  ![The token-source page: one tier per searched field, each matched fragment highlighted with a link to its analysis path, an unclaimed value labeled honestly by its real attribute key ("brand")](docs/screenshots/token-source-page.png)
 - **Analysis-path page** — a second magnifier next to each matched fragment on the token-source page opens
   a page showing exactly how that raw text became the matched token: one box per analyzer stage (char
   filters, the tokenizer, every token filter, in chain order), connected by the ES operation that produced
@@ -33,6 +51,11 @@ catalog search:
   Each operation also shows that filter's own configuration, read live from the index's analysis settings
   (e.g. `filter: fulltext_index_ngram_filter` → `edge_ngram (min_gram: 2, max_gram: 20)`) — built-in
   components used by name only (`lowercase`, `standard`) show no definition, since nothing was customized.
+  Every step is colored by its own exact text, cycling a fixed palette — the SAME text anywhere in the
+  path gets the SAME color, so a color CHANGE between neighboring steps is itself the visual tell that a
+  filter actually transformed the text (e.g. a synonym injecting a different word), not just decoration.
+
+  ![The analysis-path page: "trolley" traced stage by stage until the fulltext_synonyms filter injects "handcart" — the color change from green to orange is the visual tell](docs/screenshots/analysis-path-page.png)
 - **Component-config page** — when a filter's configuration is too long to show inline (a `stop`/`synonym`
   filter's word list can run into the hundreds), the analysis-path page's definition line shows a preview
   plus a "view full definition" link instead of dumping everything into one line. It opens a new tab
@@ -265,9 +288,10 @@ yarn yves
 
 ### 8. Glossary entries
 
-Add the `search_debug.*` translation keys to your glossary data import (search this package's `Theme/**/*.twig`
-and `*.php` files for the `search_debug.*` glossary keys they reference, and add each one — with your own
-translated text — to your project's own `glossary.csv`) and re-run:
+Copy the rows from this package's [`data/glossary.csv`](data/glossary.csv) into your project's own
+`glossary.csv` (e.g. `data/import/common/common/glossary.csv`) — every `search_debug.*` key the package
+references, already translated for `en_US`/`de_DE`. Edit the translated text or add further locales as
+your project needs; nothing about the KEYS themselves is project-specific. Then re-run:
 
 ```bash
 vendor/bin/console data:import glossary
@@ -339,7 +363,7 @@ overlay closes with the final `_score` actually used for ranking.
 
 ### Display precision
 
-`SprykerCommunity\Shared\SearchDebug\SearchDebugConfig::SCORE_DECIMAL_PLACES` (default **2**) is the
+`SprykerCommunity\Shared\SearchDebug\SearchDebugConfig::SCORE_DECIMAL_PLACES` (default **3**) is the
 single constant controlling how many decimal places EVERY number in the overlay is rounded and
 displayed to — the final `_score`, matched-token weights, other contributions, and any section a
 `ProductDebugDataExpanderPluginInterface` plugin contributes. Consuming plugins (e.g.
@@ -366,6 +390,34 @@ how the number is shown.
   *source field* a value in `full-text`/`full-text-boosted` came from (that's the whole reason this feature
   exists), so if your project registers different map-expander plugins, or moves a field between tiers,
   edit `SOURCE_DEFINITIONS` to match your project's actual wiring — that's the one place to check.
+
+  The real fix for this limitation would live upstream, not in this package: instead of flattening every
+  contributed value into a bare `["val1", "val2", ...]` array (which is what destroys the source-field
+  information in the first place), the indexing pipeline could export each value tagged with its own
+  origin field, e.g. `[{"field": "name", "value": "val1"}, {"field": "sku", "value": "val2"}, ...]`. We
+  looked at this and deliberately didn't go there — the cost isn't just the obvious one (a tagged
+  structure is heavier on disk than a flat string array, once per product, across the whole catalog).
+  The bigger issue is that `full-text`/`full-text-boosted` are plain `text` fields today specifically so a
+  simple `multi_match` can query them directly; tagged per-field values would need to be mapped as
+  `nested` (or dynamically-mapped `object`) fields instead, and `nested` queries are a genuinely more
+  expensive query shape in Elasticsearch (an extra join against hidden child documents per query, on
+  every storefront search, not just the rare debug-permitted one). It would also change how BM25's
+  field-length normalization is computed (today it's over the whole flattened field; per-tagged-value
+  would need its own model) and require a full catalog reindex to adopt. That's real risk to the
+  production relevance engine every shopper depends on, taken on to make an occasional debugging lookup
+  slightly more precise — not something a debug-only add-on package should be pushing a project toward.
+- **Category pages don't get debug output — deliberately, not because they can't.** The sample
+  `CatalogController` (step 5) only sets `isSearchDebugContext` inside `executeFulltextSearchAction()`,
+  even though `reduceRestrictedParameters()` — the method that actually turns that flag into the request
+  parameter the query plugins read — is shared with the category listing action underneath it. A category
+  page CAN carry a free-text `q` too (Spryker lets a customer search *within* a category), but most
+  category page loads have no query string at all, so there'd usually be nothing meaningful to explain;
+  enabling it there would mean paying Elasticsearch's real `explain` cost on every category page view for
+  output that's thrown away most of the time. This is an easy, mechanical extension if you want it: the
+  per-product overlay itself already lives in the SHARED `page-layout-catalog.twig` (search and category
+  pages both render through it), so it starts appearing automatically once debug data exists — the only
+  change needed is overriding `executeIndexAction()` the same way `executeFulltextSearchAction()` already
+  is, setting the same `isSearchDebugContext` flag at the top.
 
 ## Testing
 

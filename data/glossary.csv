@@ -1,0 +1,95 @@
+key,translation,locale
+search_debug.query_tokens,Query tokens:,en_US
+search_debug.query_tokens,Suchbegriff-Tokens:,de_DE
+search_debug.score,Score:,en_US
+search_debug.score,Score:,de_DE
+search_debug.matched_tokens,Matched tokens:,en_US
+search_debug.matched_tokens,Getroffene Tokens:,de_DE
+search_debug.other_contributions,Other score contributions:,en_US
+search_debug.other_contributions,Weitere Score-Anteile:,de_DE
+search_debug.details,Details,en_US
+search_debug.details,Details,de_DE
+search_debug.score_unavailable,not scored (sorted),en_US
+search_debug.score_unavailable,nicht bewertet (sortiert),de_DE
+search_debug.token_source.open,Show which product field this token matched,en_US
+search_debug.token_source.open,Zeigen welches Produktfeld dieses Token getroffen hat,de_DE
+search_debug.token_source.heading,Token source: "%token%",en_US
+search_debug.token_source.heading,Token-Quelle: "%token%",de_DE
+search_debug.token_source.subheading_name,Product name: %title%,en_US
+search_debug.token_source.subheading_name,Produktname: %title%,de_DE
+search_debug.token_source.subheading_sku,SKU: %sku%,en_US
+search_debug.token_source.subheading_sku,SKU: %sku%,de_DE
+search_debug.token_source.no_match,no match,en_US
+search_debug.token_source.no_match,kein Treffer,de_DE
+search_debug.token_source.field.ambiguous_hint,These sources contributed the identical text — indistinguishable once merged into the index,en_US
+search_debug.token_source.field.ambiguous_hint,Diese Quellen haben den identischen Text beigetragen — nach der Indexierung nicht mehr unterscheidbar,de_DE
+search_debug.token_source.field.title,spy_product_abstract_localized_attributes.name,en_US
+search_debug.token_source.field.title,spy_product_abstract_localized_attributes.name,de_DE
+search_debug.token_source.field.sku,spy_product_abstract.sku,en_US
+search_debug.token_source.field.sku,spy_product_abstract.sku,de_DE
+search_debug.token_source.field.concrete_names,spy_product_localized_attributes.name (all concretes concatenated),en_US
+search_debug.token_source.field.concrete_names,spy_product_localized_attributes.name (all concretes concatenated),de_DE
+search_debug.token_source.field.concrete_skus,spy_product.sku (all concretes concatenated),en_US
+search_debug.token_source.field.concrete_skus,spy_product.sku (all concretes concatenated),de_DE
+search_debug.token_source.field.abstract_description,spy_product_abstract_localized_attributes.description,en_US
+search_debug.token_source.field.abstract_description,spy_product_abstract_localized_attributes.description,de_DE
+search_debug.token_source.field.concrete_descriptions,spy_product_localized_attributes.description (all concretes concatenated),en_US
+search_debug.token_source.field.concrete_descriptions,spy_product_localized_attributes.description (all concretes concatenated),de_DE
+search_debug.token_source.field.direct_categories,spy_category_attribute.name (direct),en_US
+search_debug.token_source.field.direct_categories,spy_category_attribute.name (direct),de_DE
+search_debug.token_source.field.indirect_categories,spy_category_attribute.name (ancestors),en_US
+search_debug.token_source.field.indirect_categories,spy_category_attribute.name (ancestors),de_DE
+search_debug.token_source.field.merchant_name,spy_merchant.name,en_US
+search_debug.token_source.field.merchant_name,spy_merchant.name,de_DE
+search_debug.token_source.tier.full_text_boosted,full-text-boosted (boost: %boost%),en_US
+search_debug.token_source.tier.full_text_boosted,full-text-boosted (boost: %boost%),de_DE
+search_debug.token_source.tier.full_text,full-text (boost: %boost%),en_US
+search_debug.token_source.tier.full_text,full-text (boost: %boost%),de_DE
+search_debug.token_source.field.other,Other indexed value — e.g. a custom map expander plugin,en_US
+search_debug.token_source.field.other,Weiterer indexierter Wert — z.B. ein eigener Map-Expander,de_DE
+search_debug.token_source.tier.generic,%field% (boost: %boost%),en_US
+search_debug.token_source.tier.generic,%field% (boost: %boost%),de_DE
+search_debug.token_source.document_missing,No document found in the search index for this product.,en_US
+search_debug.token_source.document_missing,Für dieses Produkt wurde kein Dokument im Suchindex gefunden.,de_DE
+search_debug.token_source.fields_unknown,Could not determine which fields this search actually used — open this page via the magnifying-glass link on a search results page rather than a hand-typed URL.,en_US
+search_debug.token_source.fields_unknown,Es konnte nicht ermittelt werden welche Felder diese Suche tatsächlich verwendet hat — öffnen Sie diese Seite über den Lupen-Link auf einer Suchergebnisseite statt über eine manuell eingegebene URL.,de_DE
+search_debug.token_analysis.open,Show how this text was transformed into this token,en_US
+search_debug.token_analysis.open,Zeigen wie dieser Text zu diesem Token transformiert wurde,de_DE
+search_debug.token_analysis.heading,Search Debug: Token Analysis,en_US
+search_debug.token_analysis.heading,Search Debug: Token-Analyse,de_DE
+search_debug.token_analysis.view_full_definition,view full definition,en_US
+search_debug.token_analysis.view_full_definition,vollständige Definition anzeigen,de_DE
+search_debug.component_config.heading,"Search Debug: ""%name%"" Definition",en_US
+search_debug.component_config.heading,"Search Debug: ""%name%"" Definition",de_DE
+search_debug.component_config.type,"Type: %type%",en_US
+search_debug.component_config.type,"Typ: %type%",de_DE
+search_debug.component_config.empty_list,(empty list),en_US
+search_debug.component_config.empty_list,(leere Liste),de_DE
+search_debug.component_config.no_config,This component has no further configuration.,en_US
+search_debug.component_config.no_config,Diese Komponente hat keine weitere Konfiguration.,de_DE
+search_debug.text_relevance,Text match total score:,en_US
+search_debug.text_relevance,Text-Match-Gesamtscore:,de_DE
+search_debug.final_score,Final score:,en_US
+search_debug.final_score,Finaler Score:,de_DE
+search_debug.final_score_note,(used for ranking),en_US
+search_debug.final_score_note,(fürs Ranking verwendet),de_DE
+search_debug.bm25.product_of,Product of:,en_US
+search_debug.bm25.product_of,Produkt aus:,de_DE
+search_debug.bm25.boost,Boost,en_US
+search_debug.bm25.boost,Boost,de_DE
+search_debug.bm25.inverse_document_frequency,Inverse document frequency,en_US
+search_debug.bm25.inverse_document_frequency,Inverse Dokumentenhäufigkeit,de_DE
+search_debug.bm25.documents_containing_term,Docs containing term,en_US
+search_debug.bm25.documents_containing_term,Dok. mit Begriff,de_DE
+search_debug.bm25.total_documents,Total docs in field,en_US
+search_debug.bm25.total_documents,Dok. gesamt im Feld,de_DE
+search_debug.bm25.term_frequency,Term frequency,en_US
+search_debug.bm25.term_frequency,Termhäufigkeit,de_DE
+search_debug.bm25.occurrences_in_document,Occurrences in doc,en_US
+search_debug.bm25.occurrences_in_document,Vorkommen im Dok.,de_DE
+search_debug.bm25.field_length,Field length,en_US
+search_debug.bm25.field_length,Feldlänge,de_DE
+search_debug.bm25.average_field_length,Avg field length,en_US
+search_debug.bm25.average_field_length,Ø Feldlänge,de_DE
+search_debug.pin,Keep this overlay open,en_US
+search_debug.pin,Diese Übersicht geöffnet lassen,de_DE

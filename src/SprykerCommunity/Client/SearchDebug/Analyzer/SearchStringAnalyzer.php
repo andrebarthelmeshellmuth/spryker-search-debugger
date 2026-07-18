@@ -12,6 +12,7 @@ namespace SprykerCommunity\Client\SearchDebug\Analyzer;
 use Elastica\Client;
 use Elastica\Exception\ExceptionInterface;
 use Generated\Shared\Search\PageIndexMap;
+use Generated\Shared\Transfer\SearchIndexFieldTransfer;
 use Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolverInterface;
 use SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaMapper;
 use SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaReaderInterface;
@@ -293,7 +294,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
     protected function resolveSearchAnalyzerName(): string
     {
         return $this->resolveAnalyzerName(
-            fn (\Generated\Shared\Transfer\SearchIndexFieldTransfer $field): ?string => $field->getSearchAnalyzerName(),
+            fn (SearchIndexFieldTransfer $field): ?string => $field->getSearchAnalyzerName(),
         );
     }
 
@@ -303,7 +304,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
     protected function resolveIndexAnalyzerName(): string
     {
         return $this->resolveAnalyzerName(
-            fn (\Generated\Shared\Transfer\SearchIndexFieldTransfer $field): ?string => $field->getAnalyzerName(),
+            fn (SearchIndexFieldTransfer $field): ?string => $field->getAnalyzerName(),
         );
     }
 

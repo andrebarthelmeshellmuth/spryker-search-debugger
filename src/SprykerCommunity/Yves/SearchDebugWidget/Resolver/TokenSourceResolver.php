@@ -90,7 +90,9 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     protected const STORAGE_KEY_PRODUCT_CONCRETE_IDS = 'product_concrete_ids';
 
     /**
-     * Source keys — one per known contributor of the two full-text fields.
+     * Source keys — one per known contributor of Spryker's two BASE full-text fields. A project can
+     * register more fields than these two (see `SOURCE_DEFINITIONS` below) — this constant list only
+     * names the contributors this package identifies out of the box.
      *
      * @var string
      */
