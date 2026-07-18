@@ -51,7 +51,7 @@ class SearchDebugWidgetFactory extends AbstractFactory
      */
     public function createAnalysisPathResolver(): AnalysisPathResolverInterface
     {
-        return new AnalysisPathResolver($this->getSearchDebugClient());
+        return new AnalysisPathResolver($this->getSearchDebugClient(), $this->createTokenHighlighter());
     }
 
     /**

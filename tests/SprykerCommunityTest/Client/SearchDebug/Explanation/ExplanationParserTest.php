@@ -775,6 +775,261 @@ class ExplanationParserTest extends Unit
         ];
     }
 
+    /**
+     * The real BM25Similarity shape confirmed live against this shop's actual production query — used by
+     * every test below this point that exercises {@see ExplanationParser::extractBm25Breakdown()}.
+     * $value is deliberately NOT required to equal boost*idf*tf (Lucene's own arithmetic isn't this
+     * class's concern to verify) — these tests only check that the right numbers land in the right places.
+     *
+     * @return void
+     */
+    public function testParseExtractsTheBm25BreakdownFromAPlainTermWeightNode(): void
+    {
+        // Arrange
+        $explanation = $this->createWeightNodeWithBm25Breakdown('full-text', 'handcart', 11.053852, [
+            'boost' => 2.2,
+            'idf' => 5.5529594,
+            'n' => 3.0,
+            'capitalN' => 902.0,
+            'tf' => 0.9048289,
+            'freq' => 8.0,
+            'k1' => 1.2,
+            'b' => 0.75,
+            'dl' => 376.0,
+            'avgdl' => 624.9878,
+        ]);
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['handcart']);
+
+        // Assert
+        $breakdown = $result[ExplanationParser::KEY_MATCHED_TOKENS]['handcart']['breakdown'];
+        $this->assertSame(2.2, $breakdown['boost']);
+        $this->assertSame(5.5529594, $breakdown['idf']['value']);
+        $this->assertSame(3.0, $breakdown['idf']['n']);
+        $this->assertSame(902.0, $breakdown['idf']['capitalN']);
+        $this->assertSame(0.9048289, $breakdown['tf']['value']);
+        $this->assertSame(8.0, $breakdown['tf']['freq']);
+        $this->assertSame(1.2, $breakdown['tf']['k1']);
+        $this->assertSame(0.75, $breakdown['tf']['b']);
+        $this->assertSame(376.0, $breakdown['tf']['dl']);
+        $this->assertSame(624.9878, $breakdown['tf']['avgdl']);
+    }
+
+    /**
+     * The plain, no-breakdown fixture every other test in this file uses (an empty-`details` "score(...)"
+     * node) must not surface a `breakdown` key at all — not present-but-null — so every existing exact
+     * `assertSame()` array comparison elsewhere in this file keeps working unchanged.
+     *
+     * @return void
+     */
+    public function testParseOmitsTheBreakdownKeyEntirelyWhenTheShapeIsNotRecognized(): void
+    {
+        // Arrange
+        $explanation = $this->createWeightNode('full-text', 'cable', 5.5);
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+
+        // Assert
+        $this->assertArrayNotHasKey('breakdown', $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable']);
+    }
+
+    /**
+     * A dis_max between two fields must carry the WINNING field's own breakdown, not the losing field's —
+     * mirrors {@see testParseTakesTheMaxOverFieldsAsATokenTotalRatherThanTheSum} but for `breakdown`.
+     *
+     * @return void
+     */
+    public function testParseCarriesTheWinningFieldsBreakdownUnderADisMax(): void
+    {
+        // Arrange
+        $explanation = [
+            'value' => 25.42,
+            'description' => 'max of:',
+            'details' => [
+                $this->createWeightNodeWithBm25Breakdown('full-text', 'handcart', 10.37, [
+                    'boost' => 2.2, 'idf' => 5.55, 'n' => 3.0, 'capitalN' => 902.0,
+                    'tf' => 0.85, 'freq' => 5.0, 'k1' => 1.2, 'b' => 0.75, 'dl' => 408.0, 'avgdl' => 624.99,
+                ]),
+                $this->createWeightNodeWithBm25Breakdown('full-text-boosted', 'handcart', 25.42, [
+                    'boost' => 6.6, 'idf' => 5.55, 'n' => 3.0, 'capitalN' => 902.0,
+                    'tf' => 0.69, 'freq' => 1.0, 'k1' => 1.2, 'b' => 0.75, 'dl' => 13.0, 'avgdl' => 82.6,
+                ]),
+            ],
+        ];
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['handcart']);
+
+        // Assert
+        $matchedToken = $result[ExplanationParser::KEY_MATCHED_TOKENS]['handcart'];
+        $this->assertSame('full-text-boosted', $matchedToken['field']);
+        $this->assertSame(6.6, $matchedToken['breakdown']['boost']);
+        $this->assertSame(13.0, $matchedToken['breakdown']['tf']['dl']);
+    }
+
+    /**
+     * The `cross_fields` synonym shape this shop's real production query actually produces (see
+     * {@see testParseCollapsesACrossFieldsSynonymAlternativesNodeToOneCombinedKey}) must also carry the
+     * winning constituent's own breakdown — extracted from that SAME child Lucene already picked as the
+     * max, not a different one and not guessed.
+     *
+     * @return void
+     */
+    public function testParseCarriesTheWinningConstituentsBreakdownForACrossFieldsSynonymGroup(): void
+    {
+        // Arrange
+        $explanation = [
+            'value' => 5.417414,
+            'description' => 'max of:',
+            'details' => [
+                $this->createWeightNodeWithBm25Breakdown('full-text', 'switch', 5.417414, [
+                    'boost' => 2.2, 'idf' => 4.1, 'n' => 10.0, 'capitalN' => 902.0,
+                    'tf' => 0.6, 'freq' => 2.0, 'k1' => 1.2, 'b' => 0.75, 'dl' => 50.0, 'avgdl' => 82.6,
+                ]),
+                $this->createWeightNodeWithBm25Breakdown('full-text', 'button', 5.236648, [
+                    'boost' => 2.2, 'idf' => 4.0, 'n' => 11.0, 'capitalN' => 902.0,
+                    'tf' => 0.59, 'freq' => 2.0, 'k1' => 1.2, 'b' => 0.75, 'dl' => 50.0, 'avgdl' => 82.6,
+                ]),
+            ],
+        ];
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['brenne', 'switch', 'button']);
+
+        // Assert — the "switch" leaf won (5.417414 matches the node's own reported value), so ITS
+        // breakdown (idf from 10 documents, not button's 11) is the one that must surface.
+        $breakdown = $result[ExplanationParser::KEY_MATCHED_TOKENS]['button, switch']['breakdown'];
+        $this->assertSame(4.1, $breakdown['idf']['value']);
+        $this->assertSame(10.0, $breakdown['idf']['n']);
+    }
+
+    /**
+     * A node whose child doesn't mention "computed as boost * idf * tf from:" at all (e.g. a different
+     * Similarity module, or simply no further detail) must not produce a guessed or partial breakdown.
+     *
+     * @return void
+     */
+    public function testParseReturnsNoBreakdownWhenTheChildNodeIsNotABm25Shape(): void
+    {
+        // Arrange
+        $explanation = [
+            'value' => 5.5,
+            'description' => 'weight(full-text:cable in 42) [ConstantScoreSimilarity], result of:',
+            'details' => [
+                ['value' => 5.5, 'description' => 'boost', 'details' => []],
+            ],
+        ];
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+
+        // Assert
+        $this->assertArrayNotHasKey('breakdown', $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable']);
+    }
+
+    /**
+     * A BM25 marker node missing one of its expected grandchildren (here: no `avgdl`) must not produce a
+     * partial breakdown — all-or-nothing, since a UI showing "boost × idf × tf" with a silently-missing
+     * `avgdl` would misrepresent the real formula.
+     *
+     * @return void
+     */
+    public function testParseReturnsNoBreakdownWhenAGrandchildIsMissing(): void
+    {
+        // Arrange
+        $explanation = [
+            'value' => 5.5,
+            'description' => 'weight(full-text:cable in 42) [PerFieldSimilarity], result of:',
+            'details' => [
+                [
+                    'value' => 5.5,
+                    'description' => 'score(freq=1.0), computed as boost * idf * tf from:',
+                    'details' => [
+                        ['value' => 2.2, 'description' => 'boost', 'details' => []],
+                        [
+                            'value' => 4.1,
+                            'description' => 'idf, computed as log(1 + (N - n + 0.5) / (n + 0.5)) from:',
+                            'details' => [
+                                ['value' => 3.0, 'description' => 'n, number of documents containing term', 'details' => []],
+                                ['value' => 902.0, 'description' => 'N, total number of documents with field', 'details' => []],
+                            ],
+                        ],
+                        [
+                            'value' => 0.6,
+                            'description' => 'tf, computed as freq / (freq + k1 * (1 - b + b * dl / avgdl)) from:',
+                            'details' => [
+                                ['value' => 2.0, 'description' => 'freq, occurrences of term within document', 'details' => []],
+                                ['value' => 1.2, 'description' => 'k1, term saturation parameter', 'details' => []],
+                                ['value' => 0.75, 'description' => 'b, length normalization parameter', 'details' => []],
+                                ['value' => 50.0, 'description' => 'dl, length of field', 'details' => []],
+                                // avgdl deliberately omitted
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        // Act
+        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+
+        // Assert
+        $this->assertArrayNotHasKey('breakdown', $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable']);
+    }
+
+    /**
+     * @param string $field
+     * @param string $term
+     * @param float $value
+     * @param array<string, float> $bm25
+     *
+     * @return array<string, mixed>
+     */
+    protected function createWeightNodeWithBm25Breakdown(string $field, string $term, float $value, array $bm25): array
+    {
+        return [
+            'value' => $value,
+            'description' => sprintf('weight(%s:%s in 42) [PerFieldSimilarity], result of:', $field, $term),
+            'details' => [
+                [
+                    'value' => $value,
+                    'description' => sprintf('score(freq=%s), computed as boost * idf * tf from:', $bm25['freq']),
+                    'details' => [
+                        ['value' => $bm25['boost'], 'description' => 'boost', 'details' => []],
+                        [
+                            'value' => $bm25['idf'],
+                            'description' => 'idf, computed as log(1 + (N - n + 0.5) / (n + 0.5)) from:',
+                            'details' => [
+                                ['value' => $bm25['n'], 'description' => 'n, number of documents containing term', 'details' => []],
+                                ['value' => $bm25['capitalN'], 'description' => 'N, total number of documents with field', 'details' => []],
+                            ],
+                        ],
+                        [
+                            'value' => $bm25['tf'],
+                            'description' => 'tf, computed as freq / (freq + k1 * (1 - b + b * dl / avgdl)) from:',
+                            'details' => [
+                                ['value' => $bm25['freq'], 'description' => 'freq, occurrences of term within document', 'details' => []],
+                                ['value' => $bm25['k1'], 'description' => 'k1, term saturation parameter', 'details' => []],
+                                ['value' => $bm25['b'], 'description' => 'b, length normalization parameter', 'details' => []],
+                                ['value' => $bm25['dl'], 'description' => 'dl, length of field', 'details' => []],
+                                ['value' => $bm25['avgdl'], 'description' => 'avgdl, average length of field', 'details' => []],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @param string $field
+     * @param string $term
+     * @param float $value
+     *
+     * @return array<string, mixed>
+     */
     protected function createWeightNode(string $field, string $term, float $value): array
     {
         return [

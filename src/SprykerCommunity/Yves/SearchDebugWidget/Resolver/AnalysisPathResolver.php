@@ -19,11 +19,18 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
     protected SearchDebugClientInterface $searchDebugClient;
 
     /**
-     * @param \SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface $searchDebugClient
+     * @var \SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface
      */
-    public function __construct(SearchDebugClientInterface $searchDebugClient)
+    protected TokenHighlighterInterface $tokenHighlighter;
+
+    /**
+     * @param \SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface $searchDebugClient
+     * @param \SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface $tokenHighlighter
+     */
+    public function __construct(SearchDebugClientInterface $searchDebugClient, TokenHighlighterInterface $tokenHighlighter)
     {
         $this->searchDebugClient = $searchDebugClient;
+        $this->tokenHighlighter = $tokenHighlighter;
     }
 
     /**
@@ -82,6 +89,14 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
 
             array_unshift($path, $this->originPathEntry($parentToken['token']));
 
+            if ($stageIndex === 1) {
+                // $currentToken (before it's overwritten below) is the last stage-1 token — the specific
+                // sub-span of $parentToken's OWN text that continues into the rest of the path. Highlighting
+                // it in the origin box mirrors the token-source page's `<mark>` treatment: "this part of the
+                // text is what led here" — see addOriginHighlight() for why this is validated, not assumed.
+                $this->addOriginHighlight($path[0], $currentToken);
+            }
+
             $currentToken = $parentToken;
         }
 
@@ -89,13 +104,76 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
     }
 
     /**
+     * Elasticsearch's `_analyze` API reports tokenizer/filter-stage offsets relative to the ORIGINAL
+     * input text (Lucene's `correctOffset()` contract) — but a char-filter stage's own synthetic
+     * whole-text token (see `SearchStringAnalyzer::wholeTextAsToken()`) is offset [0, length) relative to
+     * THAT FILTER'S OWN output text instead. The two coordinate systems are identical only when nothing
+     * upstream of the origin changed the text's length (the common case) — a length-changing char filter
+     * (e.g. this shop's own `& => and`) would make them diverge for any text containing the affected
+     * character. Rather than trying to re-derive the real mapping, this slices the origin text at the
+     * child token's offsets and only trusts the result when it VALIDATES: the slice must equal the
+     * child's own known-correct text exactly. A mismatch means the coordinate spaces diverged for this
+     * particular text — the origin entry is then left unhighlighted (today's behavior), never shown with
+     * a wrong or misaligned mark.
+     *
+     * @phpstan-param array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, highlightedHtml: string|null} $originEntry
+     * @phpstan-param array{token: string, startOffset: int, endOffset: int} $childToken
+     *
+     * @param array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, highlightedHtml: string|null}|array $originEntry
+     * @param array{token: string, startOffset: int, endOffset: int}|array $childToken
+     *
+     * @return void
+     */
+    protected function addOriginHighlight(array &$originEntry, array $childToken): void
+    {
+        $slice = $this->sliceCodeUnits($originEntry['text'], $childToken['startOffset'], $childToken['endOffset']);
+
+        if ($slice !== $childToken['token']) {
+            return;
+        }
+
+        $originEntry['highlightedHtml'] = $this->tokenHighlighter->highlight($originEntry['text'], [
+            ['startOffset' => $childToken['startOffset'], 'endOffset' => $childToken['endOffset']],
+        ]);
+    }
+
+    /**
+     * Same UTF-16-code-unit slicing {@see TokenHighlighter} uses internally (Lucene offsets are Java
+     * string indices, not Unicode code points) — duplicated in miniature rather than exposed from
+     * TokenHighlighter's own (deliberately private) implementation, since this is a VALIDATION concern
+     * specific to this resolver, not something TokenHighlighter's public contract needs to support.
+     *
+     * @param string $text
+     * @param int $startCodeUnit
+     * @param int $endCodeUnit
+     *
+     * @return string
+     */
+    protected function sliceCodeUnits(string $text, int $startCodeUnit, int $endCodeUnit): string
+    {
+        $textUtf16 = mb_convert_encoding($text, 'UTF-16BE', 'UTF-8');
+        $lengthInCodeUnits = (int)(strlen($textUtf16) / 2);
+
+        $startCodeUnit = max(0, min($startCodeUnit, $lengthInCodeUnits));
+        $endCodeUnit = max($startCodeUnit, min($endCodeUnit, $lengthInCodeUnits));
+
+        $sliceUtf16 = substr($textUtf16, $startCodeUnit * 2, ($endCodeUnit - $startCodeUnit) * 2);
+
+        return mb_convert_encoding($sliceUtf16, 'UTF-8', 'UTF-16BE');
+    }
+
+    /**
      * A freshly unshifted/seeded path entry — nothing has produced it FROM an earlier stage yet, so
      * every "how did we get here" field starts null/false, to potentially be filled in one loop
-     * iteration later.
+     * iteration later. `highlightedHtml` starts null too: it is only ever filled in by
+     * {@see addOriginHighlight()}, called exactly once, on the walk's LAST iteration — the one that
+     * confirms this entry is the true, final origin (index 0) and won't be shifted deeper by a further
+     * iteration. A path that `break`s early (an earlier stage's containing token wasn't found) never
+     * reaches that call, so its first entry correctly stays unhighlighted.
      *
      * @param string $text
      *
-     * @return array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool}
+     * @return array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, highlightedHtml: string|null}
      */
     protected function originPathEntry(string $text): array
     {
@@ -106,6 +184,7 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
             'componentKind' => null,
             'componentName' => null,
             'definitionTruncated' => false,
+            'highlightedHtml' => null,
         ];
     }
 

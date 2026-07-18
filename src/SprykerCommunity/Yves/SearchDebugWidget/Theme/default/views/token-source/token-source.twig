@@ -1,4 +1,4 @@
-{# @var data.tiers array<array{key: string, labelKey: string, boost: int, rows: array<array{labelKeys: array<string>, matched: bool, highlightedHtml: string|null, element: string|null}>}> #}
+{# @var data.tiers array<array{key: string, labelKey: string, boost: int, rows: array<array{labelKeys: array<string>, matched: bool, highlightedHtml: string|null, element: string|null, matches: array<array{token: string, startOffset: int, endOffset: int}>}>}> #}
 
 {% extends template('page-blank') %}
 
@@ -13,7 +13,12 @@
 {% block body %}
     <div class="container token-source-page">
         <h1>{{ 'search_debug.token_source.heading' | trans({'%token%': data.token}) }}</h1>
-        <p class="text-small">{{ 'search_debug.token_source.subheading' | trans({'%title%': data.productTitle, '%sku%': data.productSku}) }}</p>
+        {# Two lines rather than one "Product: X (SKU Y)" line — the SKU reads as its own labeled fact
+           on its own line, not a parenthetical aside tacked onto the product name. #}
+        <p class="text-small">
+            {{ 'search_debug.token_source.subheading_name' | trans({'%title%': data.productTitle}) }}<br>
+            {{ 'search_debug.token_source.subheading_sku' | trans({'%sku%': data.productSku}) }}
+        </p>
 
         {# Rows are driven by the product's REAL indexed document: one row per identified source value
            present in that tier's array — including product attributes, labeled by their own attribute
@@ -38,20 +43,35 @@
                                 {{ row.labelKeys | map(labelKey => labelKey | trans) | join(' / ') }}
                             </div>
                             <div class="token-source-field__value">{%- if row.highlightedHtml is not null -%}
-                                {%- if row.matched and row.element is not null -%}
-                                    {# The analysis-path link is injected right after every `</mark>` in the
-                                       ALREADY-BUILT highlighted HTML, not passed into TokenHighlighter itself —
-                                       that class stays a pure, storage-free string transform with no
-                                       URL/routing/translation concerns of its own. `</mark>` is a safe anchor
-                                       to `replace()` on: TokenHighlighter escapes every non-mark fragment, so
-                                       the literal (unescaped) substring `</mark>` can only ever come from
-                                       TokenHighlighter's own template, never from product text. #}
-                                    {# One line, deliberately: this whole block is captured verbatim (including
-                                       any literal newlines) and later injected into a `white-space: pre-line`
-                                       value box — a multi-line tag here would render as stray visible line
-                                       breaks right after the mark. #}
-                                    {% set analysisLink %}<a href="{{ url('search-debug/token-analysis', { text: row.element, token: data.token }) }}" target="_blank" rel="noopener noreferrer" class="token-source-mark__analysis-link" title="{{ 'search_debug.token_analysis.open' | trans }}">{% include atom('icon') with { data: { name: 'search' } } only %}</a>{% endset %}
-                                    {{- row.highlightedHtml | replace({'</mark>': '</mark>' ~ analysisLink}) | raw -}}
+                                {%- if row.matched and row.element is not null and row.matches is not empty -%}
+                                    {# The analysis-path link is injected right after EACH match's own `</mark>`,
+                                       built from THAT match's own offsets — not a shared token-text lookup —
+                                       so clicking the glass icon next to one specific highlighted occurrence
+                                       (e.g. an edge-ngram prefix match like "switching" vs. the literal word
+                                       "switch" elsewhere in the same text) opens the analysis path for THAT
+                                       occurrence specifically. A shared token-text-only link would instead
+                                       always resolve to whichever occurrence happens to come first in the
+                                       document — a different, possibly unrelated word to the one actually
+                                       clicked, since two occurrences of the "same" matched token can trace
+                                       back to genuinely different origin words. Not passed into TokenHighlighter
+                                       itself — that class stays a pure, storage-free string transform with no
+                                       URL/routing/translation concerns of its own. `</mark>` is a safe anchor to
+                                       `split()` on: TokenHighlighter escapes every non-mark fragment, so the
+                                       literal (unescaped) substring `</mark>` can only ever come from
+                                       TokenHighlighter's own template, never from product text — splitting on it
+                                       yields exactly `row.matches|length + 1` segments, one link rebuilt after
+                                       each of the first N, matching each mark to its own match by position.
+
+                                       One line per emitted fragment, deliberately: the whole thing is later
+                                       injected into a `white-space: pre-line` value box — a multi-line tag
+                                       here would render as stray visible line breaks right after the mark. #}
+                                    {%- for segment in row.highlightedHtml | split('</mark>') -%}
+                                        {{- segment | raw -}}
+                                        {%- if not loop.last -%}
+                                            {%- set match = row.matches[loop.index0] -%}
+                                            </mark><a href="{{ url('search-debug/token-analysis', { text: row.element, token: data.token, startOffset: match.startOffset, endOffset: match.endOffset }) }}" target="_blank" rel="noopener noreferrer" class="token-source-mark__analysis-link" title="{{ 'search_debug.token_analysis.open' | trans }}">{% include atom('icon') with { data: { name: 'search' } } only %}</a>
+                                        {%- endif -%}
+                                    {%- endfor -%}
                                 {%- else -%}
                                     {{- row.highlightedHtml | raw -}}
                                 {%- endif -%}

@@ -40,7 +40,7 @@ class TokenHighlighterTest extends Unit
         ]);
 
         // Assert
-        $this->assertSame('a <mark class="token-source-highlight">cable</mark> is here', $html);
+        $this->assertSame('a <mark class="search-debug-highlight">cable</mark> is here', $html);
     }
 
     /**
@@ -59,7 +59,7 @@ class TokenHighlighterTest extends Unit
 
         // Assert
         $this->assertSame(
-            '<mark class="token-source-highlight">cable</mark> and more <mark class="token-source-highlight">cable</mark>',
+            '<mark class="search-debug-highlight">cable</mark> and more <mark class="search-debug-highlight">cable</mark>',
             $html,
         );
     }
@@ -79,7 +79,7 @@ class TokenHighlighterTest extends Unit
 
         // Assert
         $this->assertSame(
-            '&lt;b&gt;<mark class="token-source-highlight">cable</mark>&lt;/b&gt; &amp; more',
+            '&lt;b&gt;<mark class="search-debug-highlight">cable</mark>&lt;/b&gt; &amp; more',
             $html,
         );
     }
@@ -115,7 +115,7 @@ class TokenHighlighterTest extends Unit
         ]);
 
         // Assert
-        $this->assertSame('<mark class="token-source-highlight">cable</mark>', $html);
+        $this->assertSame('<mark class="search-debug-highlight">cable</mark>', $html);
     }
 
     /**
@@ -136,6 +136,6 @@ class TokenHighlighterTest extends Unit
         ]);
 
         // Assert
-        $this->assertSame('🔥 <mark class="token-source-highlight">cable</mark> für Öfen', $html);
+        $this->assertSame('🔥 <mark class="search-debug-highlight">cable</mark> für Öfen', $html);
     }
 }

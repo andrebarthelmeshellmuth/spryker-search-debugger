@@ -51,7 +51,7 @@ interface TokenSourceResolverInterface
      *         key: string,
      *         labelKey: string,
      *         boost: int,
-     *         rows: array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null, element: string|null}>,
+     *         rows: array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null, element: string|null, matches: array<int, array{token: string, startOffset: int, endOffset: int}>}>,
      *     }>,
      * }|null Null when no product abstract has that SKU.
      */

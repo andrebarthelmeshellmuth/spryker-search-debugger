@@ -337,6 +337,21 @@ relevance as `queryScore` (shown as "Text match score", the number the matched-t
 up against), suppresses Elasticsearch's float-max `maxBoost` sentinel from the output, and the
 overlay closes with the final `_score` actually used for ranking.
 
+### Display precision
+
+`SprykerCommunity\Shared\SearchDebug\SearchDebugConfig::SCORE_DECIMAL_PLACES` (default **2**) is the
+single constant controlling how many decimal places EVERY number in the overlay is rounded and
+displayed to — the final `_score`, matched-token weights, other contributions, and any section a
+`ProductDebugDataExpanderPluginInterface` plugin contributes. Consuming plugins (e.g.
+spryker-community/search-ranking's business-signal breakdown) read this same constant for the
+calculation/formula strings they pre-build, so the whole overlay always shows one consistent
+precision — there is no second place to keep in sync.
+
+Rounding happens **only** at this display layer. No business-logic class in this package, or in a
+contributing plugin, rounds a value before it reaches the twig template (or a pre-built display
+string) — the full-precision float is always what gets computed with; this constant purely controls
+how the number is shown.
+
 ## Limitations
 
 - **Assumes Spryker's default single-resource catalog search model.** `TokenSourceResolver` always resolves

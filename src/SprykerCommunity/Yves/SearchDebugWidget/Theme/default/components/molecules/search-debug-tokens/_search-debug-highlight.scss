@@ -1,0 +1,11 @@
+// The `<mark>` styling for a matched token substring within a longer piece of text — emitted by
+// TokenHighlighter (see its HIGHLIGHT_CSS_CLASS constant) and shared by every page that highlights a
+// token within surrounding text: the token-source page's per-field values, and the token-analysis
+// page's origin box. A shared PARTIAL (see _search-debug-token-badge.scss for why partials, not a
+// component-to-component import).
+.search-debug-highlight {
+    background-color: #fff2a8;
+    color: $setting-color-black;
+    padding: 0 rem(2);
+    border-radius: rem(2);
+}

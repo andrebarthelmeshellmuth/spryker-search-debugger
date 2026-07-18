@@ -43,7 +43,7 @@ $search-debug-trigger-color: $search-debug-feature-accent-color;
     right: 0;
     z-index: $setting-zi-element;
     width: auto;
-    font-size: rem(12);
+    font-size: rem(11);
     background-color: $search-debug-trigger-color;
     opacity: 0.92;
 
@@ -73,8 +73,21 @@ $search-debug-trigger-color: $search-debug-feature-accent-color;
     // so overflow stays vertical-only (the overlay is pinned to the product card and cannot grow).
     overflow-wrap: break-word;
     padding: rem(12);
+    // Extra top clearance: the pin-toggle button below sits at top: rem(8), height: rem(24) — i.e. it
+    // occupies the box's top 32px regardless of which side padding says. Without this, whichever section
+    // renders first (see &__section:first-child below) sits flush under the plain rem(12) padding and its
+    // own top-right collapse icon collides with the pin button sitting right above it.
+    padding-top: rem(36);
     background-color: rgba($setting-color-black, 0.88);
     color: $setting-color-white;
+    // A debug/data-dense panel of numbers reads better monospaced — it also keeps every score-line's
+    // right-aligned value sitting in a visually consistent column, rather than a proportional font's
+    // per-character width making otherwise-aligned numbers look ragged.
+    font-family: monospace;
+    // Two sizes down from the shop's own `.text-small` (14px, applied in the twig alongside this class) —
+    // explicit here rather than relying on that shared utility class, so this widget's own size can move
+    // independently of it.
+    font-size: rem(12);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -87,16 +100,193 @@ $search-debug-trigger-color: $search-debug-feature-accent-color;
 
     &__section {
         margin-top: rem(16);
+
+        // Whichever element renders first (a `__section`, or `&__text-relevance` above it) must sit
+        // flush against the container's own `padding-top` (see above, bumped to rem(36) to clear the pin
+        // button) — without this, a `__section` landing first (e.g. no queryScore line) stacks its own
+        // margin-top on top of that padding and reads as a blank line before the overlay's actual first
+        // line of text.
+        &:first-child {
+            margin-top: 0;
+        }
     }
+
+    // A blank line between the last raw input above (matched tokens, other contributions, or text
+    // relevance — whichever renders last) and the formula that combines them all — set apart with its
+    // own top margin rather than sitting flush against the line above it like every other line does.
+    &__formula {
+        margin-top: rem(16);
+    }
+
+    // The final `_score` line also carries `&__section` (so it still gets the standard gap when it's
+    // the very first thing in the overlay — no business-signal section at all) but must sit flush
+    // against the formula directly above it, not spaced apart like a normal section transition — the
+    // formula computes exactly this number, so the two read as one continuous unit. Overrides
+    // `&__section`'s own margin-top by appearing later in the stylesheet (same class specificity).
+    &__final-score {
+        margin-top: 0;
+    }
+}
+
+// One metric row (e.g. "pdp_impressions: 0.79 × 0.30 = 0.24"): label left, calculation+value right —
+// a flex row rather than relying on the browser's default word-wrap, which would otherwise break
+// wherever the line ran out of width (worst case: right after the "=", splitting an expression from
+// its own result across two lines).
+//
+// `justify-content: space-between` pins the value to the row's right edge even when the label is short
+// (a `gap`-only row would leave it sitting right next to the label instead) — the label still only
+// takes as much space as it needs on the left, `space-between` just pushes any leftover space between
+// the two rather than after the value.
+.search-debug-score-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: rem(8);
+}
+
+// A long metric name is truncated with an ellipsis rather than pushing the calculation into a wrap.
+.search-debug-score-line__label {
+    overflow: hidden;
+    // A flex item's automatic minimum width is its content's natural (unwrapped) size — without this,
+    // the label would refuse to shrink below that, and the ellipsis below would never actually trigger.
+    min-width: 0;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    // Opts a label back OUT of the single-line ellipsis truncation above — for the one label
+    // (Final score's "(used for ranking)" note) that's deliberately broken onto an explicit second line
+    // with a `<br>` instead. `white-space: normal` re-enables normal wrapping for that second line too,
+    // in case a longer translation ever needs it.
+    &--wrap {
+        overflow: visible;
+        white-space: normal;
+        text-overflow: clip;
+    }
+}
+
+// Collapses a section's itemized, potentially-long content behind its own headline — the business-signal
+// breakdown's metric lines, the matched-tokens list, and the other-contributions list all use this: the
+// parts of the overlay whose height scales with how much there is to show (metric count, query token
+// count, explain-tree noise), which can otherwise push the more generally useful info further down than
+// a glance should require scrolling for. Native `<details>`/`<summary>`: no JS, closed by default
+// (matches the twig — no `open` attribute), keyboard-operable for free.
+.search-debug-collapsible {
+    &__summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        // Hides the browser's own disclosure marker (a triangle, inconsistently styled across browsers) —
+        // the custom rotating icon below replaces it.
+        list-style: none;
+
+        &::marker,
+        &::-webkit-details-marker {
+            display: none;
+        }
+    }
+
+    // A filled circle behind the caret — same debug-purple accent and circular-badge treatment as the
+    // magnifying-glass icons elsewhere in this overlay (see .search-debug-token-source-link below), so
+    // this reads as the same "debug tooling control" affordance rather than a plain inline glyph.
+    &__icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: rem(24);
+        height: rem(24);
+        margin-left: rem(8);
+        border-radius: 50%;
+        background-color: $search-debug-trigger-color;
+        color: $setting-color-white;
+        transition: transform 150ms ease-in-out;
+
+        .icon {
+            // 50% larger than the icons used elsewhere in this overlay (rem(10)) — this one is the sole
+            // affordance telling the user a whole section can be expanded, so it needs to read clearly as
+            // a control, not blend in as decoration the way the smaller inline icons do.
+            width: rem(15);
+            height: rem(15);
+        }
+    }
+
+    // Points down (the natural "more below" affordance) collapsed, flips to point up once expanded.
+    // Scoped to `> .search-debug-collapsible__summary` (direct child), NOT a plain descendant selector:
+    // the BM25 breakdown's own `<details class="search-debug-collapsible search-debug-bm25-toggle">` is
+    // nested INSIDE "Matched tokens"' `<details>` (inside its content, not its summary) — a plain
+    // `&[open] .search-debug-collapsible__icon` would match the inner icon too as soon as the OUTER
+    // details opens, regardless of the inner one's own state, making the inner icon look stuck/unresponsive
+    // to its own clicks. Restricting to the direct-child summary means each `<details>` only ever rotates
+    // the icon living in ITS OWN summary.
+    &[open] > .search-debug-collapsible__summary .search-debug-collapsible__icon {
+        transform: rotate(180deg);
+    }
+}
+
+// Never wraps and never shrinks — the calculation stays intact and right-aligned regardless of how
+// much room the label above gives up.
+.search-debug-score-line__value {
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 // Revealed on hover of the trigger button, and kept open while the cursor is over the overlay itself
 // (it visually covers the trigger once shown, so a trigger-only `:hover` would otherwise flicker closed).
+// `&--pinned` (toggled by search-debug-product-info.ts) keeps it open with the mouse anywhere else
+// entirely — added by the SAME class the pin button below also reads its own pressed styling from.
 .search-debug-trigger:hover ~ .search-debug-overlay,
-.search-debug-overlay:hover {
+.search-debug-overlay:hover,
+.search-debug-overlay--pinned {
     visibility: visible;
     opacity: 1;
     pointer-events: auto;
+}
+
+// Top-right of the overlay, next to nothing else — the one control meant to survive the mouse leaving,
+// so it needs to be reachable independently of hovering any OTHER part of the panel first. Same circular
+// debug-purple badge look as `.search-debug-collapsible__icon`/`.search-debug-token-source-link` elsewhere
+// in this overlay, just anchored to a corner instead of sitting inline with text.
+.search-debug-pin-toggle {
+    position: absolute;
+    top: rem(8);
+    right: rem(8);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: rem(24);
+    height: rem(24);
+    // The base `.button` atom (this element also carries `.button`, see the twig) sets its own
+    // `min-height: rem(36)` and `border` — left alone, `min-height` wins over our smaller `height` above
+    // (CSS clamps height up to min-height), so the box actually rendered 24px wide by 36px tall: an oval,
+    // not a circle, despite width/height both reading rem(24) here. Reset both so nothing from the base
+    // button survives into this icon-only badge shape.
+    min-height: 0;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background-color: $search-debug-trigger-color;
+    color: $setting-color-white;
+
+    .icon {
+        width: rem(13);
+        height: rem(13);
+    }
+
+    &:hover,
+    &:focus {
+        background-color: darken($search-debug-trigger-color, 8%);
+    }
+
+    // Pressed/pinned state (search-debug-product-info.ts toggles `aria-pressed` — read here rather than
+    // a plain class, since the button already needs the attribute for accessibility and a second,
+    // redundant class would just be one more thing to keep in sync with it) — a bright, unmistakably
+    // "active" fill instead of the muted debug-purple, so pinned reads as a clearly different state at a
+    // glance, not just a hover.
+    &[aria-pressed='true'] {
+        background-color: $setting-color-white;
+        color: $search-debug-trigger-color;
+    }
 }
 
 // Opens the token-source debug page (in a new tab) for one matched token — a small circular icon-button
@@ -126,11 +316,59 @@ $search-debug-trigger-color: $search-debug-feature-accent-color;
 }
 
 // The field(s) that actually contributed to a token's score, e.g. "full-text-boosted: 19.8417" — a list
-// even though it's a single item today (see the twig comment above the loop for why).
+// even though it's a single item today (see the twig comment above the loop for why). Same font size/color
+// as the rest of the overlay's text (no longer dimmed/shrunk) — it's one more score line among many here,
+// not supplementary detail.
 .search-debug-token-fields {
     margin: 0 0 rem(8) 0;
     padding-left: rem(16);
-    font-size: rem(11);
-    color: rgba($setting-color-white, 0.75);
     list-style: disc;
+}
+
+// The one `.search-debug-token-fields` item that holds a collapsible BM25 breakdown instead of a plain
+// score line — the caret icon inside it already reads as this row's own "expandable" marker, so the
+// list's normal bullet (see `.search-debug-token-fields` above) would just be visual noise next to it.
+.search-debug-bm25-field-item {
+    list-style: none;
+}
+
+// Groups the leading caret icon and the field label into ONE flex item, so the summary row's
+// label-left/value-right `search-debug-score-line` layout (space-between over exactly two children)
+// still holds with the icon added, rather than being spread out as a third item.
+.search-debug-bm25-toggle__label {
+    display: inline-flex;
+    align-items: center;
+}
+
+// Same circular purple caret badge as every other collapsible in this overlay (`.search-debug-collapsible__icon`)
+// — this variant only overrides which SIDE its spacing sits on, since here it leads the label instead of
+// trailing it.
+.search-debug-collapsible__icon--leading {
+    margin-left: 0;
+    margin-right: rem(8);
+}
+
+// Resets list styling for the boost/idf/tf breakdown itself — same treatment as `.search-debug-token-fields`
+// above it, just without bullets: each line already carries its own label.
+.search-debug-bm25-breakdown {
+    margin: rem(4) 0 0 0;
+    padding-left: rem(24);
+    list-style: none;
+}
+
+// The secondary numbers behind a boost/idf/tf line (e.g. which two document counts an idf value was
+// computed from) — muted and smaller than the line it sits under, matching how token-analysis.scss treats
+// a step's own supplementary "definition" text: this is the "why" behind the number above, not a number
+// of its own equal standing.
+.search-debug-bm25-breakdown__detail {
+    margin-bottom: rem(4);
+    color: $setting-color-darker;
+    font-size: rem(11);
+    font-style: italic;
+}
+
+// A plain caption, not a label/value pair — right-aligned like every value in this overlay so it reads
+// as leading INTO the boost/idf/tf lines directly below it, rather than sitting apart on the left.
+.search-debug-bm25-breakdown__product-of {
+    text-align: right;
 }

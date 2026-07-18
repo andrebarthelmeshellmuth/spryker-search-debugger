@@ -1,7 +1,11 @@
 {% extends model('component') %}
 
+{# `tag` matching `name` makes this a real custom element (see ShopUi's model('component')) — required so
+   the pin-toggle behavior (search-debug-product-info.ts) can attach to it as a Component/HTMLElement
+   subclass; before the pin toggle, this rendered as a plain unscripted `<div>` and didn't need one. #}
 {% define config = {
-    name: 'search-debug-product-info'
+    name: 'search-debug-product-info',
+    tag: 'search-debug-product-info',
 } %}
 
 {% define data = {
@@ -12,7 +16,12 @@
 } %}
 
 {% block body %}
-    {% set score = data.debugInfo.score is null ? ('search_debug.score_unavailable' | trans) : data.debugInfo.score | number_format(4) %}
+    {# Single source of truth for every score number's display precision in this overlay — see
+       SearchDebugConfig::SCORE_DECIMAL_PLACES; search-ranking's ScoreSectionBuilder reads the same
+       constant for its own pre-built calculation/formula strings, so the whole overlay always
+       shows one consistent precision. #}
+    {% set scoreDecimalPlaces = constant('SprykerCommunity\\Shared\\SearchDebug\\SearchDebugConfig::SCORE_DECIMAL_PLACES') %}
+    {% set score = data.debugInfo.score is null ? ('search_debug.score_unavailable' | trans) : data.debugInfo.score | number_format(scoreDecimalPlaces) %}
 
     {# type="button": this component renders inside page-layout-catalog.twig's <form method="GET">
        (the filter/sort form) — without an explicit type a <button> defaults to type="submit", and an
@@ -26,60 +35,117 @@
         } only %}
     </button>
 
-    <div class="search-debug-overlay text-small">
+    <div class="search-debug-overlay {{ config.jsName }}__overlay text-small">
+        {# Keeps the overlay open regardless of hover (see search-debug-product-info.ts /
+           .search-debug-overlay--pinned in the scss) — otherwise it only ever shows while the mouse
+           stays over the trigger/overlay, which makes it unusable for e.g. copying values or comparing
+           two products' overlays side by side. type="button": same reasoning as the trigger button above
+           — this sits inside page-layout-catalog.twig's filter <form>. #}
+        <button type="button" class="button search-debug-pin-toggle {{ config.jsName }}__pin-toggle" title="{{ 'search_debug.pin' | trans }}" aria-pressed="false">
+            {% include atom('icon') with {
+                data: {
+                    name: 'pin',
+                },
+            } only %}
+        </button>
         {# Additional score sections contributed by ProductDebugDataExpanderPluginInterface plugins —
            e.g. search-ranking's business-signal breakdown (metric x weight = contribution per line,
-           plus a total and the combination formula). Rendered generically: this widget knows the
-           section SHAPE, never the contributing feature. Section strings come from the plugin verbatim. #}
+           a total, an optional baseline excluded from that total, and the combination formula).
+           Rendered generically: this widget knows the section SHAPE, never the contributing feature.
+           Section strings come from the plugin verbatim. The formula (and the final score it computes)
+           are rendered separately, at the very bottom of the whole overlay — see below — so this first
+           pass only covers the raw per-metric breakdown, the total, and the baseline. #}
         {% for section in data.debugInfo.scoreSections ?? [] %}
             <div class="search-debug-overlay__section">
-                <strong>{{ section.title }}</strong><br>
-                {% for line in section.lines ?? [] %}
-                    <span>
-                        {{ line.label }}:
-                        {% if line.calculation is defined and line.calculation %}{{ line.calculation }} ={% endif %}
-                        {{ line.value | number_format(4) }}
-                    </span><br>
-                {% endfor %}
+                {# Collapsed by default: this is the one part of the section whose height scales with HOW
+                   MANY metrics are configured — with enough of them, it can push the more generally useful
+                   info below (matched tokens, the final score) far enough down that reaching it needs
+                   scrolling. The total/baseline that actually conclude the section stay OUTSIDE this
+                   <details>, always visible, so collapsing this only hides the itemized "why", never the
+                   "what". Native <details>/<summary> — no JS, keyboard-operable for free. #}
+                <details class="search-debug-collapsible">
+                    <summary class="search-debug-collapsible__summary">
+                        <strong>{{ section.title }}</strong>
+                        <span class="search-debug-collapsible__icon">
+                            {% include atom('icon') with {
+                                data: {
+                                    name: 'caret-down',
+                                },
+                            } only %}
+                        </span>
+                    </summary>
+                    {# A flex row per metric: label left (ellipsis-truncated if it would otherwise push the
+                       calculation into a wrap), calculation+value right-aligned and never wrapping — so a
+                       long metric name can never break the line mid-calculation (e.g. right after the "="),
+                       splitting an expression from its own result across two lines. #}
+                    {% for line in section.lines ?? [] %}
+                        <div class="search-debug-score-line">
+                            <span class="search-debug-score-line__label">{{ line.label }}:</span>
+                            <span class="search-debug-score-line__value">{% if line.calculation is defined and line.calculation %}{{ line.calculation }} = {% endif %}{{ line.value | number_format(scoreDecimalPlaces) }}</span>
+                        </div>
+                    {% endfor %}
+                </details>
+                {# Same label-left/value-right flex row as the metric lines above, so the total and the
+                   metrics it sums line up in the same right-aligned column. #}
                 {% if section.summaryLabel is defined %}
-                    <span><strong>{{ section.summaryLabel }}: {{ section.summaryValue | number_format(4) }}</strong></span><br>
+                    <div class="search-debug-score-line">
+                        <strong class="search-debug-score-line__label">{{ section.summaryLabel }}:</strong>
+                        <strong class="search-debug-score-line__value">{{ section.summaryValue | number_format(scoreDecimalPlaces) }}</strong>
+                    </div>
                 {% endif %}
-                {% if section.formula is defined and section.formula %}
-                    <span>{{ section.formula }}</span>
+                {# A value the summary deliberately excludes from its own sum (e.g. search-ranking's
+                   signal baseline) — shown below the summary rather than folded into it, so the total
+                   above genuinely reads as "just the weighted signals". #}
+                {% if section.baselineLabel is defined %}
+                    <div class="search-debug-score-line">
+                        <span class="search-debug-score-line__label">{{ section.baselineLabel }}:</span>
+                        <span class="search-debug-score-line__value">{{ section.baselineValue | number_format(scoreDecimalPlaces) }}</span>
+                    </div>
                 {% endif %}
             </div>
         {% endfor %}
-
-        {# Under a function_score, `queryScore` is the wrapped query's own relevance — the number the
-           matched-token contributions below actually add up against; the final `_score` (shown last)
-           only exists AFTER the score function combined this with its other inputs. Without a
-           function_score it is null and the line is omitted (matched tokens then add up against the
-           final score directly, as before). #}
-        {% if data.debugInfo.queryScore is defined and data.debugInfo.queryScore is not null %}
-            <div>
-                <strong>{{ 'search_debug.text_relevance' | trans }}</strong>
-                {{ data.debugInfo.queryScore | number_format(4) }}
-            </div>
-        {% endif %}
 
         {# matchedTokens holds only tokens from the user's actual query: everything else the explain tree
            scored (e.g. the internal type filter clause) is listed under otherContributions instead, so the
            numbers shown always account for the score rather than silently omitting part of it. #}
         {% if data.debugInfo.matchedTokens is not empty %}
             <div class="search-debug-overlay__section">
-                <strong>{{ 'search_debug.matched_tokens' | trans }}</strong><br>
+                {# Collapsed by default — the list grows with how many of the user's query tokens matched,
+                   which for a longer query can push the final-score-explaining content below it out of
+                   view without scrolling. #}
+                <details class="search-debug-collapsible">
+                    <summary class="search-debug-collapsible__summary">
+                        <strong>{{ 'search_debug.matched_tokens' | trans }}</strong>
+                        <span class="search-debug-collapsible__icon">
+                            {% include atom('icon') with {
+                                data: {
+                                    name: 'caret-down',
+                                },
+                            } only %}
+                        </span>
+                    </summary>
                 {% for token, tokenInfo in data.debugInfo.matchedTokens %}
                     {# `token` is not always one of the user's individual query tokens: a synonym group
                        Elasticsearch scored as one inseparable position (see ExplanationParser) is keyed
                        here as a combined "term1, term2" string instead — `tokenColors` is built from the
-                       raw individual query tokens, so a combined key has no entry in it at all. `??`
-                       (not a plain `[]` lookup, which THROWS a Twig RuntimeError for a missing key) falls
-                       back to no color class for that case — there is no single query token to color-match
-                       a synonym group against anyway, so blank is the honest answer, not a bug to route
-                       around differently. The token-source link uses only the first (alphabetically, so
-                       deterministic) constituent term: that page needs ONE real literal string to search
-                       for in product text, and the combined string itself ("term1, term2") would never
-                       match anything. For an ordinary single-word token this is a no-op — splitting a
+                       raw individual query tokens, so a combined key has no entry in it at all and a
+                       lookup keyed on `token` directly always goes blank for these. `primaryToken` below
+                       is computed precisely to be a real, colorable entry in `tokenColors`, so both the
+                       badge and the token-source link use IT, not the raw (possibly combined) `token` key —
+                       see its own comment for the "which constituent" logic.
+
+                       The token-source link needs ONE real literal string to search for: the combined
+                       string itself ("term1, term2") would never match anything. Among the constituent
+                       terms, prefer whichever one is an entry in `tokenColors` — i.e. a term the user
+                       actually TYPED — over the others, which only exist because a synonym filter injected
+                       them; an alphabetical-first pick would otherwise happily hand back an injected
+                       synonym the user never typed and that may not even appear literally in the product
+                       text (e.g. searching "switch" against a synonym rule "switch, button" combined-keys
+                       as "button, switch" — alphabetical-first is "button", which the product text may
+                       never contain at all). Falls back to the first constituent if somehow none of them
+                       are a real query token (shouldn't happen — the group's own existence means at least
+                       one constituent was typed — but a combined string is still a better link target than
+                       nothing). For an ordinary single-word token this is a no-op either way — splitting a
                        string with no separator in it just returns that same string.
 
                        The list below the token names ONE field per token: `tokenInfo.total` is the term's
@@ -92,8 +158,14 @@
                        produce one dominant field per term, so a one-line UI is accurate for it; a project
                        whose query genuinely splits a term's score meaningfully across multiple fields
                        would want a multi-field breakdown here instead of this single line. #}
-                    {% set primaryToken = (token | split(', '))[0] %}
-                    <span class="search-debug-token {{ data.tokenColors[token] ?? '' }}">{{ token }}</span>
+                    {% set tokenParts = token | split(', ') %}
+                    {% set primaryToken = tokenParts[0] %}
+                    {% for tokenPart in tokenParts %}
+                        {% if data.tokenColors[tokenPart] is defined %}
+                            {% set primaryToken = tokenPart %}
+                        {% endif %}
+                    {% endfor %}
+                    <span class="search-debug-token {{ data.tokenColors[primaryToken] ?? '' }}">{{ token }}</span>
                     <a
                         href="{{ url('search-debug/token-source', { sku: data.productAbstractSku, token: primaryToken, boosts: data.fieldBoosts }) }}"
                         target="_blank"
@@ -107,25 +179,165 @@
                             },
                         } only %}
                     </a>
+                    {# Same label-left (ellipsis-truncated)/value-right flex row as every other score line
+                       in this overlay — a `<li>` is a perfectly fine flex container. #}
                     <ul class="search-debug-token-fields">
-                        <li>{{ tokenInfo.field }}: {{ tokenInfo.total | number_format(4) }}</li>
+                        {# The BM25 boost/idf/tf breakdown (see ExplanationParser::extractBm25Breakdown())
+                           is only ever present when the explain tree was a recognizable BM25Similarity
+                           leaf — absent for anything else (a different Similarity module, or a synonym
+                           shape not yet confirmed live), in which case there is nothing to expand and the
+                           field line renders plain, exactly as before this feature existed. #}
+                        {% if tokenInfo.breakdown is not empty %}
+                            <li class="search-debug-bm25-field-item">
+                                <details class="search-debug-collapsible search-debug-bm25-toggle">
+                                    {# Same collapsible icon/styling as "Matched tokens" above, but LEADING
+                                       (before the label) rather than trailing — icon+label are grouped into
+                                       one flex item here so `search-debug-score-line`'s existing
+                                       label-left/value-right `space-between` layout still holds with the
+                                       icon added, instead of being spread out as a third item. #}
+                                    <summary class="search-debug-collapsible__summary search-debug-score-line">
+                                        <span class="search-debug-bm25-toggle__label">
+                                            <span class="search-debug-collapsible__icon search-debug-collapsible__icon--leading">
+                                                {% include atom('icon') with {
+                                                    data: {
+                                                        name: 'caret-down',
+                                                    },
+                                                } only %}
+                                            </span>
+                                            <span class="search-debug-score-line__label">{{ tokenInfo.field }}:</span>
+                                        </span>
+                                        <span class="search-debug-score-line__value">{{ tokenInfo.total | number_format(scoreDecimalPlaces) }}</span>
+                                    </summary>
+                                    <ul class="search-debug-bm25-breakdown">
+                                        {# Boost × IDF × TF, multiplied together, is exactly what the summary's total above sums up
+                                           to — this caption makes that relationship explicit before the three factors are listed,
+                                           rather than leaving the reader to infer it. Right-aligned like every value in this
+                                           overlay, but it's a caption, not a label/value pair, so it gets its own modifier rather
+                                           than reusing the score-line label+value split. #}
+                                        <li class="search-debug-bm25-breakdown__detail search-debug-bm25-breakdown__product-of">{{ 'search_debug.bm25.product_of' | trans }}</li>
+                                        <li class="search-debug-score-line">
+                                            <span class="search-debug-score-line__label">{{ 'search_debug.bm25.boost' | trans }}:</span>
+                                            <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.boost | number_format(scoreDecimalPlaces) }}</span>
+                                        </li>
+                                        <li class="search-debug-score-line">
+                                            <span class="search-debug-score-line__label">{{ 'search_debug.bm25.inverse_document_frequency' | trans }}:</span>
+                                            <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.idf.value | number_format(scoreDecimalPlaces) }}</span>
+                                        </li>
+                                        <li class="search-debug-bm25-breakdown__detail search-debug-score-line">
+                                            <span class="search-debug-score-line__label">{{ 'search_debug.bm25.documents_containing_term' | trans }}:</span>
+                                            <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.idf.n | number_format(0) }}</span>
+                                        </li>
+                                        <li class="search-debug-bm25-breakdown__detail search-debug-score-line">
+                                            <span class="search-debug-score-line__label">{{ 'search_debug.bm25.total_documents' | trans }}:</span>
+                                            <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.idf.capitalN | number_format(0) }}</span>
+                                        </li>
+                                        <li class="search-debug-score-line">
+                                            <span class="search-debug-score-line__label">{{ 'search_debug.bm25.term_frequency' | trans }}:</span>
+                                            <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.tf.value | number_format(scoreDecimalPlaces) }}</span>
+                                        </li>
+                                        <li class="search-debug-bm25-breakdown__detail search-debug-score-line">
+                                            <span class="search-debug-score-line__label">{{ 'search_debug.bm25.occurrences_in_document' | trans }}:</span>
+                                            <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.tf.freq | number_format(0) }}</span>
+                                        </li>
+                                        <li class="search-debug-bm25-breakdown__detail search-debug-score-line">
+                                            <span class="search-debug-score-line__label">{{ 'search_debug.bm25.field_length' | trans }}:</span>
+                                            <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.tf.dl | number_format(0) }}</span>
+                                        </li>
+                                        <li class="search-debug-bm25-breakdown__detail search-debug-score-line">
+                                            <span class="search-debug-score-line__label">{{ 'search_debug.bm25.average_field_length' | trans }}:</span>
+                                            <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.tf.avgdl | number_format(scoreDecimalPlaces) }}</span>
+                                        </li>
+                                    </ul>
+                                </details>
+                            </li>
+                        {% else %}
+                            <li class="search-debug-score-line">
+                                <span class="search-debug-score-line__label">{{ tokenInfo.field }}:</span>
+                                <span class="search-debug-score-line__value">{{ tokenInfo.total | number_format(scoreDecimalPlaces) }}</span>
+                            </li>
+                        {% endif %}
                     </ul>
                 {% endfor %}
+                {# "Other score contributions" lives inside the SAME collapse area as matched tokens
+                   (its own sub-heading, not its own <details>/section) — both are per-token/per-clause
+                   itemized detail the "Matched tokens" toggle already exists to hide, so a second,
+                   separate collapsible right below it would just be more chrome for the same purpose. #}
+                {% if data.debugInfo.otherContributions is not empty %}
+                    <strong>{{ 'search_debug.other_contributions' | trans }}</strong><br>
+                    {% for contribution in data.debugInfo.otherContributions %}
+                        <div class="search-debug-score-line">
+                            <span class="search-debug-score-line__label">{{ contribution.description }}:</span>
+                            <span class="search-debug-score-line__value">{{ contribution.value | number_format(scoreDecimalPlaces) }}</span>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+                </details>
             </div>
         {% endif %}
 
-        {% if data.debugInfo.otherContributions is not empty %}
-            <div class="search-debug-overlay__section">
-                <strong>{{ 'search_debug.other_contributions' | trans }}</strong><br>
-                {% for contribution in data.debugInfo.otherContributions %}
-                    <span>{{ contribution.description }} = {{ contribution.value | number_format(4) }}</span><br>
-                {% endfor %}
+        {# Under a function_score, `queryScore` is the wrapped query's own relevance — the number the
+           matched-token contributions above actually add up against; the final `_score` (shown last, at
+           the very bottom) only exists AFTER the score function combined this with its other inputs.
+           Without a function_score it is null and the line is omitted (matched tokens then add up against
+           the final score directly, as before). Placed after every raw-signal section (business signals,
+           matched tokens, other contributions) rather than among them — it's the last individual INPUT the
+           closing formula below uses, not a signal in its own right. #}
+        {% if data.debugInfo.queryScore is defined and data.debugInfo.queryScore is not null %}
+            <div class="search-debug-overlay__section search-debug-overlay__text-relevance search-debug-score-line">
+                <strong class="search-debug-score-line__label">{{ 'search_debug.text_relevance' | trans }}</strong>
+                <span class="search-debug-score-line__value">{{ data.debugInfo.queryScore | number_format(scoreDecimalPlaces) }}</span>
             </div>
         {% endif %}
 
-        <div class="search-debug-overlay__section">
-            <strong>{{ 'search_debug.final_score' | trans }}</strong>
-            {{ score }}
+        {# The saturation-point constant and the resulting [0;1]-normalized relevance it produces — both
+           contributed by the same plugin section as the formula below (e.g. search-ranking's
+           ScoreSectionBuilder), so they're read here right off `scoreSections` rather than as their own
+           top-level `debugInfo` keys. Placed directly under "Text match total score" since that raw
+           score is exactly what gets normalized on the very next line. #}
+        {% for section in data.debugInfo.scoreSections ?? [] %}
+            {% if section.relevanceSaturationPointLabel is defined %}
+                <div class="search-debug-score-line">
+                    <span class="search-debug-score-line__label">{{ section.relevanceSaturationPointLabel }}:</span>
+                    <span class="search-debug-score-line__value">{{ section.relevanceSaturationPointValue | number_format(scoreDecimalPlaces) }}</span>
+                </div>
+                <div class="search-debug-score-line">
+                    <span class="search-debug-score-line__label">{{ section.normalizedRelevanceLabel }}:</span>
+                    <span class="search-debug-score-line__value">{{ section.normalizedRelevanceValue | number_format(scoreDecimalPlaces) }}</span>
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        {# The combination formula(s) — deliberately the LAST thing in the overlay before the final score
+           itself: every raw signal it combines (business signals, text relevance) has already been shown
+           above, so this reads as the closing "here's how it all adds up" rather than being buried among
+           the raw inputs it depends on. Set apart from whatever precedes it with its own top margin
+           (search-debug-overlay__formula) — a blank line between the last raw input and the calculation
+           that combines them. Stops at "=" without repeating the result — the "Final score" line directly
+           below already shows that same number, so spelling it out twice here would be redundant. #}
+        {% for section in data.debugInfo.scoreSections ?? [] %}
+            {% if section.relevanceWeightLabel is defined %}
+                <div class="search-debug-score-line">
+                    <span class="search-debug-score-line__label">{{ section.relevanceWeightLabel }}:</span>
+                    <span class="search-debug-score-line__value">{{ section.relevanceWeightValue | number_format(scoreDecimalPlaces) }}</span>
+                </div>
+            {% endif %}
+            {% if section.formulaCalculation is defined %}
+                <div class="search-debug-overlay__formula">{{ section.formulaCalculation }} =</div>
+            {% endif %}
+        {% endfor %}
+
+        {# The final `_score` actually used for ranking — the very last thing in the overlay, directly
+           below the formula above (the formula computes exactly this number, so the two read as one
+           continuous unit with no gap between them — see &__final-score). Always shown regardless of
+           whether a scoreSections formula exists at all (e.g. no ranking plugin, or a non-function_score
+           query), in which case it's simply the first thing in the overlay (the standard `&:first-child`
+           reset already handles that). The "(used for ranking)" note breaks onto its own line below the
+           label (rather than being part of the same nowrap/ellipsis-truncated label span the other lines
+           use) — it's long enough that, combined with a real value, it would otherwise get
+           ellipsis-truncated inside the fixed-width overlay. #}
+        <div class="search-debug-overlay__section search-debug-overlay__final-score search-debug-score-line">
+            <strong class="search-debug-score-line__label search-debug-score-line__label--wrap">{{ 'search_debug.final_score' | trans }}<br>{{ 'search_debug.final_score_note' | trans }}</strong>
+            <strong class="search-debug-score-line__value">{{ score }}</strong>
         </div>
     </div>
 {% endblock %}

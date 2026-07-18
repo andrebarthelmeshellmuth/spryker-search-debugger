@@ -312,7 +312,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      *         key: string,
      *         labelKey: string,
      *         boost: int,
-     *         rows: array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null, element: string|null}>,
+     *         rows: array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null, element: string|null, matches: array<int, array{token: string, startOffset: int, endOffset: int}>}>,
      *     }>,
      * }|null
      */
@@ -366,7 +366,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      *     key: string,
      *     labelKey: string,
      *     boost: int,
-     *     rows: array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null, element: string|null}>,
+     *     rows: array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null, element: string|null, matches: array<int, array{token: string, startOffset: int, endOffset: int}>}>,
      * }>
      */
     protected function buildTiers(
@@ -411,13 +411,14 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      * @param array<string, string> $attributeLabelByValue
      * @param string $token
      *
-     * @return array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null, element: string|null}>
+     * @return array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null, element: string|null, matches: array<int, array{token: string, startOffset: int, endOffset: int}>}>
      */
     protected function buildTierRows(array $elements, array $sourceKeysByValue, array $attributeLabelByValue, string $token): array
     {
         $matchedRowsByGroupKey = [];
         $sourceKeysByGroupKey = [];
         $otherRows = [];
+        $seenElementsByGroupKey = [];
 
         foreach ($elements as $element) {
             if (trim($element) === '') {
@@ -429,12 +430,23 @@ class TokenSourceResolver implements TokenSourceResolverInterface
 
             if ($sourceKeys === []) {
                 $attributeLabel = $attributeLabelByValue[$element] ?? null;
+                $groupKey = $attributeLabel ?? static::LABEL_KEY_OTHER;
+
+                // Two raw document elements can be byte-identical (e.g. a concrete description that
+                // happens to equal the abstract's) — one row per distinct (label, text) pair is enough;
+                // a second identical row would only repeat information already shown.
+                if (isset($seenElementsByGroupKey[$groupKey][$element])) {
+                    continue;
+                }
+
+                $seenElementsByGroupKey[$groupKey][$element] = true;
 
                 $otherRows[] = [
-                    'labelKeys' => [$attributeLabel ?? static::LABEL_KEY_OTHER],
+                    'labelKeys' => [$groupKey],
                     'matched' => $matches !== [],
                     'highlightedHtml' => $this->tokenHighlighter->highlight($element, $matches),
                     'element' => $matches !== [] ? $element : null,
+                    'matches' => $matches,
                 ];
 
                 continue;
@@ -449,11 +461,21 @@ class TokenSourceResolver implements TokenSourceResolverInterface
                 continue;
             }
 
+            // Same de-duplication as above: a value appearing as two separate raw elements under the
+            // SAME source attribution (e.g. abstract description == concrete description) would otherwise
+            // render as two identical rows.
+            if (isset($seenElementsByGroupKey[$groupKey][$element])) {
+                continue;
+            }
+
+            $seenElementsByGroupKey[$groupKey][$element] = true;
+
             $matchedRowsByGroupKey[$groupKey][] = [
                 'labelKeys' => array_map(fn (string $sourceKey): string => static::SOURCE_DEFINITIONS[$sourceKey]['labelKey'], $sourceKeys),
                 'matched' => true,
                 'highlightedHtml' => $this->tokenHighlighter->highlight($element, $matches),
                 'element' => $element,
+                'matches' => $matches,
             ];
         }
 
@@ -473,6 +495,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
                 'matched' => false,
                 'highlightedHtml' => null,
                 'element' => null,
+                'matches' => [],
             ];
         }
 
