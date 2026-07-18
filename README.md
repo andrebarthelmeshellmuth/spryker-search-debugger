@@ -375,6 +375,22 @@ how the number is shown.
   *source field* a value in `full-text`/`full-text-boosted` came from (that's the whole reason this feature
   exists), so if your project registers different map-expander plugins, or moves a field between tiers,
   edit `SOURCE_DEFINITIONS` to match your project's actual wiring — that's the one place to check.
+
+  The real fix for this limitation would live upstream, not in this package: instead of flattening every
+  contributed value into a bare `["val1", "val2", ...]` array (which is what destroys the source-field
+  information in the first place), the indexing pipeline could export each value tagged with its own
+  origin field, e.g. `[{"field": "name", "value": "val1"}, {"field": "sku", "value": "val2"}, ...]`. We
+  looked at this and deliberately didn't go there — the cost isn't just the obvious one (a tagged
+  structure is heavier on disk than a flat string array, once per product, across the whole catalog).
+  The bigger issue is that `full-text`/`full-text-boosted` are plain `text` fields today specifically so a
+  simple `multi_match` can query them directly; tagged per-field values would need to be mapped as
+  `nested` (or dynamically-mapped `object`) fields instead, and `nested` queries are a genuinely more
+  expensive query shape in Elasticsearch (an extra join against hidden child documents per query, on
+  every storefront search, not just the rare debug-permitted one). It would also change how BM25's
+  field-length normalization is computed (today it's over the whole flattened field; per-tagged-value
+  would need its own model) and require a full catalog reindex to adopt. That's real risk to the
+  production relevance engine every shopper depends on, taken on to make an occasional debugging lookup
+  slightly more precise — not something a debug-only add-on package should be pushing a project toward.
 - **Category pages don't get debug output — deliberately, not because they can't.** The sample
   `CatalogController` (step 5) only sets `isSearchDebugContext` inside `executeFulltextSearchAction()`,
   even though `reduceRestrictedParameters()` — the method that actually turns that flag into the request
