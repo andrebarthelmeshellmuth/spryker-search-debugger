@@ -256,7 +256,14 @@ $search-debug-trigger-color: $search-debug-feature-accent-color;
     justify-content: center;
     width: rem(24);
     height: rem(24);
+    // The base `.button` atom (this element also carries `.button`, see the twig) sets its own
+    // `min-height: rem(36)` and `border` — left alone, `min-height` wins over our smaller `height` above
+    // (CSS clamps height up to min-height), so the box actually rendered 24px wide by 36px tall: an oval,
+    // not a circle, despite width/height both reading rem(24) here. Reset both so nothing from the base
+    // button survives into this icon-only badge shape.
+    min-height: 0;
     padding: 0;
+    border: none;
     border-radius: 50%;
     background-color: $search-debug-trigger-color;
     color: $setting-color-white;
@@ -358,4 +365,10 @@ $search-debug-trigger-color: $search-debug-feature-accent-color;
     color: $setting-color-darker;
     font-size: rem(11);
     font-style: italic;
+}
+
+// A plain caption, not a label/value pair — right-aligned like every value in this overlay so it reads
+// as leading INTO the boost/idf/tf lines directly below it, rather than sitting apart on the left.
+.search-debug-bm25-breakdown__product-of {
+    text-align: right;
 }

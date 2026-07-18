@@ -209,6 +209,12 @@
                                         <span class="search-debug-score-line__value">{{ tokenInfo.total | number_format(scoreDecimalPlaces) }}</span>
                                     </summary>
                                     <ul class="search-debug-bm25-breakdown">
+                                        {# Boost × IDF × TF, multiplied together, is exactly what the summary's total above sums up
+                                           to — this caption makes that relationship explicit before the three factors are listed,
+                                           rather than leaving the reader to infer it. Right-aligned like every value in this
+                                           overlay, but it's a caption, not a label/value pair, so it gets its own modifier rather
+                                           than reusing the score-line label+value split. #}
+                                        <li class="search-debug-bm25-breakdown__detail search-debug-bm25-breakdown__product-of">{{ 'search_debug.bm25.product_of' | trans }}</li>
                                         <li class="search-debug-score-line">
                                             <span class="search-debug-score-line__label">{{ 'search_debug.bm25.boost' | trans }}:</span>
                                             <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.boost | number_format(scoreDecimalPlaces) }}</span>
