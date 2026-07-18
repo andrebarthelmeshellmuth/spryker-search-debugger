@@ -48,6 +48,23 @@ interface SearchDebugClientInterface
 
     /**
      * Specification:
+     * - Same as `getTextTokenOffsets()`, batched into ONE `_analyze` call for several distinct texts
+     *   instead of one call per text — for a caller that needs offsets for many pieces of text at once
+     *   (e.g. every element of a product's document).
+     * - Empty and duplicate texts are dropped before the batched call; the same text given twice appears
+     *   once in the result, keyed by its own text.
+     * - Returns an empty array for an empty (or all-empty/all-duplicate) $texts list.
+     *
+     * @api
+     *
+     * @param array<string> $texts
+     *
+     * @return array<string, array<array{token: string, startOffset: int, endOffset: int}>>
+     */
+    public function getTextTokenOffsetsForTexts(array $texts): array;
+
+    /**
+     * Specification:
      * - Runs $text through the page index's INDEX-time analyzer, same as `getTextTokenOffsets()`, but
      *   returns every intermediate stage instead of only the final one: each char filter (a single
      *   whole-text pseudo-token, offsets 0..length — char filters run before tokenization, so there are

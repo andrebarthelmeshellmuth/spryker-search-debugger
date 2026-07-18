@@ -143,6 +143,77 @@ class SearchStringAnalyzerTest extends Unit
     }
 
     /**
+     * The batched call must return byte-for-byte the SAME offsets `getTokenOffsets()` returns per text,
+     * called individually — a real round-trip is essential here specifically: this asserts the rebasing
+     * math against Elasticsearch's REAL cumulative-offset behavior for an array `text`, not an assumption
+     * about it. Includes "Ölpapier" deliberately — a multi-byte UTF-8 character early in one of the
+     * batched texts, so a rebasing bug that only manifests once a text contains a non-ASCII character
+     * would still be caught here.
+     *
+     * @return void
+     */
+    public function testGetTokenOffsetsForTextsReturnsTheSameOffsetsAsIndividualCallsForEachText(): void
+    {
+        // Arrange
+        $analyzer = $this->createTestSearchStringAnalyzer();
+
+        // Act
+        $batched = $analyzer->getTokenOffsetsForTexts(['Eisen-Hammer', 'CABLE', 'Ölpapier']);
+
+        // Assert
+        $this->assertSame($analyzer->getTokenOffsets('Eisen-Hammer'), $batched['Eisen-Hammer']);
+        $this->assertSame($analyzer->getTokenOffsets('CABLE'), $batched['CABLE']);
+        $this->assertSame($analyzer->getTokenOffsets('Ölpapier'), $batched['Ölpapier']);
+    }
+
+    /**
+     * A text appearing more than once is analyzed once, not once per occurrence — the SAME text-keyed
+     * result entry answers for every occurrence a caller had. An empty string is dropped entirely, same
+     * as `getTokenOffsets('')` short-circuiting rather than issuing a request.
+     *
+     * @return void
+     */
+    public function testGetTokenOffsetsForTextsDeduplicatesRepeatedTextsAndDropsEmptyOnes(): void
+    {
+        // Act
+        $batched = $this->createTestSearchStringAnalyzer()->getTokenOffsetsForTexts(['CABLE', 'CABLE', '', 'CABLE']);
+
+        // Assert
+        $this->assertSame(['CABLE'], array_keys($batched));
+    }
+
+    /**
+     * @return void
+     */
+    public function testGetTokenOffsetsForTextsReturnsAnEmptyArrayForAnEmptyList(): void
+    {
+        // Act
+        $batched = $this->createTestSearchStringAnalyzer()->getTokenOffsetsForTexts([]);
+
+        // Assert
+        $this->assertSame([], $batched);
+    }
+
+    /**
+     * A single-text call takes the same short-circuit `getTokenOffsets()` itself uses, rather than a
+     * batched request of one — no behavioral difference, just confirming the shortcut still returns the
+     * expected text-keyed shape.
+     *
+     * @return void
+     */
+    public function testGetTokenOffsetsForTextsWithASingleTextMatchesGetTokenOffsets(): void
+    {
+        // Arrange
+        $analyzer = $this->createTestSearchStringAnalyzer();
+
+        // Act
+        $batched = $analyzer->getTokenOffsetsForTexts(['Eisen-Hammer']);
+
+        // Assert
+        $this->assertSame(['Eisen-Hammer' => $analyzer->getTokenOffsets('Eisen-Hammer')], $batched);
+    }
+
+    /**
      * Every stage of the real index-time pipeline, in chain order: the char filter first (whole-text,
      * before tokenization), then the tokenizer, then each token filter. This is the same `_analyze`
      * shape `getTokenOffsets()` above reads, just without collapsing everything down to the final stage.

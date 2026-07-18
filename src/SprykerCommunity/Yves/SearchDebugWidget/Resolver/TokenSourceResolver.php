@@ -334,14 +334,39 @@ class TokenSourceResolver implements TokenSourceResolverInterface
             $localeName,
         );
 
-        $sourceKeysByValue = $this->collectSourceKeysByValue($productData, $localeName);
-        $attributeLabelByValue = $this->collectAttributeLabelsByValue($productData, $localeName);
+        // Fetched once, here, and passed into both of the methods below — they used to each independently
+        // fetch the same bulk concrete-storage rows for the same product/locale, doubling this request's
+        // storage round trips for identical data.
+        $concreteStorageData = $this->fetchConcreteStorageData($productData, $localeName);
+
+        $sourceKeysByValue = $this->collectSourceKeysByValue($productData, $localeName, $concreteStorageData);
+        $attributeLabelByValue = $this->collectAttributeLabelsByValue($productData, $concreteStorageData);
 
         return [
             'productTitle' => (string)($productData[static::STORAGE_KEY_NAME] ?? ''),
             'productSku' => (string)($productData[static::STORAGE_KEY_SKU] ?? ''),
             'tiers' => $this->buildTiers($documentData ?? [], $sourceKeysByValue, $attributeLabelByValue, $token, $fieldBoosts),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $productData
+     * @param string $localeName
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function fetchConcreteStorageData(array $productData, string $localeName): array
+    {
+        $productConcreteIds = $productData[static::STORAGE_KEY_ATTRIBUTE_MAP][static::STORAGE_KEY_PRODUCT_CONCRETE_IDS] ?? [];
+
+        if (!$productConcreteIds) {
+            return [];
+        }
+
+        return $this->productStorageClient->getBulkProductConcreteStorageData(
+            array_values(array_map('intval', (array)$productConcreteIds)),
+            $localeName,
+        );
     }
 
     /**
@@ -358,7 +383,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      *
      * @param array<string, mixed> $documentData
      * @param array<string, array<string, array<int, string>>> $sourceKeysByValue
-     * @param array<string, string> $attributeLabelByValue
+     * @param array<string, array<int, string>> $attributeLabelByValue
      * @param string $token
      * @param array<string, int> $fieldBoosts
      *
@@ -378,19 +403,57 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     ): array {
         arsort($fieldBoosts);
 
+        $elementsByTier = [];
+        foreach ($fieldBoosts as $tier => $boost) {
+            $elementsByTier[$tier] = array_map('strval', (array)($documentData[$tier] ?? []));
+        }
+
+        $this->warmTokenOffsetsCache(array_merge(...array_values($elementsByTier)));
+
         $tiers = [];
         foreach ($fieldBoosts as $tier => $boost) {
-            $elements = array_map('strval', (array)($documentData[$tier] ?? []));
-
             $tiers[] = [
                 'key' => $tier,
                 'labelKey' => static::TIER_LABEL_KEYS[$tier] ?? static::LABEL_KEY_TIER_GENERIC,
                 'boost' => $boost,
-                'rows' => $this->buildTierRows($elements, $sourceKeysByValue[$tier] ?? [], $attributeLabelByValue, $token),
+                'rows' => $this->buildTierRows($elementsByTier[$tier], $sourceKeysByValue[$tier] ?? [], $attributeLabelByValue, $token),
             ];
         }
 
         return $tiers;
+    }
+
+    /**
+     * Pre-fetches token offsets for every element across every tier in ONE batched Elasticsearch call
+     * (see {@see \SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface::getTextTokenOffsetsForTexts()}),
+     * instead of {@see buildTierRows()}/{@see findTokenMatches()} triggering one blocking `_analyze` call
+     * per element as they go — a product with several variants can easily have 10-20+ distinct elements.
+     *
+     * Deliberately NOT a `$uncachedElements[$element] = true` dict with `array_keys()` at the end: PHP
+     * silently coerces a purely-numeric STRING array key (e.g. an element that happens to read like a
+     * plain number) to a real int key, so `array_keys()` would leak an `int` into `$uncachedElements`
+     * where every OTHER entry is a `string` — a real, live-reproduced bug (a numeric-looking element
+     * broke the batched analyze call with a `TypeError`, `int` given where `string` was expected). Same
+     * class of coercion {@see splitByQueryTokens()} already documents guarding against elsewhere in this
+     * package — `array_unique()` over a plain list compares by VALUE, never touches keys, so it can't
+     * silently retype anything.
+     *
+     * @param array<int, string> $elements
+     *
+     * @return void
+     */
+    protected function warmTokenOffsetsCache(array $elements): void
+    {
+        $uncachedElements = array_values(array_unique(array_filter(
+            $elements,
+            fn (string $element): bool => trim($element) !== '' && !isset($this->tokenOffsetsCache[$element]),
+        )));
+
+        if ($uncachedElements === []) {
+            return;
+        }
+
+        $this->tokenOffsetsCache += $this->searchDebugClient->getTextTokenOffsetsForTexts($uncachedElements);
     }
 
     /**
@@ -408,7 +471,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      *
      * @param array<int, string> $elements
      * @param array<string, array<int, string>> $sourceKeysByValue
-     * @param array<string, string> $attributeLabelByValue
+     * @param array<string, array<int, string>> $attributeLabelByValue
      * @param string $token
      *
      * @return array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null, element: string|null, matches: array<int, array{token: string, startOffset: int, endOffset: int}>}>
@@ -425,12 +488,17 @@ class TokenSourceResolver implements TokenSourceResolverInterface
                 continue;
             }
 
-            $matches = $this->findTokenMatches($element, $token);
+            // Filtered through the SAME overlap rule highlight() itself applies internally, and stored as
+            // THIS row's 'matches' below — never the raw, unfiltered list — so a row's magnifying-glass
+            // links (built one per rendered `<mark>`, matched up by array position) can never drift out of
+            // sync with which marks actually got rendered.
+            $matches = $this->tokenHighlighter->filterRenderable($this->findTokenMatches($element, $token));
             $sourceKeys = $sourceKeysByValue[$element] ?? [];
 
             if ($sourceKeys === []) {
-                $attributeLabel = $attributeLabelByValue[$element] ?? null;
-                $groupKey = $attributeLabel ?? static::LABEL_KEY_OTHER;
+                $attributeKeys = $attributeLabelByValue[$element] ?? [];
+                $labelKeys = $attributeKeys !== [] ? $attributeKeys : [static::LABEL_KEY_OTHER];
+                $groupKey = implode('|', $labelKeys);
 
                 // Two raw document elements can be byte-identical (e.g. a concrete description that
                 // happens to equal the abstract's) — one row per distinct (label, text) pair is enough;
@@ -442,7 +510,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
                 $seenElementsByGroupKey[$groupKey][$element] = true;
 
                 $otherRows[] = [
-                    'labelKeys' => [$groupKey],
+                    'labelKeys' => $labelKeys,
                     'matched' => $matches !== [],
                     'highlightedHtml' => $this->tokenHighlighter->highlight($element, $matches),
                     'element' => $matches !== [] ? $element : null,
@@ -532,10 +600,13 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      *
      * @param array<string, mixed> $productData
      * @param string $localeName
+     * @param array<int, array<string, mixed>> $concreteStorageData Already-fetched concrete storage rows
+     *   for this product (see {@see resolve()}) — reused here instead of re-fetching the same bulk data a
+     *   second time within one request.
      *
      * @return array<string, array<string, array<int, string>>>
      */
-    protected function collectSourceKeysByValue(array $productData, string $localeName): array
+    protected function collectSourceKeysByValue(array $productData, string $localeName, array $concreteStorageData): array
     {
         $storeName = $this->storeClient->getCurrentStore()->getName();
 
@@ -546,7 +617,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
             static::KEY_MERCHANT_NAME => [$this->findMerchantName($productData)],
         ];
 
-        $valuesBySourceKey += $this->collectConcreteValues($productData, $localeName);
+        $valuesBySourceKey += $this->collectConcreteValues($concreteStorageData);
         $valuesBySourceKey += $this->collectCategoryValues($productData, $localeName, $storeName);
 
         $sourceKeysByValue = [];
@@ -572,16 +643,15 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      * All concrete variants contribute to the same three source keys — the indexing side flattens every
      * concrete's name/sku/description into the shared `full-text` array, one element per value.
      *
-     * @param array<string, mixed> $productData
-     * @param string $localeName
+     * @param array<int, array<string, mixed>> $concreteStorageData Already-fetched concrete storage rows
+     *   for this product (see {@see resolve()}) — reused here instead of re-fetching the same bulk data a
+     *   second time within one request.
      *
      * @return array<string, array<int, string>>
      */
-    protected function collectConcreteValues(array $productData, string $localeName): array
+    protected function collectConcreteValues(array $concreteStorageData): array
     {
-        $productConcreteIds = $productData[static::STORAGE_KEY_ATTRIBUTE_MAP][static::STORAGE_KEY_PRODUCT_CONCRETE_IDS] ?? [];
-
-        if (!$productConcreteIds) {
+        if ($concreteStorageData === []) {
             return [];
         }
 
@@ -590,11 +660,6 @@ class TokenSourceResolver implements TokenSourceResolverInterface
             static::KEY_CONCRETE_SKUS => [],
             static::KEY_CONCRETE_DESCRIPTIONS => [],
         ];
-
-        $concreteStorageData = $this->productStorageClient->getBulkProductConcreteStorageData(
-            array_values(array_map('intval', (array)$productConcreteIds)),
-            $localeName,
-        );
 
         foreach ($concreteStorageData as $concreteData) {
             $concreteValues[static::KEY_CONCRETE_NAMES][] = (string)($concreteData[static::STORAGE_KEY_NAME] ?? '');
@@ -613,53 +678,42 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      * attribute key instead of the generic "other indexed value" label — with zero Zed calls, since this
      * data is already reachable via the same Yves storage clients this resolver already uses.
      *
-     * A value shared by two different attributes keeps the first-seen attribute key — unlike
-     * `collectSourceKeysByValue()`'s NAMED sources (which now show every colliding source honestly, see
-     * that method's docblock), this is a smaller, still-open simplification: two attributes on the same
-     * product sharing the identical value is a narrower case than a named source colliding with anything,
-     * and this label is only ever consulted as a fallback after every named source has already missed —
-     * a named-source collision reaching a row is always shown fully; only an attribute-vs-attribute
-     * collision can still pick just one label. Worth the same treatment later if it turns out to matter.
+     * A value shared by two different attributes now keeps EVERY colliding attribute key, same as
+     * `collectSourceKeysByValue()`'s NAMED sources — {@see \SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolver::buildTierRows()}
+     * renders a value with multiple attribute keys as one honestly-ambiguous row instead of picking one.
      *
      * @param array<string, mixed> $productData
-     * @param string $localeName
+     * @param array<int, array<string, mixed>> $concreteStorageData Already-fetched concrete storage rows
+     *   for this product (see {@see resolve()}) — reused here instead of re-fetching the same bulk data a
+     *   second time within one request.
      *
-     * @return array<string, string>
+     * @return array<string, array<int, string>>
      */
-    protected function collectAttributeLabelsByValue(array $productData, string $localeName): array
+    protected function collectAttributeLabelsByValue(array $productData, array $concreteStorageData): array
     {
-        $attributeLabelByValue = [];
+        $attributeKeysByValue = [];
 
         foreach ((array)($productData[static::STORAGE_KEY_ATTRIBUTES] ?? []) as $attributeKey => $value) {
-            $this->addAttributeLabel($attributeLabelByValue, (string)$attributeKey, $value);
+            $this->addAttributeLabel($attributeKeysByValue, (string)$attributeKey, $value);
         }
 
-        $productConcreteIds = $productData[static::STORAGE_KEY_ATTRIBUTE_MAP][static::STORAGE_KEY_PRODUCT_CONCRETE_IDS] ?? [];
-
-        if ($productConcreteIds) {
-            $concreteStorageData = $this->productStorageClient->getBulkProductConcreteStorageData(
-                array_values(array_map('intval', (array)$productConcreteIds)),
-                $localeName,
-            );
-
-            foreach ($concreteStorageData as $concreteData) {
-                foreach ((array)($concreteData[static::STORAGE_KEY_ATTRIBUTES] ?? []) as $attributeKey => $value) {
-                    $this->addAttributeLabel($attributeLabelByValue, (string)$attributeKey, $value);
-                }
+        foreach ($concreteStorageData as $concreteData) {
+            foreach ((array)($concreteData[static::STORAGE_KEY_ATTRIBUTES] ?? []) as $attributeKey => $value) {
+                $this->addAttributeLabel($attributeKeysByValue, (string)$attributeKey, $value);
             }
         }
 
-        return $attributeLabelByValue;
+        return $attributeKeysByValue;
     }
 
     /**
-     * @param array<string, string> $attributeLabelByValue
+     * @param array<string, array<int, string>> $attributeKeysByValue
      * @param string $attributeKey
      * @param mixed $value
      *
      * @return void
      */
-    protected function addAttributeLabel(array &$attributeLabelByValue, string $attributeKey, $value): void
+    protected function addAttributeLabel(array &$attributeKeysByValue, string $attributeKey, $value): void
     {
         if (!is_scalar($value)) {
             return;
@@ -671,7 +725,11 @@ class TokenSourceResolver implements TokenSourceResolverInterface
             return;
         }
 
-        $attributeLabelByValue[$value] ??= $attributeKey;
+        if (in_array($attributeKey, $attributeKeysByValue[$value] ?? [], true)) {
+            return;
+        }
+
+        $attributeKeysByValue[$value][] = $attributeKey;
     }
 
     /**

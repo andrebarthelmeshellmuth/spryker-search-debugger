@@ -53,6 +53,22 @@ class SearchDebugClient extends AbstractClient implements SearchDebugClientInter
      *
      * @api
      *
+     * @param array<string> $texts
+     *
+     * @return array<string, array<array{token: string, startOffset: int, endOffset: int}>>
+     */
+    public function getTextTokenOffsetsForTexts(array $texts): array
+    {
+        return $this->getFactory()
+            ->createSearchStringAnalyzer()
+            ->getTokenOffsetsForTexts($texts);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @api
+     *
      * @param string $text
      *
      * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>

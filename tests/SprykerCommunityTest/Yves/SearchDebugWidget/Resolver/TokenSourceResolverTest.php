@@ -44,7 +44,7 @@ class TokenSourceResolverTest extends Unit
     protected const TOKEN = 'cable';
 
     /**
-     * The exact offset pair {@see createSearchElasticsearchClientMock()}'s `getTextTokenOffsets()` stub
+     * The exact offset pair {@see createSearchElasticsearchClientMock()}'s `getTextTokenOffsetsForTexts()` stub
      * always returns for a matching text — every "matched" row's expected `matches` value in this file.
      *
      * @var array<int, array{token: string, startOffset: int, endOffset: int}>
@@ -325,7 +325,7 @@ class TokenSourceResolverTest extends Unit
 
         $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
         $searchDebugClientMock->method('findPageDocumentData')->willReturn(null);
-        $searchDebugClientMock->expects($this->never())->method('getTextTokenOffsets');
+        $searchDebugClientMock->expects($this->never())->method('getTextTokenOffsetsForTexts');
 
         $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
 
@@ -353,13 +353,74 @@ class TokenSourceResolverTest extends Unit
             'sku' => 'CABLE-1',
         ]);
 
-        $searchDebugClientMock = $this->createSearchElasticsearchClientMock(
-            [
-                'full-text-boosted' => ['Steel Cable', 'CABLE-1'],
-                'full-text' => ['Steel Cable', 'Steel Cable'],
-            ],
-            2,
-        );
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->method('findPageDocumentData')->willReturn([
+            'full-text-boosted' => ['Steel Cable', 'CABLE-1'],
+            'full-text' => ['Steel Cable', 'Steel Cable'],
+        ]);
+
+        // One batched call for the whole document (see TokenSourceResolver::warmTokenOffsetsCache()),
+        // not one per element — and the texts it receives are already deduplicated across BOTH tiers,
+        // "Steel Cable" appearing three times across the document but only once in the call.
+        $searchDebugClientMock->expects($this->once())
+            ->method('getTextTokenOffsetsForTexts')
+            ->with($this->callback(function (array $texts): bool {
+                $this->assertSame(['Steel Cable', 'CABLE-1'], $texts);
+
+                return true;
+            }))
+            ->willReturn([
+                'Steel Cable' => [['token' => static::TOKEN, 'startOffset' => 0, 'endOffset' => 5]],
+                'CABLE-1' => [],
+            ]);
+
+        $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
+
+        // Act
+        $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US', static::FIELD_BOOSTS);
+    }
+
+    /**
+     * A document element that happens to read as a bare number (e.g. a batch number like "400065",
+     * confirmed live in this shop's own product data) must survive as a real PHP string all the way to
+     * the batched analyze call. PHP silently coerces a purely-numeric STRING array KEY to an int key —
+     * building the pre-fetch list as `$dict[$element] = true` followed by `array_keys($dict)` (an earlier,
+     * real, live-reproduced bug in `TokenSourceResolver::warmTokenOffsetsCache()`) leaked an `int` into
+     * the texts array, which crashed downstream with a `TypeError` — `string` expected, `int` given —
+     * once it reached `Utf16CodeUnitConverter::toUtf16()`. `array_unique()` over a plain list (the actual
+     * fix) never touches keys, so this must never regress.
+     *
+     * @return void
+     */
+    public function testResolveKeepsANumericLookingElementAsARealStringInTheBatchedCall(): void
+    {
+        // Arrange
+        $productStorageClientMock = $this->createProductStorageClientMock([
+            'id_product_abstract' => 123,
+            'name' => 'Steel Cable',
+            'sku' => 'CABLE-1',
+        ]);
+
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->method('findPageDocumentData')->willReturn([
+            'full-text-boosted' => ['Steel Cable', '400065'],
+        ]);
+
+        $searchDebugClientMock->expects($this->once())
+            ->method('getTextTokenOffsetsForTexts')
+            ->with($this->callback(function (array $texts): bool {
+                foreach ($texts as $text) {
+                    $this->assertIsString($text, 'every element passed to the batched analyze call must be a real string, never an int-coerced array key');
+                }
+
+                $this->assertSame(['Steel Cable', '400065'], $texts);
+
+                return true;
+            }))
+            ->willReturn([
+                'Steel Cable' => [['token' => static::TOKEN, 'startOffset' => 0, 'endOffset' => 5]],
+                '400065' => [],
+            ]);
 
         $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
 
@@ -513,7 +574,7 @@ class TokenSourceResolverTest extends Unit
             'full-text-boosted' => ['Steel Cable'],
             'full-text' => ['a description'],
         ]);
-        $searchDebugClientMock->expects($this->never())->method('getTextTokenOffsets');
+        $searchDebugClientMock->expects($this->never())->method('getTextTokenOffsetsForTexts');
 
         $resolver = $this->createResolver($productStorageClientMock, $searchDebugClientMock);
 
@@ -654,35 +715,32 @@ class TokenSourceResolverTest extends Unit
     /**
      * The search client stub serves the given document and reports a token match for every element
      * containing the token as a substring — a stand-in for the real index-time analysis that keeps the
-     * focus of these tests on the resolver's attribution logic.
+     * focus of these tests on the resolver's attribution logic. `getTextTokenOffsetsForTexts()` is the
+     * ONE batched call the resolver now makes (see `warmTokenOffsetsCache()`); the callback itself
+     * de-duplicates, mirroring what the real client would do.
      *
      * @param array<string, array<int, string>> $documentData
-     * @param int|null $expectedAnalyzeCallCount
      *
      * @return \PHPUnit\Framework\MockObject\MockObject|\SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface
      */
-    protected function createSearchElasticsearchClientMock(
-        array $documentData,
-        ?int $expectedAnalyzeCallCount = null,
-    ): SearchDebugClientInterface {
+    protected function createSearchElasticsearchClientMock(array $documentData): SearchDebugClientInterface
+    {
         $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
         $searchDebugClientMock->method('findPageDocumentData')
             ->with('product_abstract', '123', 'en_US')
             ->willReturn($documentData);
 
-        $invocationRule = $expectedAnalyzeCallCount === null
-            ? $this->any()
-            : $this->exactly($expectedAnalyzeCallCount);
-
-        $searchDebugClientMock->expects($invocationRule)
-            ->method('getTextTokenOffsets')
+        $searchDebugClientMock->method('getTextTokenOffsetsForTexts')
             ->willReturnCallback(
-                function (string $text): array {
-                    if (str_contains(mb_strtolower($text), static::TOKEN)) {
-                        return [['token' => static::TOKEN, 'startOffset' => 0, 'endOffset' => 5]];
+                function (array $texts): array {
+                    $tokenOffsetsByText = [];
+                    foreach (array_unique($texts) as $text) {
+                        $tokenOffsetsByText[$text] = str_contains(mb_strtolower($text), static::TOKEN)
+                            ? [['token' => static::TOKEN, 'startOffset' => 0, 'endOffset' => 5]]
+                            : [];
                     }
 
-                    return [];
+                    return $tokenOffsetsByText;
                 },
             );
 
@@ -717,6 +775,9 @@ class TokenSourceResolverTest extends Unit
         $tokenHighlighterMock->method('highlight')->willReturnCallback(
             fn (string $text, array $matches): string => ($matches !== [] ? 'HL[' : 'TXT[') . $text . ']',
         );
+        // None of these fixtures' matches ever overlap, so passthrough mirrors the real
+        // TokenHighlighter::filterRenderable() for every case exercised here.
+        $tokenHighlighterMock->method('filterRenderable')->willReturnArgument(0);
 
         return new TokenSourceResolver(
             $productStorageClient,

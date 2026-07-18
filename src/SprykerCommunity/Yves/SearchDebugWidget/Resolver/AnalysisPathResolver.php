@@ -10,6 +10,7 @@ declare(strict_types = 1);
 namespace SprykerCommunity\Yves\SearchDebugWidget\Resolver;
 
 use SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface;
+use SprykerCommunity\Shared\SearchDebug\Utf16\Utf16CodeUnitConverter;
 
 class AnalysisPathResolver implements AnalysisPathResolverInterface
 {
@@ -139,9 +140,8 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
 
     /**
      * Same UTF-16-code-unit slicing {@see TokenHighlighter} uses internally (Lucene offsets are Java
-     * string indices, not Unicode code points) — duplicated in miniature rather than exposed from
-     * TokenHighlighter's own (deliberately private) implementation, since this is a VALIDATION concern
-     * specific to this resolver, not something TokenHighlighter's public contract needs to support.
+     * string indices, not Unicode code points), via the shared {@see Utf16CodeUnitConverter} — this
+     * method only adds the clamping, a VALIDATION concern specific to this resolver.
      *
      * @param string $text
      * @param int $startCodeUnit
@@ -151,15 +151,13 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
      */
     protected function sliceCodeUnits(string $text, int $startCodeUnit, int $endCodeUnit): string
     {
-        $textUtf16 = mb_convert_encoding($text, 'UTF-16BE', 'UTF-8');
-        $lengthInCodeUnits = (int)(strlen($textUtf16) / 2);
+        $textUtf16 = Utf16CodeUnitConverter::toUtf16($text);
+        $lengthInCodeUnits = Utf16CodeUnitConverter::lengthOf($textUtf16);
 
         $startCodeUnit = max(0, min($startCodeUnit, $lengthInCodeUnits));
         $endCodeUnit = max($startCodeUnit, min($endCodeUnit, $lengthInCodeUnits));
 
-        $sliceUtf16 = substr($textUtf16, $startCodeUnit * 2, ($endCodeUnit - $startCodeUnit) * 2);
-
-        return mb_convert_encoding($sliceUtf16, 'UTF-8', 'UTF-16BE');
+        return Utf16CodeUnitConverter::slice($textUtf16, $startCodeUnit, $endCodeUnit);
     }
 
     /**

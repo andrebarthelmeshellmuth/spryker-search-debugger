@@ -125,6 +125,29 @@ class ComponentDefinitionFormatterTest extends Unit
     }
 
     /**
+     * A naive `(string)` cast turns `true`/`false` INSIDE a list into `"1"`/`""` (PHP's own scalar-cast
+     * quirk) — the empty string would then read as a missing/blank item, not `false`. Each list item goes
+     * through the same shared formatter {@see testFormatSpellsOutBooleanConfigValues()} covers for a
+     * top-level config value, so this must hold for list items too.
+     *
+     * @return void
+     */
+    public function testFormatShowsAShortListInFullAndSpellsOutBooleansWithinIt(): void
+    {
+        // Arrange
+        $component = (new SearchAnalysisComponentTransfer())
+            ->setName('my_condition')
+            ->setType('condition')
+            ->setConfig(['flags' => [true, false, 'a']]);
+
+        // Act
+        $formatted = (new ComponentDefinitionFormatter())->format($component);
+
+        // Assert
+        $this->assertSame(['label' => 'condition (flags: true, false, a)', 'truncated' => false], $formatted);
+    }
+
+    /**
      * A real `synonym`/`stop` word list can run into the hundreds — dumping it verbatim would turn one
      * debug line into an unreadable blob, so only a preview is shown, with the total count appended, and
      * `truncated` reports true so a caller can offer a link to the full, untruncated list.

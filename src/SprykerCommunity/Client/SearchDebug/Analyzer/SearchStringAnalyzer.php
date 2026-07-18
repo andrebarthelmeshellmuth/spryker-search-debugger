@@ -16,6 +16,7 @@ use Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolver
 use SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaMapper;
 use SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaReaderInterface;
 use SprykerCommunity\Client\SearchDebug\SearchDebugConfig;
+use SprykerCommunity\Shared\SearchDebug\Utf16\Utf16CodeUnitConverter;
 
 class SearchStringAnalyzer implements SearchStringAnalyzerInterface
 {
@@ -132,6 +133,120 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
     }
 
     /**
+     * Same as {@see getTokenOffsets()}, batched into ONE `_analyze` call for several distinct texts
+     * instead of one call per text — e.g. every element of a product's document (title, every concrete
+     * name/SKU, descriptions, category names, merchant name) can be analyzed in a single round trip
+     * instead of one blocking HTTP call per element.
+     *
+     * Elasticsearch's `_analyze` API accepts an array for `text`, treating it like a multi-valued field:
+     * offsets continue cumulatively across the whole array rather than resetting to 0 per text, with
+     * exactly ONE code-unit gap inserted between consecutive texts (confirmed live against this package's
+     * real index: two 2-character texts analyzed together report offsets [0,2) and [3,5), never
+     * [0,2)/[2,4)) — {@see rebaseTokensByText()} uses that gap to split the flat token list back into
+     * one list per original text, with offsets rebased to be relative to THAT text again, exactly as if
+     * it had been analyzed alone. If any resulting offset ever falls outside its own text's bounds (the
+     * 1-unit-gap assumption not holding against some other Elasticsearch version/configuration), this
+     * degrades to one {@see getTokenOffsets()} call per text instead of trusting a possibly-misaligned
+     * batched result — the batching is a pure optimization, never a correctness trade-off.
+     *
+     * @param array<string> $texts
+     *
+     * @return array<string, array<array{token: string, startOffset: int, endOffset: int}>>
+     */
+    public function getTokenOffsetsForTexts(array $texts): array
+    {
+        $texts = array_values(array_unique(array_filter($texts, fn (string $text): bool => $text !== '')));
+
+        if ($texts === []) {
+            return [];
+        }
+
+        if (count($texts) === 1) {
+            return [$texts[0] => $this->getTokenOffsets($texts[0])];
+        }
+
+        $indexName = $this->indexNameResolver->resolve($this->config->getPageSourceIdentifier());
+
+        try {
+            $detail = $this->elasticaClient
+                ->getIndex($indexName)
+                ->analyze([
+                    'text' => $texts,
+                    'analyzer' => $this->resolveIndexAnalyzerName(),
+                    'explain' => true,
+                ]);
+        } catch (ExceptionInterface $exception) {
+            return array_fill_keys($texts, []);
+        }
+
+        $tokensByText = $this->rebaseTokensByText($texts, $this->mapTokenDetail($detail));
+
+        if ($tokensByText === null) {
+            $tokensByText = [];
+            foreach ($texts as $text) {
+                $tokensByText[$text] = $this->getTokenOffsets($text);
+            }
+        }
+
+        return $tokensByText;
+    }
+
+    /**
+     * @param array<string> $texts
+     * @param array<array{token: string, startOffset: int, endOffset: int}> $tokens
+     *
+     * @return array<string, array<array{token: string, startOffset: int, endOffset: int}>>|null Null when
+     *   a rebased offset falls outside its own text's bounds — the gap assumption {@see getTokenOffsetsForTexts()}
+     *   documents didn't hold for this response, and the caller should fall back to one call per text.
+     */
+    protected function rebaseTokensByText(array $texts, array $tokens): ?array
+    {
+        $boundaries = [];
+        $cursor = 0;
+
+        foreach ($texts as $text) {
+            $length = Utf16CodeUnitConverter::lengthOf(Utf16CodeUnitConverter::toUtf16($text));
+            $boundaries[] = ['text' => $text, 'start' => $cursor, 'end' => $cursor + $length];
+            // The single code-unit gap Elasticsearch inserts between consecutive array-`text` values —
+            // see this method's caller for the live-confirmed measurement.
+            $cursor += $length + 1;
+        }
+
+        $tokensByText = array_fill_keys($texts, []);
+
+        foreach ($tokens as $token) {
+            $boundary = null;
+
+            foreach ($boundaries as $candidate) {
+                if ($token['startOffset'] >= $candidate['start'] && $token['startOffset'] < $candidate['end']) {
+                    $boundary = $candidate;
+
+                    break;
+                }
+            }
+
+            if ($boundary === null) {
+                return null;
+            }
+
+            $startOffset = $token['startOffset'] - $boundary['start'];
+            $endOffset = $token['endOffset'] - $boundary['start'];
+
+            if ($startOffset < 0 || $endOffset > ($boundary['end'] - $boundary['start'])) {
+                return null;
+            }
+
+            $tokensByText[$boundary['text']][] = [
+                'token' => $token['token'],
+                'startOffset' => $startOffset,
+                'endOffset' => $endOffset,
+            ];
+        }
+
+        return $tokensByText;
+    }
+
+    /**
      * Full per-stage breakdown of the index-time analyzer's pipeline — every char filter (whole-text
      * transformations, before tokenization), the tokenizer, and every token filter, in chain order.
      * `getTokenOffsets()` above only needs the FINAL stage's tokens; this keeps every intermediate
@@ -177,13 +292,9 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      */
     protected function resolveSearchAnalyzerName(): string
     {
-        foreach ($this->indexSchemaReader->getPageIndexSchema()->getFields() as $searchIndexFieldTransfer) {
-            if ($searchIndexFieldTransfer->getName() === PageIndexMap::FULL_TEXT) {
-                return $searchIndexFieldTransfer->getSearchAnalyzerName() ?? IndexSchemaMapper::DEFAULT_ANALYZER_NAME;
-            }
-        }
-
-        return IndexSchemaMapper::DEFAULT_ANALYZER_NAME;
+        return $this->resolveAnalyzerName(
+            fn (\Generated\Shared\Transfer\SearchIndexFieldTransfer $field): ?string => $field->getSearchAnalyzerName(),
+        );
     }
 
     /**
@@ -191,9 +302,24 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      */
     protected function resolveIndexAnalyzerName(): string
     {
+        return $this->resolveAnalyzerName(
+            fn (\Generated\Shared\Transfer\SearchIndexFieldTransfer $field): ?string => $field->getAnalyzerName(),
+        );
+    }
+
+    /**
+     * Shared lookup behind {@see resolveSearchAnalyzerName()} and {@see resolveIndexAnalyzerName()} — the
+     * two differ only in which analyzer-name getter they read off the matched `full-text` field.
+     *
+     * @param callable(\Generated\Shared\Transfer\SearchIndexFieldTransfer): (string|null) $getAnalyzerName
+     *
+     * @return string
+     */
+    protected function resolveAnalyzerName(callable $getAnalyzerName): string
+    {
         foreach ($this->indexSchemaReader->getPageIndexSchema()->getFields() as $searchIndexFieldTransfer) {
             if ($searchIndexFieldTransfer->getName() === PageIndexMap::FULL_TEXT) {
-                return $searchIndexFieldTransfer->getAnalyzerName() ?? IndexSchemaMapper::DEFAULT_ANALYZER_NAME;
+                return $getAnalyzerName($searchIndexFieldTransfer) ?? IndexSchemaMapper::DEFAULT_ANALYZER_NAME;
             }
         }
 
@@ -353,8 +479,8 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
 
     /**
      * Offsets are UTF-16 code units (see `TokenHighlighter`'s own docblock for the same Lucene
-     * invariant) — computed here the same way, so a char-filter pseudo-token's `endOffset` is directly
-     * comparable to a real token's offsets from a later stage.
+     * invariant), via the shared {@see Utf16CodeUnitConverter} — so a char-filter pseudo-token's
+     * `endOffset` is directly comparable to a real token's offsets from a later stage.
      *
      * @param string $text
      *
@@ -365,7 +491,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
         return [
             'token' => $text,
             'startOffset' => 0,
-            'endOffset' => (int)(strlen(mb_convert_encoding($text, 'UTF-16BE', 'UTF-8')) / 2),
+            'endOffset' => Utf16CodeUnitConverter::lengthOf(Utf16CodeUnitConverter::toUtf16($text)),
         ];
     }
 }

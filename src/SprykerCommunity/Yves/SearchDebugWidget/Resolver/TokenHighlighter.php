@@ -9,6 +9,8 @@ declare(strict_types = 1);
 
 namespace SprykerCommunity\Yves\SearchDebugWidget\Resolver;
 
+use SprykerCommunity\Shared\SearchDebug\Utf16\Utf16CodeUnitConverter;
+
 class TokenHighlighter implements TokenHighlighterInterface
 {
     /**
@@ -38,55 +40,70 @@ class TokenHighlighter implements TokenHighlighterInterface
             return $this->escape($text);
         }
 
-        usort($matches, fn (array $a, array $b): int => $a['startOffset'] <=> $b['startOffset']);
+        $renderableMatches = $this->filterRenderable($matches);
 
-        $textUtf16 = mb_convert_encoding($text, 'UTF-16BE', 'UTF-8');
-        $lengthInCodeUnits = (int)(strlen($textUtf16) / 2);
+        $textUtf16 = Utf16CodeUnitConverter::toUtf16($text);
+        $lengthInCodeUnits = Utf16CodeUnitConverter::lengthOf($textUtf16);
 
         $html = '';
         $cursor = 0;
 
-        foreach ($matches as $match) {
+        foreach ($renderableMatches as $match) {
             $startOffset = max(0, min($match['startOffset'], $lengthInCodeUnits));
             $endOffset = max($startOffset, min($match['endOffset'], $lengthInCodeUnits));
 
-            if ($startOffset < $cursor) {
-                // Overlapping match (shouldn't happen for a shop using an edge-ngram filter, which always
-                // anchors grams at the token's start offset — defensive only, for other analyzer configs
-                // this package might run against). Concrete example where it CAN happen: a plain
-                // (non-edge) `ngram` filter with min_gram=max_gram=2 on repeated-character text, e.g.
-                // "aaaa", yields three "aa" tokens at offsets [0,2), [1,3), [2,4) — pairwise overlapping.
-                // Skip it rather than emitting malformed/nested <mark> tags.
-                continue;
-            }
-
-            $html .= $this->escape($this->sliceCodeUnits($textUtf16, $cursor, $startOffset));
+            $html .= $this->escape(Utf16CodeUnitConverter::slice($textUtf16, $cursor, $startOffset));
             $html .= sprintf(
                 '<mark class="%s">%s</mark>',
                 static::HIGHLIGHT_CSS_CLASS,
-                $this->escape($this->sliceCodeUnits($textUtf16, $startOffset, $endOffset)),
+                $this->escape(Utf16CodeUnitConverter::slice($textUtf16, $startOffset, $endOffset)),
             );
 
             $cursor = $endOffset;
         }
 
-        $html .= $this->escape($this->sliceCodeUnits($textUtf16, $cursor, $lengthInCodeUnits));
+        $html .= $this->escape(Utf16CodeUnitConverter::slice($textUtf16, $cursor, $lengthInCodeUnits));
 
         return $html;
     }
 
     /**
-     * @param string $textUtf16
-     * @param int $fromCodeUnit
-     * @param int $toCodeUnit
+     * {@inheritDoc}
      *
-     * @return string
+     * Sorted by startOffset, then walked with a cursor: any match whose startOffset falls before the
+     * cursor overlaps the previous one and is dropped, exactly as {@see highlight()} itself needs to skip
+     * it to avoid emitting malformed/nested `<mark>` tags. Concrete example where overlap CAN happen: a
+     * plain (non-edge) `ngram` filter with min_gram=max_gram=2 on repeated-character text, e.g. "aaaa",
+     * yields three "aa" tokens at offsets [0,2), [1,3), [2,4) — pairwise overlapping.
+     *
+     * Exposed as its own method (not just an internal step of {@see highlight()}) so a caller that keeps
+     * a SEPARATE list of matches alongside the rendered HTML — e.g. one link built per rendered `<mark>` —
+     * can filter through the exact same rule first, keeping both lists in permanent sync instead of
+     * `highlight()` silently dropping a match the caller's own list still has an entry for.
+     *
+     * @template T of array{startOffset: int, endOffset: int}
+     *
+     * @param array<T> $matches
+     *
+     * @return array<T>
      */
-    protected function sliceCodeUnits(string $textUtf16, int $fromCodeUnit, int $toCodeUnit): string
+    public function filterRenderable(array $matches): array
     {
-        $sliceUtf16 = substr($textUtf16, $fromCodeUnit * 2, ($toCodeUnit - $fromCodeUnit) * 2);
+        usort($matches, fn (array $a, array $b): int => $a['startOffset'] <=> $b['startOffset']);
 
-        return mb_convert_encoding($sliceUtf16, 'UTF-8', 'UTF-16BE');
+        $renderableMatches = [];
+        $cursor = 0;
+
+        foreach ($matches as $match) {
+            if ($match['startOffset'] < $cursor) {
+                continue;
+            }
+
+            $renderableMatches[] = $match;
+            $cursor = $match['endOffset'];
+        }
+
+        return $renderableMatches;
     }
 
     /**

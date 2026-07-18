@@ -9,6 +9,8 @@ declare(strict_types = 1);
 
 namespace SprykerCommunity\Yves\SearchDebugWidget\Resolver;
 
+use SprykerCommunity\Shared\SearchDebug\Format\ConfigValueScalarFormatter;
+
 class ComponentConfigFormatter implements ComponentConfigFormatterInterface
 {
     /**
@@ -22,28 +24,10 @@ class ComponentConfigFormatter implements ComponentConfigFormatterInterface
 
         foreach ($config as $key => $value) {
             $formatted[$key] = is_array($value)
-                ? array_map([$this, 'formatValue'], $value)
-                : $this->formatValue($value);
+                ? array_map([ConfigValueScalarFormatter::class, 'format'], $value)
+                : ConfigValueScalarFormatter::format($value);
         }
 
         return $formatted;
-    }
-
-    /**
-     * @param mixed $value
-     *
-     * @return string
-     */
-    protected function formatValue(mixed $value): string
-    {
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-
-        if (is_scalar($value)) {
-            return (string)$value;
-        }
-
-        return json_encode($value) ?: '';
     }
 }
