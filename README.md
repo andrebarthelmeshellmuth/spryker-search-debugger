@@ -3,6 +3,17 @@
 Developer tools for inspecting, debugging and understanding OpenSearch/Elasticsearch queries in Spryker.
 Search Debug helps Search Engineers explain ranking decisions—quickly enough that they can confidently answer the business question: "Why did this product rank above that one?"
 
+## What does this do?
+
+A permission-gated user browsing the storefront search results gets a per-product overlay with the real
+Elasticsearch `_score`, which query tokens matched, and — one click deeper — the exact BM25 boost/idf/tf
+numbers behind each match, pinned open for comparing two products side by side:
+
+![The SRP score overlay, pinned open, showing matched tokens with their BM25 breakdown and the final score used for ranking](docs/screenshots/srp-overlay.png)
+
+No more "because Elasticsearch said so" — every number on the page traces back to a real, inspectable part
+of the query.
+
 ## Status
 
 🚧 Early development — the first tool (search relevance debugging, including per-token analysis-path
@@ -27,6 +38,8 @@ catalog search:
   **index-time analyzer**, so prefix/ngram matches (e.g. searching `öl` matching *Ölpapier*) and
   searchable-attribute contributions (Zed → Search Preferences) are attributed correctly — including
   values no known source claims, which are shown honestly as "other indexed value".
+
+  ![The token-source page: one tier per searched field, each matched fragment highlighted with a link to its analysis path, an unclaimed value labeled honestly by its real attribute key ("brand")](docs/screenshots/token-source-page.png)
 - **Analysis-path page** — a second magnifier next to each matched fragment on the token-source page opens
   a page showing exactly how that raw text became the matched token: one box per analyzer stage (char
   filters, the tokenizer, every token filter, in chain order), connected by the ES operation that produced
@@ -41,6 +54,8 @@ catalog search:
   Every step is colored by its own exact text, cycling a fixed palette — the SAME text anywhere in the
   path gets the SAME color, so a color CHANGE between neighboring steps is itself the visual tell that a
   filter actually transformed the text (e.g. a synonym injecting a different word), not just decoration.
+
+  ![The analysis-path page: "trolley" traced stage by stage until the fulltext_synonyms filter injects "handcart" — the color change from green to orange is the visual tell](docs/screenshots/analysis-path-page.png)
 - **Component-config page** — when a filter's configuration is too long to show inline (a `stop`/`synonym`
   filter's word list can run into the hundreds), the analysis-path page's definition line shows a preview
   plus a "view full definition" link instead of dumping everything into one line. It opens a new tab
