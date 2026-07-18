@@ -15,7 +15,12 @@ catalog search:
 
 - **SRP score overlay** — permission-gated customers see, per product on the search results page, the raw
   Elasticsearch `_score`, the analyzer tokens of their query, and which tokens matched with which score
-  contribution (parsed from the Elasticsearch `explain` tree into a compact per-token breakdown).
+  contribution (parsed from the Elasticsearch `explain` tree into a compact per-token breakdown). A matched
+  token scored by BM25Similarity expands into its own boost/idf/tf breakdown (document frequency, term
+  frequency, field length vs. average field length — every number BM25 actually computes with), collapsed
+  behind its own toggle so the headline total stays the default view. The overlay stays open on click (a
+  pin-toggle button, independent of continued hover) for copying values or comparing two products side by
+  side.
 - **Token-source page** — a magnifier next to each matched token opens a page that attributes the token
   back to the raw product fields it was indexed from (name, SKU, variants, descriptions, categories,
   merchant name). It reads the product's **real indexed document** and analyzes its elements with the
@@ -33,6 +38,9 @@ catalog search:
   Each operation also shows that filter's own configuration, read live from the index's analysis settings
   (e.g. `filter: fulltext_index_ngram_filter` → `edge_ngram (min_gram: 2, max_gram: 20)`) — built-in
   components used by name only (`lowercase`, `standard`) show no definition, since nothing was customized.
+  Every step is colored by its own exact text, cycling a fixed palette — the SAME text anywhere in the
+  path gets the SAME color, so a color CHANGE between neighboring steps is itself the visual tell that a
+  filter actually transformed the text (e.g. a synonym injecting a different word), not just decoration.
 - **Component-config page** — when a filter's configuration is too long to show inline (a `stop`/`synonym`
   filter's word list can run into the hundreds), the analysis-path page's definition line shows a preview
   plus a "view full definition" link instead of dumping everything into one line. It opens a new tab
@@ -339,7 +347,7 @@ overlay closes with the final `_score` actually used for ranking.
 
 ### Display precision
 
-`SprykerCommunity\Shared\SearchDebug\SearchDebugConfig::SCORE_DECIMAL_PLACES` (default **2**) is the
+`SprykerCommunity\Shared\SearchDebug\SearchDebugConfig::SCORE_DECIMAL_PLACES` (default **3**) is the
 single constant controlling how many decimal places EVERY number in the overlay is rounded and
 displayed to — the final `_score`, matched-token weights, other contributions, and any section a
 `ProductDebugDataExpanderPluginInterface` plugin contributes. Consuming plugins (e.g.
