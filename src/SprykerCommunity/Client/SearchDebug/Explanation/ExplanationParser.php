@@ -20,12 +20,36 @@ class ExplanationParser implements ExplanationParserInterface
     protected const TERM_WEIGHT_PATTERN = '/^weight\((?<field>[^:\s()]+):(?<term>.+?) in \d+\)/';
 
     /**
-     * Every Lucene weight node starts with this, including shapes this parser cannot attribute to a
-     * single field:term pair (e.g. "weight(Synonym(full-text:a full-text:b) in 12)").
+     * Matches a Lucene SYNONYM weight node — one query position expanded into several alternative terms
+     * by a synonym filter, e.g. "weight(Synonym(full-text:button full-text:switch) in 12803)". Confirmed
+     * live: this is a SINGLE node with ONE combined value for the whole group, not one node per term — a
+     * synonym filter genuinely cannot be scored as independent per-term contributions, since Lucene
+     * matched "either of these, at this one position", not each term separately. `terms` captures the
+     * raw space-separated `field:term` pairs, however many the group has (a synonym rule can list any
+     * number of equivalent words) — parsed by {@see addSynonymWeight()}.
+     *
+     * @var string
+     */
+    protected const SYNONYM_WEIGHT_PATTERN = '/^weight\(Synonym\((?<terms>.+?)\) in \d+\)/';
+
+    /**
+     * Every Lucene weight node starts with this, including shapes neither {@see TERM_WEIGHT_PATTERN} nor
+     * {@see SYNONYM_WEIGHT_PATTERN} recognizes.
      *
      * @var string
      */
     protected const WEIGHT_NODE_PREFIX = 'weight(';
+
+    /**
+     * The combined-term display key joins a synonym group's terms with this, e.g. "button, switch" — the
+     * SAME separator {@see splitByQueryTokens()} splits back on to check membership against the user's
+     * actual query tokens. Also matches the separator {@see \SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatter}
+     * already uses to join a config list preview, for a consistent "these are a group" visual convention
+     * across the debug tool.
+     *
+     * @var string
+     */
+    protected const SYNONYM_TERM_SEPARATOR = ', ';
 
     /**
      * Matches a `function_score` boost-function leaf's own description — the documented Lucene/ES
@@ -151,6 +175,12 @@ class ExplanationParser implements ExplanationParserInterface
                 return;
             }
 
+            if (preg_match(static::SYNONYM_WEIGHT_PATTERN, $description, $matches)) {
+                $this->addSynonymWeight($terms, $matches['terms'], $value, $combineMode ?? static::COMBINE_MODE_MAX);
+
+                return;
+            }
+
             $otherContributions[] = [
                 'description' => $description,
                 'value' => $value,
@@ -162,7 +192,25 @@ class ExplanationParser implements ExplanationParserInterface
         $details = $node['details'] ?? [];
 
         if ($details !== []) {
-            $childCombineMode = $this->detectCombineMode($description) ?? $combineMode;
+            if ($this->tryAddMaxOfDistinctTermsWeight($description, $details, $value, $terms)) {
+                return;
+            }
+
+            // A node's OWN description is only trusted as a combine-mode signal when it actually
+            // combines more than one child — summing or maxing a SINGLE value produces that same value
+            // either way, so a single-child node reveals nothing about how things combine; it must pass
+            // the INHERITED mode through unchanged instead of overriding it with its own (structurally
+            // present but semantically meaningless here) "sum of:"/"max of:" wording.
+            //
+            // Confirmed live: a synonym-expanded term wraps EACH field's weight in its own single-child
+            // "sum of:" node (`weight(Synonym(...) in N)` is its only child) — plain, non-synonym term
+            // matches have no such wrapper at all. Without this check, that inner "sum of:" incorrectly
+            // overrode the REAL governing combiner (an ancestor "max of:" node combining the two fields'
+            // weights via dis_max), making a synonym group's per-field weights get SUMMED instead of
+            // MAX'd — inflating its matched-token total past the document's actual `_score`.
+            $childCombineMode = count($details) > 1
+                ? ($this->detectCombineMode($description) ?? $combineMode)
+                : $combineMode;
 
             foreach ($details as $childNode) {
                 $this->walkNode($childNode, $terms, $otherContributions, $scoreFunctions, $childCombineMode);
@@ -207,6 +255,68 @@ class ExplanationParser implements ExplanationParserInterface
         }
 
         return null;
+    }
+
+    /**
+     * A SECOND, structurally different way a synonym group shows up in the explain tree — confirmed live
+     * against this shop's real `cross_fields` multi_match (the actual production query type; a bare
+     * `best_fields` multi_match produces the `Synonym(...)` node {@see addSynonymWeight()} handles
+     * instead). Under `cross_fields`, Lucene does NOT wrap synonym alternatives in one combined node at
+     * all — it scores "switch" and "button" as two entirely separate, independently-attributable
+     * `weight(field:term)` leaves, and combines them with an ordinary "max of:" node, EXACTLY the same
+     * shape a real term's per-FIELD weights get combined with (e.g. "brenne" scored on both `full-text`
+     * and `full-text-boosted`). The tree alone cannot tell these two cases apart by shape — only by
+     * whether the leaves share the SAME term text (a per-field combine: let normal recursion handle it,
+     * each leaf calling {@see addTermWeight()} for the identical key) or DIFFERENT term text (synonym
+     * alternatives for one query position: must be combined into ONE key here, using the value Lucene
+     * itself already computed as the max, instead of letting each leaf self-report in full and
+     * double-count the position).
+     *
+     * Returns false (handled nothing) for every node this doesn't apply to: not a "max of:" node, has
+     * only one child (a real dis_max always compares 2+ alternatives), or any child isn't a directly
+     * attributable term-weight leaf (a nested wrapper needs the normal recursive walk instead) — the
+     * caller falls through to normal recursion in every one of those cases.
+     *
+     * @param string $description
+     * @param array<int, array<string, mixed>> $details
+     * @param float $value
+     * @param array<string, array<string, mixed>> $terms
+     *
+     * @return bool
+     */
+    protected function tryAddMaxOfDistinctTermsWeight(string $description, array $details, float $value, array &$terms): bool
+    {
+        if (count($details) < 2 || preg_match(static::COMBINE_PATTERN_MAX, $description) !== 1) {
+            return false;
+        }
+
+        $termNames = [];
+        $field = null;
+
+        foreach ($details as $childNode) {
+            $childDescription = (string)($childNode['description'] ?? '');
+
+            if (!preg_match(static::TERM_WEIGHT_PATTERN, $childDescription, $matches)) {
+                return false;
+            }
+
+            $field ??= $matches['field'];
+            $termNames[] = $matches['term'];
+        }
+
+        $uniqueTermNames = array_unique($termNames);
+
+        if (count($uniqueTermNames) < 2) {
+            // Every child shares the SAME term (only the field differs) — an ordinary per-field dis_max,
+            // not a synonym-alternatives position. Let normal recursion handle it: each leaf calling
+            // addTermWeight() for the identical key already combines them correctly.
+            return false;
+        }
+
+        sort($uniqueTermNames);
+        $this->addTermWeight($terms, implode(static::SYNONYM_TERM_SEPARATOR, $uniqueTermNames), (string)$field, $value, static::COMBINE_MODE_MAX);
+
+        return true;
     }
 
     /**
@@ -257,6 +367,51 @@ class ExplanationParser implements ExplanationParserInterface
     }
 
     /**
+     * A synonym group's terms all share the SAME field within one `Synonym(...)` node (multi_match
+     * generates one clause per field, and the synonym alternatives are combined WITHIN that field's
+     * clause) — so `$field` is read from any one pair, not accumulated. `$rawFieldTermPairs` is however
+     * many space-separated `field:term` pairs the group has (2, 3, 5, ...; never hardcoded to 2) — sorted
+     * and joined into one stable display key, e.g. "button, switch", so the SAME group always renders
+     * identically regardless of the order Lucene happened to list its terms in.
+     *
+     * Delegates to {@see addTermWeight()} with that combined key as the "term" — the exact same
+     * per-field MAX/SUM combining a real single term already gets, reused unchanged rather than
+     * duplicated: a synonym group scored via `full-text` AND `full-text-boosted` (as this shop's real
+     * config does) needs the identical combine-mode logic, just keyed by the group instead of one word.
+     *
+     * @param array<string, array<string, mixed>> $terms
+     * @param string $rawFieldTermPairs
+     * @param float $value
+     * @param string $combineMode
+     *
+     * @return void
+     */
+    protected function addSynonymWeight(array &$terms, string $rawFieldTermPairs, float $value, string $combineMode): void
+    {
+        $field = '';
+        $termNames = [];
+
+        foreach (explode(' ', $rawFieldTermPairs) as $pair) {
+            $colonPosition = strpos($pair, ':');
+
+            if ($colonPosition === false) {
+                continue;
+            }
+
+            $field = substr($pair, 0, $colonPosition);
+            $termNames[] = substr($pair, $colonPosition + 1);
+        }
+
+        if ($termNames === []) {
+            return;
+        }
+
+        sort($termNames);
+
+        $this->addTermWeight($terms, implode(static::SYNONYM_TERM_SEPARATOR, $termNames), $field, $value, $combineMode);
+    }
+
+    /**
      * Splits collected term weights into the user's actual query tokens and everything else.
      *
      * The explain tree contains `weight(field:term)` nodes that are not part of the search string — the
@@ -270,6 +425,11 @@ class ExplanationParser implements ExplanationParserInterface
      * coercion to the lookup key — whereas a strict `in_array()` against the string token list would not
      * match, silently demoting every numeric query token to an "other contribution".
      *
+     * A combined synonym-group key (e.g. "button, switch", from {@see addSynonymWeight()}) is never
+     * itself one of the user's query tokens — it's split back into its constituent terms and counted as
+     * matched when ANY of them is a real query token (they all originate from the SAME synonym expansion
+     * of the query, so in practice either all of a group's terms are query tokens or none are).
+     *
      * @param array<string, array<string, mixed>> $terms
      * @param array<int, array<string, mixed>> $otherContributions
      * @param array<string> $queryTokens
@@ -282,7 +442,20 @@ class ExplanationParser implements ExplanationParserInterface
         $matchedTokens = [];
 
         foreach ($terms as $term => $termInfo) {
-            if (isset($queryTokenSet[$term])) {
+            $termNames = str_contains((string)$term, static::SYNONYM_TERM_SEPARATOR)
+                ? explode(static::SYNONYM_TERM_SEPARATOR, (string)$term)
+                : [(string)$term];
+
+            $isMatchedQueryToken = false;
+            foreach ($termNames as $termName) {
+                if (isset($queryTokenSet[$termName])) {
+                    $isMatchedQueryToken = true;
+
+                    break;
+                }
+            }
+
+            if ($isMatchedQueryToken) {
                 // fieldWeights is accumulation state for addTermWeight(), not part of the output
                 // contract: only the winning field contributes to the score (dis_max), so only
                 // `field`/`total` carry displayable information.

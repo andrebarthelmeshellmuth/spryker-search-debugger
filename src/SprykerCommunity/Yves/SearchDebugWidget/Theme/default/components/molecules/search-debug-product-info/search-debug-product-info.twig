@@ -39,20 +39,33 @@
             <div class="search-debug-overlay__section">
                 <strong>{{ 'search_debug.matched_tokens' | trans }}</strong><br>
                 {% for token, tokenInfo in data.debugInfo.matchedTokens %}
-                    {# Every matched token is by construction one of the query tokens (ExplanationParser
-                       splits on exactly that set), so tokenColors always has a class for it. The list
-                       below the token names ONE field per token: `tokenInfo.total` is the term's real,
-                       correctly-combined total (ExplanationParser detects max/dis_max vs. sum/bool-should
-                       from the explain tree's own nodes rather than assuming one), but `tokenInfo.field`
-                       is always a single "primary contributor" label, even when the underlying combination
-                       summed several fields — a basic shop's own query (`multi_match` type cross_fields,
-                       see `CatalogSearchQueryPlugin::createFulltextSearchQuery()`) has been confirmed
-                       live to produce one dominant field per term, so a one-line UI is accurate for it;
-                       a project whose query genuinely splits a term's score meaningfully across multiple
-                       fields would want a multi-field breakdown here instead of this single line. #}
-                    <span class="search-debug-token {{ data.tokenColors[token] }}">{{ token }}</span>
+                    {# `token` is not always one of the user's individual query tokens: a synonym group
+                       Elasticsearch scored as one inseparable position (see ExplanationParser) is keyed
+                       here as a combined "term1, term2" string instead — `tokenColors` is built from the
+                       raw individual query tokens, so a combined key has no entry in it at all. `??`
+                       (not a plain `[]` lookup, which THROWS a Twig RuntimeError for a missing key) falls
+                       back to no color class for that case — there is no single query token to color-match
+                       a synonym group against anyway, so blank is the honest answer, not a bug to route
+                       around differently. The token-source link uses only the first (alphabetically, so
+                       deterministic) constituent term: that page needs ONE real literal string to search
+                       for in product text, and the combined string itself ("term1, term2") would never
+                       match anything. For an ordinary single-word token this is a no-op — splitting a
+                       string with no separator in it just returns that same string.
+
+                       The list below the token names ONE field per token: `tokenInfo.total` is the term's
+                       real, correctly-combined total (ExplanationParser detects max/dis_max vs.
+                       sum/bool-should from the explain tree's own nodes rather than assuming one), but
+                       `tokenInfo.field` is always a single "primary contributor" label, even when the
+                       underlying combination summed several fields — a basic shop's own query
+                       (`multi_match` type cross_fields, see
+                       `CatalogSearchQueryPlugin::createFulltextSearchQuery()`) has been confirmed live to
+                       produce one dominant field per term, so a one-line UI is accurate for it; a project
+                       whose query genuinely splits a term's score meaningfully across multiple fields
+                       would want a multi-field breakdown here instead of this single line. #}
+                    {% set primaryToken = (token | split(', '))[0] %}
+                    <span class="search-debug-token {{ data.tokenColors[token] ?? '' }}">{{ token }}</span>
                     <a
-                        href="{{ url('search-debug/token-source', { sku: data.productAbstractSku, token: token, boosts: data.fieldBoosts }) }}"
+                        href="{{ url('search-debug/token-source', { sku: data.productAbstractSku, token: primaryToken, boosts: data.fieldBoosts }) }}"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="search-debug-token-source-link"
