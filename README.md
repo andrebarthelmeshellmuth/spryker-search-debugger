@@ -273,9 +273,10 @@ yarn yves
 
 ### 8. Glossary entries
 
-Add the `search_debug.*` translation keys to your glossary data import (search this package's `Theme/**/*.twig`
-and `*.php` files for the `search_debug.*` glossary keys they reference, and add each one — with your own
-translated text — to your project's own `glossary.csv`) and re-run:
+Copy the rows from this package's [`data/glossary.csv`](data/glossary.csv) into your project's own
+`glossary.csv` (e.g. `data/import/common/common/glossary.csv`) — every `search_debug.*` key the package
+references, already translated for `en_US`/`de_DE`. Edit the translated text or add further locales as
+your project needs; nothing about the KEYS themselves is project-specific. Then re-run:
 
 ```bash
 vendor/bin/console data:import glossary
