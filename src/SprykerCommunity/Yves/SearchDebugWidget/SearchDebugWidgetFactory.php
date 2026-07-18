@@ -25,9 +25,6 @@ use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolver;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolverInterface;
 
-/**
- * @method \SprykerCommunity\Yves\SearchDebugWidget\SearchDebugWidgetConfig getConfig()
- */
 class SearchDebugWidgetFactory extends AbstractFactory
 {
     /**
