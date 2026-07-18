@@ -481,9 +481,11 @@ class ExplanationParser implements ExplanationParserInterface
 
             // The group's own reported $value is exactly one child's value (Lucene picked the max) —
             // that SAME child is the one whose own boost/idf/tf breakdown actually explains $value.
-            if ($winningChild === null && (float)($childNode['value'] ?? 0.0) === $value) {
-                $winningChild = $childNode;
+            if ($winningChild !== null || !((float)($childNode['value'] ?? 0.0) === $value)) {
+                continue;
             }
+
+            $winningChild = $childNode;
         }
 
         $uniqueTermNames = array_unique($termNames);
