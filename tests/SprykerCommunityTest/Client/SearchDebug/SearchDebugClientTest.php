@@ -81,6 +81,35 @@ class SearchDebugClientTest extends Unit
     /**
      * @return void
      */
+    public function testGetTextTokenOffsetsForTextsDelegatesToTheSearchStringAnalyzer(): void
+    {
+        // Arrange
+        $offsetsByText = ['cable' => [['token' => 'cable', 'startOffset' => 0, 'endOffset' => 5]], 'rope' => []];
+
+        $searchStringAnalyzerMock = $this->createMock(SearchStringAnalyzerInterface::class);
+        $searchStringAnalyzerMock->expects($this->once())
+            ->method('getTokenOffsetsForTexts')
+            ->with(['cable', 'rope'])
+            ->willReturn($offsetsByText);
+
+        $factoryMock = $this->getMockBuilder(SearchDebugFactory::class)
+            ->onlyMethods(['createSearchStringAnalyzer'])
+            ->getMock();
+        $factoryMock->method('createSearchStringAnalyzer')->willReturn($searchStringAnalyzerMock);
+
+        $client = new SearchDebugClient();
+        $client->setFactory($factoryMock);
+
+        // Act
+        $result = $client->getTextTokenOffsetsForTexts(['cable', 'rope']);
+
+        // Assert
+        $this->assertSame($offsetsByText, $result);
+    }
+
+    /**
+     * @return void
+     */
     public function testGetTextAnalysisStagesDelegatesToTheSearchStringAnalyzer(): void
     {
         // Arrange

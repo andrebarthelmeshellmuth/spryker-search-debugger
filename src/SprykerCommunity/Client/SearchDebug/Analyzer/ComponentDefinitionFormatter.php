@@ -10,6 +10,7 @@ declare(strict_types = 1);
 namespace SprykerCommunity\Client\SearchDebug\Analyzer;
 
 use Generated\Shared\Transfer\SearchAnalysisComponentTransfer;
+use SprykerCommunity\Shared\SearchDebug\Format\ConfigValueScalarFormatter;
 
 class ComponentDefinitionFormatter implements ComponentDefinitionFormatterInterface
 {
@@ -91,19 +92,11 @@ class ComponentDefinitionFormatter implements ComponentDefinitionFormatterInterf
      */
     protected function formatConfigValue(mixed $value): string
     {
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-
-        if (is_scalar($value)) {
-            return (string)$value;
-        }
-
         if (is_array($value)) {
             return $this->formatConfigListValue($value);
         }
 
-        return json_encode($value) ?: '';
+        return ConfigValueScalarFormatter::format($value);
     }
 
     /**
@@ -122,7 +115,7 @@ class ComponentDefinitionFormatter implements ComponentDefinitionFormatterInterf
         }
 
         $preview = array_map(
-            fn (mixed $value): string => is_scalar($value) ? (string)$value : (json_encode($value) ?: ''),
+            [ConfigValueScalarFormatter::class, 'format'],
             array_slice($values, 0, static::CONFIG_LIST_PREVIEW_ITEM_LIMIT),
         );
 

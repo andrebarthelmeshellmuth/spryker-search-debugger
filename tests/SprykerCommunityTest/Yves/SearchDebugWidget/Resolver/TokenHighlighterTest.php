@@ -138,4 +138,99 @@ class TokenHighlighterTest extends Unit
         // Assert
         $this->assertSame('🔥 <mark class="search-debug-highlight">cable</mark> für Öfen', $html);
     }
+
+    /**
+     * A plain (non-edge) `ngram` filter with min_gram=max_gram=2 on repeated-character text, e.g. "aaaa",
+     * yields pairwise-overlapping tokens at offsets [0,2), [1,3), [2,4) — the overlapping ones (here, the
+     * second and third) must be dropped rather than producing malformed/nested `<mark>` tags.
+     *
+     * @return void
+     */
+    public function testHighlightSkipsAMatchThatOverlapsAnEarlierOne(): void
+    {
+        // Arrange
+        $tokenHighlighter = new TokenHighlighter();
+
+        // Act
+        $html = $tokenHighlighter->highlight('aaaa', [
+            ['startOffset' => 0, 'endOffset' => 2],
+            ['startOffset' => 1, 'endOffset' => 3],
+            ['startOffset' => 2, 'endOffset' => 4],
+        ]);
+
+        // Assert
+        $this->assertSame(
+            '<mark class="search-debug-highlight">aa</mark><mark class="search-debug-highlight">aa</mark>',
+            $html,
+        );
+    }
+
+    /**
+     * @return void
+     */
+    public function testFilterRenderableKeepsNonOverlappingMatchesInStartOffsetOrder(): void
+    {
+        // Arrange
+        $tokenHighlighter = new TokenHighlighter();
+
+        // Act
+        $renderable = $tokenHighlighter->filterRenderable([
+            ['startOffset' => 15, 'endOffset' => 20],
+            ['startOffset' => 0, 'endOffset' => 5],
+        ]);
+
+        // Assert
+        $this->assertSame(
+            [
+                ['startOffset' => 0, 'endOffset' => 5],
+                ['startOffset' => 15, 'endOffset' => 20],
+            ],
+            $renderable,
+        );
+    }
+
+    /**
+     * The exact rule {@see testHighlightSkipsAMatchThatOverlapsAnEarlierOne()} exercises through
+     * `highlight()` — asserted directly here so a caller keeping its OWN separate list of matches (e.g.
+     * one link built per rendered mark) can rely on `filterRenderable()` alone to know which matches
+     * `highlight()` will actually render, without rendering any HTML at all.
+     *
+     * @return void
+     */
+    public function testFilterRenderableDropsAMatchThatOverlapsAnEarlierOne(): void
+    {
+        // Arrange
+        $tokenHighlighter = new TokenHighlighter();
+
+        // Act
+        $renderable = $tokenHighlighter->filterRenderable([
+            ['startOffset' => 0, 'endOffset' => 2],
+            ['startOffset' => 1, 'endOffset' => 3],
+            ['startOffset' => 2, 'endOffset' => 4],
+        ]);
+
+        // Assert
+        $this->assertSame(
+            [
+                ['startOffset' => 0, 'endOffset' => 2],
+                ['startOffset' => 2, 'endOffset' => 4],
+            ],
+            $renderable,
+        );
+    }
+
+    /**
+     * @return void
+     */
+    public function testFilterRenderableReturnsAnEmptyArrayForNoMatches(): void
+    {
+        // Arrange
+        $tokenHighlighter = new TokenHighlighter();
+
+        // Act
+        $renderable = $tokenHighlighter->filterRenderable([]);
+
+        // Assert
+        $this->assertSame([], $renderable);
+    }
 }

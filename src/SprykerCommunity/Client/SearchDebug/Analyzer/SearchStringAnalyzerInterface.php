@@ -26,6 +26,15 @@ interface SearchStringAnalyzerInterface
     public function getTokenOffsets(string $text): array;
 
     /**
+     * Same as {@see getTokenOffsets()}, batched into one `_analyze` call for several distinct texts.
+     *
+     * @param array<string> $texts
+     *
+     * @return array<string, array<array{token: string, startOffset: int, endOffset: int}>>
+     */
+    public function getTokenOffsetsForTexts(array $texts): array;
+
+    /**
      * @param string $text
      *
      * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>

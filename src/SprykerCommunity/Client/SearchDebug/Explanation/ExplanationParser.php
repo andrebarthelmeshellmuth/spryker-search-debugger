@@ -465,43 +465,98 @@ class ExplanationParser implements ExplanationParserInterface
             return false;
         }
 
+        $leaves = $this->flattenMaxOfTermWeightLeaves($details);
+
+        if ($leaves === null) {
+            return false;
+        }
+
         $termNames = [];
-        $field = null;
+        $firstField = null;
+        $winningField = null;
         $winningChild = null;
 
-        foreach ($details as $childNode) {
-            $childDescription = (string)($childNode['description'] ?? '');
+        foreach ($leaves as $leaf) {
+            $firstField ??= $leaf['field'];
+            $termNames[] = $leaf['term'];
 
-            if (!preg_match(static::TERM_WEIGHT_PATTERN, $childDescription, $matches)) {
-                return false;
-            }
-
-            $field ??= $matches['field'];
-            $termNames[] = $matches['term'];
-
-            // The group's own reported $value is exactly one child's value (Lucene picked the max) —
-            // that SAME child is the one whose own boost/idf/tf breakdown actually explains $value.
-            if ($winningChild !== null || !((float)($childNode['value'] ?? 0.0) === $value)) {
+            // The group's own reported $value is exactly one leaf's value (Lucene picked the max) —
+            // that SAME leaf is the one whose own field AND boost/idf/tf breakdown actually explain
+            // $value; a losing leaf's field must never be shown alongside the winner's numbers.
+            if ($winningChild !== null || !((float)($leaf['node']['value'] ?? 0.0) === $value)) {
                 continue;
             }
 
-            $winningChild = $childNode;
+            $winningChild = $leaf['node'];
+            $winningField = $leaf['field'];
         }
 
         $uniqueTermNames = array_unique($termNames);
 
         if (count($uniqueTermNames) < 2) {
-            // Every child shares the SAME term (only the field differs) — an ordinary per-field dis_max,
+            // Every leaf shares the SAME term (only the field differs) — an ordinary per-field dis_max,
             // not a synonym-alternatives position. Let normal recursion handle it: each leaf calling
             // addTermWeight() for the identical key already combines them correctly.
             return false;
         }
 
         sort($uniqueTermNames);
+        // Falls back to the first leaf's field only in the (so-far unobserved) case where no leaf's own
+        // value exactly equals the group's — still shows a field either way, rather than an empty string.
+        $field = $winningField ?? $firstField;
         $breakdown = $winningChild !== null ? $this->extractBm25Breakdown($winningChild) : null;
         $this->addTermWeight($terms, implode(static::SYNONYM_TERM_SEPARATOR, $uniqueTermNames), (string)$field, $value, static::COMBINE_MODE_MAX, $breakdown);
 
         return true;
+    }
+
+    /**
+     * Recursively resolves a "max of:" node's children down to the flat set of term-weight leaves it
+     * ultimately disjoins between. A child is either a direct `weight(field:term)` leaf, OR another
+     * nested "max of:" node — e.g. a multi-field query with a synonym at one position produces an OUTER
+     * "max of:" choosing between an INNER per-field "max of:" for each synonym alternative, not one flat
+     * level. Max-of-maxes propagates the true winning leaf's value up through every level unchanged, so
+     * {@see tryAddMaxOfDistinctTermsWeight()} can keep comparing against the OUTERMOST group's $value
+     * regardless of how deep the winning leaf actually sits.
+     *
+     * Returns null (bail out, caller falls through to normal recursion) the moment ANY child isn't
+     * resolvable this way — a single non-term-weight, non-"max of:" child means this isn't a pure
+     * disjunction-of-term-weights tree at all, and guessing at a partial flattening would risk silently
+     * mislabeling or dropping part of the real explain tree.
+     *
+     * @param array<int, array<string, mixed>> $details
+     *
+     * @return array<int, array{node: array<string, mixed>, field: string, term: string}>|null
+     */
+    protected function flattenMaxOfTermWeightLeaves(array $details): ?array
+    {
+        $leaves = [];
+
+        foreach ($details as $childNode) {
+            $childDescription = (string)($childNode['description'] ?? '');
+
+            if (preg_match(static::TERM_WEIGHT_PATTERN, $childDescription, $matches)) {
+                $leaves[] = ['node' => $childNode, 'field' => $matches['field'], 'term' => $matches['term']];
+
+                continue;
+            }
+
+            $grandchildren = $childNode['details'] ?? [];
+
+            if (count($grandchildren) < 2 || preg_match(static::COMBINE_PATTERN_MAX, $childDescription) !== 1) {
+                return null;
+            }
+
+            $nestedLeaves = $this->flattenMaxOfTermWeightLeaves($grandchildren);
+
+            if ($nestedLeaves === null) {
+                return null;
+            }
+
+            array_push($leaves, ...$nestedLeaves);
+        }
+
+        return $leaves;
     }
 
     /**
@@ -649,13 +704,7 @@ class ExplanationParser implements ExplanationParserInterface
      */
     protected function findChildByDescription(array $nodes, string $description): ?array
     {
-        foreach ($nodes as $node) {
-            if ((string)($node['description'] ?? '') === $description) {
-                return $node;
-            }
-        }
-
-        return null;
+        return $this->findChild($nodes, fn (string $childDescription): bool => $childDescription === $description);
     }
 
     /**
@@ -666,8 +715,22 @@ class ExplanationParser implements ExplanationParserInterface
      */
     protected function findChildByPrefix(array $nodes, string $prefix): ?array
     {
+        return $this->findChild($nodes, fn (string $childDescription): bool => str_starts_with($childDescription, $prefix));
+    }
+
+    /**
+     * Shared linear search behind {@see findChildByDescription()} and {@see findChildByPrefix()} — the two
+     * differ only in how a child's own description is matched, not in how the list is walked.
+     *
+     * @param array<int, array<string, mixed>> $nodes
+     * @param callable(string): bool $matches
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function findChild(array $nodes, callable $matches): ?array
+    {
         foreach ($nodes as $node) {
-            if (str_starts_with((string)($node['description'] ?? ''), $prefix)) {
+            if ($matches((string)($node['description'] ?? ''))) {
                 return $node;
             }
         }
