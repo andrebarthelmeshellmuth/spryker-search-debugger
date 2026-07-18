@@ -211,7 +211,7 @@ class SearchDebugResultFormatterPluginTest extends Unit
             ->willReturn($fieldBoosts);
 
         $searchDebugFactoryMock = $this->getMockBuilder(SearchDebugFactory::class)
-            ->onlyMethods(['createSearchDebugAccessChecker', 'createExplanationParser', 'createQueryFieldBoostReader'])
+            ->onlyMethods(['createSearchDebugAccessChecker', 'createExplanationParser', 'createQueryFieldBoostReader', 'getProductDebugDataExpanderPlugins'])
             ->getMock();
         $searchDebugFactoryMock
             ->method('createSearchDebugAccessChecker')
@@ -222,6 +222,9 @@ class SearchDebugResultFormatterPluginTest extends Unit
         $searchDebugFactoryMock
             ->method('createQueryFieldBoostReader')
             ->willReturn($queryFieldBoostReaderMock);
+        $searchDebugFactoryMock
+            ->method('getProductDebugDataExpanderPlugins')
+            ->willReturn([]);
 
         $resultFormatterPlugin = new SearchDebugResultFormatterPlugin();
         $resultFormatterPlugin->setFactory($searchDebugFactoryMock);

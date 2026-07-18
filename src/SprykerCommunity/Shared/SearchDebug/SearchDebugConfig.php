@@ -65,6 +65,16 @@ class SearchDebugConfig extends AbstractSharedConfig
     public const KEY_FIELD_BOOSTS = 'fieldBoosts';
 
     /**
+     * Key of the additional score display sections within one product's debug data — contributed by
+     * {@see \SprykerCommunity\Client\SearchDebug\Dependency\Plugin\ProductDebugDataExpanderPluginInterface}
+     * plugins (e.g. a ranking package's business-signal breakdown) and rendered generically by the SRP
+     * overlay. See the plugin interface for the section shape.
+     *
+     * @var string
+     */
+    public const KEY_SCORE_SECTIONS = 'scoreSections';
+
+    /**
      * CSS class assigned to a query token's badge, `%d` being the 1-based color index.
      *
      * @see \SprykerCommunity\Yves\SearchDebugWidget\Theme\default\components\molecules\search-debug-tokens\search-debug-tokens.scss

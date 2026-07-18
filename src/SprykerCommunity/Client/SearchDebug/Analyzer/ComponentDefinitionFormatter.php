@@ -52,9 +52,11 @@ class ComponentDefinitionFormatter implements ComponentDefinitionFormatterInterf
         foreach ($component->getConfig() as $key => $value) {
             $parameters[] = $key . ': ' . $this->formatConfigValue($value);
 
-            if (is_array($value) && count($value) > static::CONFIG_LIST_PREVIEW_ITEM_LIMIT) {
-                $truncated = true;
+            if (!is_array($value) || count($value) <= static::CONFIG_LIST_PREVIEW_ITEM_LIMIT) {
+                continue;
             }
+
+            $truncated = true;
         }
 
         $label = $parameters === []

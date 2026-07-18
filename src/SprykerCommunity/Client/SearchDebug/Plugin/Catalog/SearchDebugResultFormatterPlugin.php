@@ -102,6 +102,7 @@ class SearchDebugResultFormatterPlugin extends AbstractElasticsearchResultFormat
     protected function getProductDebugData(ResultSet $searchResult, array $queryTokens): array
     {
         $explanationParser = $this->getFactory()->createExplanationParser();
+        $debugDataExpanderPlugins = $this->getFactory()->getProductDebugDataExpanderPlugins();
         $debugDataByProductId = [];
 
         foreach ($searchResult->getResults() as $document) {
@@ -117,6 +118,10 @@ class SearchDebugResultFormatterPlugin extends AbstractElasticsearchResultFormat
 
             if ($document->hasParam(static::HIT_PARAM_EXPLANATION)) {
                 $debugData += $explanationParser->parse($document->getExplanation(), $queryTokens);
+            }
+
+            foreach ($debugDataExpanderPlugins as $debugDataExpanderPlugin) {
+                $debugData = $debugDataExpanderPlugin->expandProductDebugData($debugData, $source);
             }
 
             $debugDataByProductId[$idProductAbstract] = $debugData;

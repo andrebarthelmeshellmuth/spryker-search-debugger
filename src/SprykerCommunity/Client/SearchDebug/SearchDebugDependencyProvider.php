@@ -30,6 +30,11 @@ class SearchDebugDependencyProvider extends AbstractDependencyProvider
     public const SERVICE_SYNCHRONIZATION = 'SERVICE_SYNCHRONIZATION';
 
     /**
+     * @var string
+     */
+    public const PLUGINS_PRODUCT_DEBUG_DATA_EXPANDER = 'PLUGINS_PRODUCT_DEBUG_DATA_EXPANDER';
+
+    /**
      * @param \Spryker\Client\Kernel\Container $container
      *
      * @return \Spryker\Client\Kernel\Container
@@ -40,8 +45,34 @@ class SearchDebugDependencyProvider extends AbstractDependencyProvider
         $container = $this->addStoreClient($container);
         $container = $this->addPermissionClient($container);
         $container = $this->addSynchronizationService($container);
+        $container = $this->addProductDebugDataExpanderPlugins($container);
 
         return $container;
+    }
+
+    /**
+     * @param \Spryker\Client\Kernel\Container $container
+     *
+     * @return \Spryker\Client\Kernel\Container
+     */
+    protected function addProductDebugDataExpanderPlugins(Container $container): Container
+    {
+        $container->set(static::PLUGINS_PRODUCT_DEBUG_DATA_EXPANDER, function () {
+            return $this->getProductDebugDataExpanderPlugins();
+        });
+
+        return $container;
+    }
+
+    /**
+     * Override on project level to plug additional per-product overlay sections in — e.g.
+     * spryker-community/search-ranking's business-signal breakdown.
+     *
+     * @return array<\SprykerCommunity\Client\SearchDebug\Dependency\Plugin\ProductDebugDataExpanderPluginInterface>
+     */
+    protected function getProductDebugDataExpanderPlugins(): array
+    {
+        return [];
     }
 
     /**

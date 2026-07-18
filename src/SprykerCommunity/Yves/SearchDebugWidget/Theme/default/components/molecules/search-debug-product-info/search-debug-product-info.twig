@@ -27,10 +27,40 @@
     </button>
 
     <div class="search-debug-overlay text-small">
-        <div>
-            <strong>{{ 'search_debug.score' | trans }}</strong>
-            {{ score }}
-        </div>
+        {# Additional score sections contributed by ProductDebugDataExpanderPluginInterface plugins —
+           e.g. search-ranking's business-signal breakdown (metric x weight = contribution per line,
+           plus a total and the combination formula). Rendered generically: this widget knows the
+           section SHAPE, never the contributing feature. Section strings come from the plugin verbatim. #}
+        {% for section in data.debugInfo.scoreSections ?? [] %}
+            <div class="search-debug-overlay__section">
+                <strong>{{ section.title }}</strong><br>
+                {% for line in section.lines ?? [] %}
+                    <span>
+                        {{ line.label }}:
+                        {% if line.calculation is defined and line.calculation %}{{ line.calculation }} ={% endif %}
+                        {{ line.value | number_format(4) }}
+                    </span><br>
+                {% endfor %}
+                {% if section.summaryLabel is defined %}
+                    <span><strong>{{ section.summaryLabel }}: {{ section.summaryValue | number_format(4) }}</strong></span><br>
+                {% endif %}
+                {% if section.formula is defined and section.formula %}
+                    <span>{{ section.formula }}</span>
+                {% endif %}
+            </div>
+        {% endfor %}
+
+        {# Under a function_score, `queryScore` is the wrapped query's own relevance — the number the
+           matched-token contributions below actually add up against; the final `_score` (shown last)
+           only exists AFTER the score function combined this with its other inputs. Without a
+           function_score it is null and the line is omitted (matched tokens then add up against the
+           final score directly, as before). #}
+        {% if data.debugInfo.queryScore is defined and data.debugInfo.queryScore is not null %}
+            <div>
+                <strong>{{ 'search_debug.text_relevance' | trans }}</strong>
+                {{ data.debugInfo.queryScore | number_format(4) }}
+            </div>
+        {% endif %}
 
         {# matchedTokens holds only tokens from the user's actual query: everything else the explain tree
            scored (e.g. the internal type filter clause) is listed under otherContributions instead, so the
@@ -92,5 +122,10 @@
                 {% endfor %}
             </div>
         {% endif %}
+
+        <div class="search-debug-overlay__section">
+            <strong>{{ 'search_debug.final_score' | trans }}</strong>
+            {{ score }}
+        </div>
     </div>
 {% endblock %}

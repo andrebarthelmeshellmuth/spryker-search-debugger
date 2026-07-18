@@ -54,14 +54,49 @@ class ExplanationParser implements ExplanationParserInterface
     /**
      * Matches a `function_score` boost-function leaf's own description — the documented Lucene/ES
      * phrasing for `field_value_factor`, decay functions (`gauss`/`exp`/`linear`), and `script_score`.
-     * Not yet exercised against a real function_score query (a basic shop's default catalog search
-     * doesn't use one) — built ahead of that feature so the parser is ready for it. If real
-     * explain output ever uses different wording, the worst case is these nodes fall through to the
-     * generic {@see KEY_OTHER_CONTRIBUTIONS} bucket instead of {@see KEY_SCORE_FUNCTIONS} — never dropped.
+     * Confirmed live against a real `script_score` function_score (the search-ranking business-signal
+     * query): its node matches this pattern but arrives WITH details, so it is handled by the dedicated
+     * script-score branch in {@see walkNode()} instead; this leaf pattern remains the net for the other
+     * function types and detail-less shapes. If real explain output ever uses different wording, the
+     * worst case is these nodes fall through to the generic {@see KEY_OTHER_CONTRIBUTIONS} bucket
+     * instead of {@see KEY_SCORE_FUNCTIONS} — never dropped.
      *
      * @var string
      */
     protected const SCORE_FUNCTION_PATTERN = '/^(field value function|function score|script score function|gauss|exp|linear)\b/i';
+
+    /**
+     * A `script score function` node as produced by a real function_score query (confirmed live against
+     * the search-ranking business-signal query, ES 7 / boost_mode "replace"):
+     *
+     *   sum of: <- V (final _score)
+     *   ├─ min of: <- V
+     *   │ ├─ script score function, ...: <- V, THIS node
+     *   │ │ └─ _score: <- S, the wrapped query's own relevance score
+     *   │ │ └─ (the original query tree) <- the familiar term-weight breakdown
+     *   │ └─ maxBoost <- 3.4028235E38 (float-max sentinel, pure noise)
+     *   └─ match on required clause (0) <- filtered by the zero check
+     *
+     * @var string
+     */
+    protected const SCRIPT_SCORE_NODE_PREFIX = 'script score function';
+
+    /**
+     * The child of a script-score node carrying the WRAPPED query's own relevance score — the value the
+     * painless script saw as `_score`. Matched by prefix: ES renders it as "_score: " (trailing space).
+     *
+     * @var string
+     */
+    protected const QUERY_SCORE_NODE_PREFIX = '_score';
+
+    /**
+     * A function_score explain always caps the function result with a `min of: [function, maxBoost]`
+     * node whose maxBoost leaf is FLT_MAX (3.4028235E38) unless a max_boost was configured — a sentinel,
+     * not a score contribution; surfacing it as one would show a nonsensical gigantic number.
+     *
+     * @var string
+     */
+    protected const MAX_BOOST_DESCRIPTION = 'maxBoost';
 
     /**
      * Matches the description of a node that combines its children by taking the MAXIMUM (Lucene
@@ -107,6 +142,15 @@ class ExplanationParser implements ExplanationParserInterface
     public const KEY_SCORE_FUNCTIONS = 'scoreFunctions';
 
     /**
+     * The wrapped query's own relevance score (float) when a function_score script wrapped the query,
+     * null otherwise — i.e. the pure text-match subtotal BEFORE any score function was applied. The
+     * matched-token contributions always add up against THIS number, not the final `_score`.
+     *
+     * @var string
+     */
+    public const KEY_QUERY_SCORE = 'queryScore';
+
+    /**
      * {@inheritDoc}
      *
      * @param array<string, mixed> $explanation
@@ -119,11 +163,13 @@ class ExplanationParser implements ExplanationParserInterface
         $terms = [];
         $otherContributions = [];
         $scoreFunctions = [];
+        $queryScore = null;
 
-        $this->walkNode($explanation, $terms, $otherContributions, $scoreFunctions);
+        $this->walkNode($explanation, $terms, $otherContributions, $scoreFunctions, $queryScore);
 
         $result = $this->splitByQueryTokens($terms, $otherContributions, $queryTokens);
         $result[static::KEY_SCORE_FUNCTIONS] = $scoreFunctions;
+        $result[static::KEY_QUERY_SCORE] = $queryScore;
 
         return $result;
     }
@@ -148,12 +194,19 @@ class ExplanationParser implements ExplanationParserInterface
      * @param array<string, array<string, mixed>> $terms
      * @param array<int, array<string, mixed>> $otherContributions
      * @param array<int, array<string, mixed>> $scoreFunctions
+     * @param float|null $queryScore
      * @param string|null $combineMode
      *
      * @return void
      */
-    protected function walkNode(array $node, array &$terms, array &$otherContributions, array &$scoreFunctions, ?string $combineMode = null): void
-    {
+    protected function walkNode(
+        array $node,
+        array &$terms,
+        array &$otherContributions,
+        array &$scoreFunctions,
+        ?float &$queryScore,
+        ?string $combineMode = null,
+    ): void {
         $value = (float)($node['value'] ?? 0.0);
 
         if ($value === 0.0) {
@@ -167,6 +220,16 @@ class ExplanationParser implements ExplanationParserInterface
         }
 
         $description = (string)($node['description'] ?? '');
+
+        if ($description === static::MAX_BOOST_DESCRIPTION) {
+            return;
+        }
+
+        if (str_starts_with($description, static::SCRIPT_SCORE_NODE_PREFIX)) {
+            $this->addScriptScoreNode($node, $value, $description, $terms, $otherContributions, $scoreFunctions, $queryScore);
+
+            return;
+        }
 
         if (str_starts_with($description, static::WEIGHT_NODE_PREFIX)) {
             if (preg_match(static::TERM_WEIGHT_PATTERN, $description, $matches)) {
@@ -213,7 +276,7 @@ class ExplanationParser implements ExplanationParserInterface
                 : $combineMode;
 
             foreach ($details as $childNode) {
-                $this->walkNode($childNode, $terms, $otherContributions, $scoreFunctions, $childCombineMode);
+                $this->walkNode($childNode, $terms, $otherContributions, $scoreFunctions, $queryScore, $childCombineMode);
             }
 
             return;
@@ -236,6 +299,51 @@ class ExplanationParser implements ExplanationParserInterface
             'description' => $description,
             'value' => $value,
         ];
+    }
+
+    /**
+     * Handles a `script score function` node WITH children — the shape a real function_score script
+     * produces (see {@see SCRIPT_SCORE_NODE_PREFIX} for the confirmed tree). Three things happen:
+     * - The node itself is recorded as a score function (its value IS the function's result).
+     * - Its `_score:` child's value is captured as {@see KEY_QUERY_SCORE} — the wrapped query's own
+     *   relevance score, which the matched-token breakdown adds up against.
+     * - The walk continues INTO the `_score:` child, so the familiar term-weight breakdown of the
+     *   wrapped query is parsed exactly as if no function_score existed.
+     * Children other than `_score:` (none observed live; defensive) get the normal walk too.
+     *
+     * @param array<string, mixed> $node
+     * @param float $value
+     * @param string $description
+     * @param array<string, array<string, mixed>> $terms
+     * @param array<int, array<string, mixed>> $otherContributions
+     * @param array<int, array<string, mixed>> $scoreFunctions
+     * @param float|null $queryScore
+     *
+     * @return void
+     */
+    protected function addScriptScoreNode(
+        array $node,
+        float $value,
+        string $description,
+        array &$terms,
+        array &$otherContributions,
+        array &$scoreFunctions,
+        ?float &$queryScore,
+    ): void {
+        $scoreFunctions[] = [
+            'description' => $description,
+            'value' => $value,
+        ];
+
+        foreach ($node['details'] ?? [] as $childNode) {
+            $childDescription = (string)($childNode['description'] ?? '');
+
+            if ($queryScore === null && str_starts_with($childDescription, static::QUERY_SCORE_NODE_PREFIX)) {
+                $queryScore = (float)($childNode['value'] ?? 0.0);
+            }
+
+            $this->walkNode($childNode, $terms, $otherContributions, $scoreFunctions, $queryScore);
+        }
     }
 
     /**

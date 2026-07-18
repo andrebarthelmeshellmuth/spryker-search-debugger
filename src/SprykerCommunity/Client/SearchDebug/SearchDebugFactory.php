@@ -112,6 +112,14 @@ class SearchDebugFactory extends AbstractFactory
     }
 
     /**
+     * @return array<\SprykerCommunity\Client\SearchDebug\Dependency\Plugin\ProductDebugDataExpanderPluginInterface>
+     */
+    public function getProductDebugDataExpanderPlugins(): array
+    {
+        return $this->getProvidedDependency(SearchDebugDependencyProvider::PLUGINS_PRODUCT_DEBUG_DATA_EXPANDER);
+    }
+
+    /**
      * @return \SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReaderInterface
      */
     public function createQueryFieldBoostReader(): QueryFieldBoostReaderInterface
