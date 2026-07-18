@@ -12,6 +12,7 @@ namespace SprykerCommunityTest\Yves\SearchDebugWidget\Resolver;
 use Codeception\Test\Unit;
 use SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\AnalysisPathResolver;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighter;
 
 /**
  * Auto-generated group annotations
@@ -67,7 +68,7 @@ class AnalysisPathResolverTest extends Unit
             ],
         ]);
 
-        $resolver = new AnalysisPathResolver($searchDebugClientMock);
+        $resolver = new AnalysisPathResolver($searchDebugClientMock, new TokenHighlighter());
 
         // Act
         $path = $resolver->resolve('Ölpapier', 'öl', 0, 8);
@@ -75,9 +76,9 @@ class AnalysisPathResolverTest extends Unit
         // Assert
         $this->assertSame(
             [
-                ['text' => 'Ölpapier', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
-                ['text' => 'ölpapier', 'operation' => 'filter: lowercase', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
-                ['text' => 'öl', 'operation' => 'filter: fulltext_index_ngram_filter', 'definition' => 'edge_ngram (min_gram: 2, max_gram: 20)', 'componentKind' => 'filter', 'componentName' => 'fulltext_index_ngram_filter', 'definitionTruncated' => false],
+                ['text' => 'Ölpapier', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
+                ['text' => 'ölpapier', 'operation' => 'filter: lowercase', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
+                ['text' => 'öl', 'operation' => 'filter: fulltext_index_ngram_filter', 'definition' => 'edge_ngram (min_gram: 2, max_gram: 20)', 'componentKind' => 'filter', 'componentName' => 'fulltext_index_ngram_filter', 'definitionTruncated' => false, 'highlightedHtml' => null],
             ],
             $path,
         );
@@ -127,7 +128,7 @@ class AnalysisPathResolverTest extends Unit
             ],
         ]);
 
-        $resolver = new AnalysisPathResolver($searchDebugClientMock);
+        $resolver = new AnalysisPathResolver($searchDebugClientMock, new TokenHighlighter());
 
         // Act — same text and offsets as the test above, but asking about the LAST (longest) sibling.
         $path = $resolver->resolve('Ölpapier', 'ölpapier', 0, 8);
@@ -135,9 +136,9 @@ class AnalysisPathResolverTest extends Unit
         // Assert
         $this->assertSame(
             [
-                ['text' => 'Ölpapier', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
-                ['text' => 'ölpapier', 'operation' => 'filter: lowercase', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
-                ['text' => 'ölpapier', 'operation' => 'filter: fulltext_index_ngram_filter', 'definition' => 'edge_ngram (min_gram: 2, max_gram: 20)', 'componentKind' => 'filter', 'componentName' => 'fulltext_index_ngram_filter', 'definitionTruncated' => false],
+                ['text' => 'Ölpapier', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
+                ['text' => 'ölpapier', 'operation' => 'filter: lowercase', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
+                ['text' => 'ölpapier', 'operation' => 'filter: fulltext_index_ngram_filter', 'definition' => 'edge_ngram (min_gram: 2, max_gram: 20)', 'componentKind' => 'filter', 'componentName' => 'fulltext_index_ngram_filter', 'definitionTruncated' => false, 'highlightedHtml' => null],
             ],
             $path,
         );
@@ -204,7 +205,7 @@ class AnalysisPathResolverTest extends Unit
             ],
         ]);
 
-        $resolver = new AnalysisPathResolver($searchDebugClientMock);
+        $resolver = new AnalysisPathResolver($searchDebugClientMock, new TokenHighlighter());
 
         // Act — asking about "button", the injected sibling, not "switch", the original word.
         $path = $resolver->resolve('Switch', 'button', 0, 6);
@@ -213,8 +214,8 @@ class AnalysisPathResolverTest extends Unit
         // itself shows the transformation from "switch".
         $this->assertSame(
             [
-                ['text' => 'Switch', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
-                ['text' => 'switch', 'operation' => 'filter: lowercase', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
+                ['text' => 'Switch', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
+                ['text' => 'switch', 'operation' => 'filter: lowercase', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
                 [
                     'text' => 'button',
                     'operation' => 'filter: fulltext_synonyms',
@@ -222,6 +223,7 @@ class AnalysisPathResolverTest extends Unit
                     'componentKind' => 'filter',
                     'componentName' => 'fulltext_synonyms',
                     'definitionTruncated' => false,
+                    'highlightedHtml' => null,
                 ],
                 [
                     'text' => 'button',
@@ -230,6 +232,7 @@ class AnalysisPathResolverTest extends Unit
                     'componentKind' => 'filter',
                     'componentName' => 'fulltext_min_length',
                     'definitionTruncated' => false,
+                    'highlightedHtml' => null,
                 ],
             ],
             $path,
@@ -270,16 +273,18 @@ class AnalysisPathResolverTest extends Unit
             ],
         ]);
 
-        $resolver = new AnalysisPathResolver($searchDebugClientMock);
+        $resolver = new AnalysisPathResolver($searchDebugClientMock, new TokenHighlighter());
 
         // Act
         $path = $resolver->resolve('haustuere', 'tuere', 4, 9);
 
-        // Assert — only the "tuere" lineage appears; "haus" is never part of the result.
+        // Assert — only the "tuere" lineage appears; "haus" is never part of the result. The origin also
+        // carries a highlight: "tuere" is a genuine, offset-exact sub-span of "haustuere" itself, so
+        // addOriginHighlight()'s validation passes.
         $this->assertSame(
             [
-                ['text' => 'haustuere', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
-                ['text' => 'tuere', 'operation' => 'filter: decompound', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
+                ['text' => 'haustuere', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => 'haus<mark class="search-debug-highlight">tuere</mark>'],
+                ['text' => 'tuere', 'operation' => 'filter: decompound', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
             ],
             $path,
         );
@@ -316,7 +321,7 @@ class AnalysisPathResolverTest extends Unit
             ],
         ]);
 
-        $resolver = new AnalysisPathResolver($searchDebugClientMock);
+        $resolver = new AnalysisPathResolver($searchDebugClientMock, new TokenHighlighter());
 
         // Act
         $path = $resolver->resolve('cables', 'cables', 0, 6);
@@ -324,7 +329,7 @@ class AnalysisPathResolverTest extends Unit
         // Assert
         $this->assertSame(
             [
-                ['text' => 'cables', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
+                ['text' => 'cables', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => '<mark class="search-debug-highlight">cables</mark>'],
                 [
                     'text' => 'cables',
                     'operation' => 'filter: my_stop',
@@ -332,6 +337,7 @@ class AnalysisPathResolverTest extends Unit
                     'componentKind' => 'filter',
                     'componentName' => 'my_stop',
                     'definitionTruncated' => true,
+                    'highlightedHtml' => null,
                 ],
             ],
             $path,
@@ -347,7 +353,7 @@ class AnalysisPathResolverTest extends Unit
         $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
         $searchDebugClientMock->method('getTextAnalysisStages')->willReturn([]);
 
-        $resolver = new AnalysisPathResolver($searchDebugClientMock);
+        $resolver = new AnalysisPathResolver($searchDebugClientMock, new TokenHighlighter());
 
         // Act
         $path = $resolver->resolve('anything', 'any', 0, 3);
@@ -374,7 +380,7 @@ class AnalysisPathResolverTest extends Unit
             ],
         ]);
 
-        $resolver = new AnalysisPathResolver($searchDebugClientMock);
+        $resolver = new AnalysisPathResolver($searchDebugClientMock, new TokenHighlighter());
 
         // Act — offsets don't match the one real token at all (stale/re-indexed document scenario).
         $path = $resolver->resolve('cable', 'cable', 10, 15);
@@ -414,7 +420,7 @@ class AnalysisPathResolverTest extends Unit
             ],
         ]);
 
-        $resolver = new AnalysisPathResolver($searchDebugClientMock);
+        $resolver = new AnalysisPathResolver($searchDebugClientMock, new TokenHighlighter());
 
         // Act
         $path = $resolver->resolve('Cable', 'cable', 0, 5);
@@ -422,7 +428,7 @@ class AnalysisPathResolverTest extends Unit
         // Assert — stops at the point it can no longer find an ancestor, rather than throwing.
         $this->assertSame(
             [
-                ['text' => 'cable', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false],
+                ['text' => 'cable', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
             ],
             $path,
         );

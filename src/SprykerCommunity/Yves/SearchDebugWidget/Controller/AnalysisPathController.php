@@ -13,6 +13,7 @@ use Spryker\Yves\Kernel\Controller\AbstractController;
 use Spryker\Yves\Kernel\PermissionAwareTrait;
 use Spryker\Yves\Kernel\View\View;
 use SprykerCommunity\Shared\SearchDebug\Plugin\SeeSearchDebugInfoPermissionPlugin;
+use SprykerCommunity\Shared\SearchDebug\SearchDebugConfig;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -41,6 +42,20 @@ class AnalysisPathController extends AbstractController
     protected const PARAM_TOKEN = 'token';
 
     /**
+     * Together with {@see PARAM_END_OFFSET}, identifies the ONE SPECIFIC occurrence the magnifying-glass
+     * link was built for (see TokenSourceController's per-match links) — see
+     * {@see resolveExplicitOffset()} for why this matters.
+     *
+     * @var string
+     */
+    protected const PARAM_START_OFFSET = 'startOffset';
+
+    /**
+     * @var string
+     */
+    protected const PARAM_END_OFFSET = 'endOffset';
+
+    /**
      * @param \Symfony\Component\HttpFoundation\Request $request
      *
      * @throws \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException
@@ -66,7 +81,7 @@ class AnalysisPathController extends AbstractController
             throw new BadRequestHttpException('Both `text` and `token` query parameters are required.');
         }
 
-        $offset = $this->findFirstMatchOffset(
+        $offset = $this->resolveExplicitOffset($request) ?? $this->findFirstMatchOffset(
             $this->getFactory()->getSearchDebugClient()->getTextTokenOffsets($text),
             $token,
         );
@@ -87,7 +102,7 @@ class AnalysisPathController extends AbstractController
             [
                 'text' => $text,
                 'token' => $token,
-                'path' => $path,
+                'path' => $this->assignStepColors($path),
             ],
             [],
             '@SearchDebugWidget/views/token-analysis/token-analysis.twig',
@@ -95,10 +110,76 @@ class AnalysisPathController extends AbstractController
     }
 
     /**
-     * The FIRST occurrence is enough: the magnifying-glass link that reaches this controller was built
-     * from an already-computed match on this exact text, and every occurrence of the same token in the
-     * same text produces the identical analysis path (the index-time analyzer is deterministic), so
-     * there is nothing to disambiguate by picking a specific occurrence.
+     * Colors each step purely by EXACT TEXT MATCH: the first step takes the first palette color, and every
+     * later step whose `text` is byte-identical to one already seen reuses that SAME color rather than
+     * advancing — a step whose text has never appeared before takes the next unused color, wrapping past
+     * {@see SearchDebugConfig::TOKEN_COLOR_CLASS_COUNT}. This turns the path into a visual diff: a color
+     * change between two neighboring boxes means "this operation actually changed the string", same color
+     * means "passed through unchanged" (or, later on, "back to a string an earlier step already had").
+     *
+     * @param array<int, array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, highlightedHtml: string|null}> $path
+     *
+     * @return array<int, array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, highlightedHtml: string|null, colorClass: string}>
+     */
+    protected function assignStepColors(array $path): array
+    {
+        $colorClassByText = [];
+        $nextColorIndex = 0;
+
+        foreach ($path as &$step) {
+            if (!isset($colorClassByText[$step['text']])) {
+                $colorClassByText[$step['text']] = sprintf(
+                    SearchDebugConfig::TOKEN_COLOR_CLASS_PATTERN,
+                    ($nextColorIndex % SearchDebugConfig::TOKEN_COLOR_CLASS_COUNT) + 1,
+                );
+                $nextColorIndex++;
+            }
+
+            $step['colorClass'] = $colorClassByText[$step['text']];
+        }
+
+        return $path;
+    }
+
+    /**
+     * When the magnifying-glass link was built for one SPECIFIC highlighted occurrence (see
+     * TokenSourceController's per-match analysis links, which carry {@see PARAM_START_OFFSET}/
+     * {@see PARAM_END_OFFSET}), that occurrence's own offsets are used directly instead of
+     * {@see findFirstMatchOffset()}'s "first occurrence anywhere in the text" fallback — two occurrences
+     * of the "same" matched token TEXT can trace back to genuinely DIFFERENT origin words (e.g. the
+     * literal word "switch" vs. an edge-ngram PREFIX match carved out of "switching" elsewhere in the
+     * same text), so picking an arbitrary occurrence by text alone can silently show the analysis path
+     * for a different word than the one actually clicked. `resolve()` itself still validates that a real
+     * token entry exists at whatever offset is finally used (see `AnalysisPathResolver::findToken()`), so
+     * a tampered or stale value can only ever produce a 404, never a wrong-but-plausible result.
+     *
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     *
+     * @return array{startOffset: int, endOffset: int}|null
+     */
+    protected function resolveExplicitOffset(Request $request): ?array
+    {
+        if (!$request->query->has(static::PARAM_START_OFFSET) || !$request->query->has(static::PARAM_END_OFFSET)) {
+            return null;
+        }
+
+        $startOffset = (int)$request->query->get(static::PARAM_START_OFFSET);
+        $endOffset = (int)$request->query->get(static::PARAM_END_OFFSET);
+
+        if ($startOffset < 0 || $endOffset <= $startOffset) {
+            return null;
+        }
+
+        return ['startOffset' => $startOffset, 'endOffset' => $endOffset];
+    }
+
+    /**
+     * Fallback for when no specific occurrence is known (a hand-typed URL, or a link generated before
+     * this controller understood per-occurrence offsets): picks the first occurrence of $token in the
+     * text. Correct for the common case where the matched token IS the origin word verbatim (every
+     * occurrence of a literally-repeated word produces the identical analysis path, since the index-time
+     * analyzer is deterministic) — but see {@see resolveExplicitOffset()} for why this is only a
+     * fallback, not the primary path.
      *
      * @param array<array{token: string, startOffset: int, endOffset: int}> $tokenOffsets
      * @param string $token

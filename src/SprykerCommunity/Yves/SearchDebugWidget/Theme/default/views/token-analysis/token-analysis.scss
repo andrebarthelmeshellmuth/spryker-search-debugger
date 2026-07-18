@@ -1,6 +1,9 @@
 // For $search-debug-feature-accent-color below — the same dedicated feature accent used by the trigger
 // button and magnifying-glass links elsewhere in this widget.
 @import '../../components/molecules/search-debug-tokens/search-debug-palette';
+// For the .search-debug-highlight `<mark>` rule on the origin step's text — shared with the token-source
+// page, which uses the identical highlight treatment.
+@import '../../components/molecules/search-debug-tokens/search-debug-highlight';
 
 // Standalone debug utility page (opened via the token-source page's per-fragment magnifying-glass link,
 // in a new tab) — kept deliberately plain, same posture as token-source.scss.
@@ -34,14 +37,27 @@
     border-radius: rem(24);
     background-color: $setting-color-lightest;
     font-family: monospace;
-    font-size: rem(14);
+    font-size: rem(13);
     text-align: center;
     overflow-wrap: break-word;
 
-    // The final step is the actual matched token — the whole point of the page — so it's the one place
-    // color is allowed, reusing the search-debug feature accent rather than introducing a new color.
+    // Every step is filled with its own group's color (see AnalysisPathController::assignStepColors() —
+    // one color per distinct exact string along the path, so two boxes share a color only when they hold
+    // byte-identical text). Border matches the fill (a flat chip, like the SRP badge itself) rather than
+    // staying neutral. Text color uses the exact same lightness-based black/white contrast rule
+    // `_search-debug-token-badge.scss` uses for the SRP badges themselves, so light and dark palette
+    // entries both stay readable here too.
+    @each $color in $search-debug-token-colors {
+        &.search-debug-token--color-#{index($search-debug-token-colors, $color)} {
+            border-color: $color;
+            background-color: $color;
+            color: if(lightness($color) > 55%, #000, #fff);
+        }
+    }
+
+    // The final step is the actual matched token — the whole point of the page — so it additionally gets
+    // a bolder, thicker border on top of its own group color above, rather than a color of its own.
     &--final {
-        border-color: $search-debug-feature-accent-color;
         border-width: rem(2);
         font-weight: fw(bold);
     }
@@ -51,7 +67,7 @@
     margin: rem(6) 0;
     color: $setting-color-darker;
     font-family: monospace;
-    font-size: rem(12);
+    font-size: rem(11);
     text-align: center;
 
     &::before {

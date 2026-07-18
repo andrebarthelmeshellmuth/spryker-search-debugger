@@ -14,7 +14,7 @@ class TokenHighlighter implements TokenHighlighterInterface
     /**
      * @var string
      */
-    protected const HIGHLIGHT_CSS_CLASS = 'token-source-highlight';
+    protected const HIGHLIGHT_CSS_CLASS = 'search-debug-highlight';
 
     /**
      * Builds the highlighted HTML by slicing $text at the given offsets and escaping every slice

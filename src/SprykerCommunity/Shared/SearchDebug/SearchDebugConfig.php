@@ -94,4 +94,23 @@ class SearchDebugConfig extends AbstractSharedConfig
      * @var int
      */
     public const TOKEN_COLOR_CLASS_COUNT = 8;
+
+    /**
+     * Number of decimal places every score-related number in the SRP overlay is rounded and
+     * displayed to: `_score`, matched-token weights, other contributions, and any section a
+     * {@see \SprykerCommunity\Client\SearchDebug\Dependency\Plugin\ProductDebugDataExpanderPluginInterface}
+     * plugin contributes (e.g. spryker-community/search-ranking's business-signal breakdown, which
+     * reads this same constant for its own pre-built calculation/formula strings — one shared
+     * precision for the whole overlay, not two constants that could drift apart).
+     *
+     * Rounding happens ONLY here, at display time. No business-logic class in this package, or in a
+     * contributing plugin, rounds a value before this point — the full-precision float is always
+     * what gets passed around and computed with; this constant only controls how many digits
+     * `number_format()` (or an equivalent `sprintf('%.<n>f', ...)`) shows.
+     *
+     * @api
+     *
+     * @var int
+     */
+    public const SCORE_DECIMAL_PLACES = 2;
 }

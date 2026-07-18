@@ -1,4 +1,4 @@
-{# @var data.path array<array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool}> #}
+{# @var data.path array<array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, highlightedHtml: string|null, colorClass: string}> #}
 
 {% extends template('page-blank') %}
 
@@ -32,8 +32,22 @@
                         {%- endif %}
                     </div>
                 {% endif %}
-                <div class="token-analysis-path__step {{ loop.last ? 'token-analysis-path__step--final' : '' }}">
-                    {{ step.text }}
+                {# Every box is colored purely by EXACT TEXT MATCH (see
+                   AnalysisPathController::assignStepColors()) — two boxes share a color only when they hold
+                   byte-identical text, so a color change between neighbors reads as "this operation actually
+                   changed the string" and a repeated color reads as "unchanged" (or "back to an earlier
+                   string"). The final box additionally gets the bold/thick-border treatment (its own step
+                   color still applies) since it's the one the whole page exists to explain. #}
+                <div class="token-analysis-path__step {{ loop.last ? 'token-analysis-path__step--final' : '' }} {{ step.colorClass }}">
+                    {#- highlightedHtml is only ever set on the origin (topmost) step — see
+                       AnalysisPathResolverInterface::resolve()'s docblock — and is pre-escaped by
+                       TokenHighlighter, safe to render raw. Mirrors the token-source page's own
+                       "this sub-span is what led here" `<mark>` treatment. -#}
+                    {%- if step.highlightedHtml is not null -%}
+                        {{ step.highlightedHtml | raw }}
+                    {%- else -%}
+                        {{ step.text }}
+                    {%- endif -%}
                 </div>
             {% endfor %}
         </div>

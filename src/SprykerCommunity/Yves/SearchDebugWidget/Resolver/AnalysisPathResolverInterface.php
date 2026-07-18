@@ -30,7 +30,7 @@ interface AnalysisPathResolverInterface
      * @param int $startOffset
      * @param int $endOffset
      *
-     * @return array<int, array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool}>|null
+     * @return array<int, array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, highlightedHtml: string|null}>|null
      *   Null when $token isn't found at that offset in the last analysis stage at all (e.g. stale offsets
      *   from a re-indexed document). The first entry's `operation`/`definition`/`componentKind`/
      *   `componentName` are always null and `definitionTruncated` always false (it's the origin, nothing
@@ -40,6 +40,10 @@ interface AnalysisPathResolverInterface
      *   only non-null alongside a non-null `definition`, and identify which component to pass to
      *   `SearchDebugClientInterface::getComponentConfig()` for its FULL, untruncated config — worth doing
      *   only when `definitionTruncated` is true (i.e. `definition` itself left something out).
+     *   `highlightedHtml` is non-null ONLY on the first entry (the origin), and only when the sub-span
+     *   that continues into the rest of the path could be safely located within the origin's own text
+     *   (see `AnalysisPathResolver::addOriginHighlight()` for when that isn't guaranteed) — mirrors the
+     *   token-source page's `<mark>` treatment. Every other entry's `highlightedHtml` is always null.
      */
     public function resolve(string $text, string $token, int $startOffset, int $endOffset): ?array;
 }

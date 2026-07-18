@@ -1,5 +1,7 @@
 // For $search-debug-feature-accent-color below.
 @import '../../components/molecules/search-debug-tokens/search-debug-palette';
+// For the .search-debug-highlight `<mark>` rule below — shared with the token-analysis page.
+@import '../../components/molecules/search-debug-tokens/search-debug-highlight';
 
 // Standalone debug utility page (opened via the SRP's per-token magnifying-glass link, in a new tab) —
 // kept deliberately plain, no product-card/grid styling to coordinate with.
@@ -27,7 +29,7 @@ $token-source-field-label-color: $setting-color-darker;
     background-color: $token-source-tier-accent;
     color: $setting-color-white;
     font-family: monospace;
-    font-size: rem(14);
+    font-size: rem(13);
 }
 
 .token-source-tier__body {
@@ -64,7 +66,7 @@ $token-source-field-label-color: $setting-color-darker;
     background-color: $token-source-field-label-color;
     color: $setting-color-white;
     font-family: monospace;
-    font-size: rem(12);
+    font-size: rem(11);
     word-break: break-word;
 }
 
@@ -118,11 +120,4 @@ $token-source-field-label-color: $setting-color-darker;
 .token-source-field__no-match {
     color: $setting-color-darker;
     font-style: italic;
-}
-
-.token-source-highlight {
-    background-color: #fff2a8;
-    color: $setting-color-black;
-    padding: 0 rem(2);
-    border-radius: rem(2);
 }

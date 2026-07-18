@@ -151,6 +151,73 @@ class ExplanationParser implements ExplanationParserInterface
     public const KEY_QUERY_SCORE = 'queryScore';
 
     /**
+     * A `weight(field:term)` leaf's own single child under BM25Similarity — e.g.
+     * "score(freq=8.0), computed as boost * idf * tf from:". Matched by substring rather than a full
+     * pattern anchored at the start: the leading "score(freq=X.0), " portion is otherwise-unused detail
+     * this class doesn't need to capture.
+     *
+     * @var string
+     */
+    protected const BM25_BREAKDOWN_MARKER = 'computed as boost * idf * tf from:';
+
+    /**
+     * @var string
+     */
+    protected const BM25_CHILD_PREFIX_IDF = 'idf';
+
+    /**
+     * @var string
+     */
+    protected const BM25_CHILD_PREFIX_TF = 'tf';
+
+    /**
+     * `boost` alone has no trailing comma/explanation (unlike idf/tf and their own children below), so it
+     * is matched as an exact description rather than a prefix.
+     *
+     * @var string
+     */
+    protected const BM25_CHILD_DESCRIPTION_BOOST = 'boost';
+
+    /**
+     * idf's own two children — `n,`/`N,` (lowercase = documents containing the term, uppercase = total
+     * documents with the field at all) — matched by prefix since each carries its own trailing
+     * explanation (e.g. "n, number of documents containing term").
+     *
+     * @var string
+     */
+    protected const BM25_CHILD_PREFIX_IDF_N = 'n,';
+
+    /**
+     * @var string
+     */
+    protected const BM25_CHILD_PREFIX_IDF_CAPITAL_N = 'N,';
+
+    /**
+     * @var string
+     */
+    protected const BM25_CHILD_PREFIX_TF_FREQ = 'freq';
+
+    /**
+     * @var string
+     */
+    protected const BM25_CHILD_PREFIX_TF_K1 = 'k1';
+
+    /**
+     * @var string
+     */
+    protected const BM25_CHILD_PREFIX_TF_B = 'b,';
+
+    /**
+     * @var string
+     */
+    protected const BM25_CHILD_PREFIX_TF_DL = 'dl';
+
+    /**
+     * @var string
+     */
+    protected const BM25_CHILD_PREFIX_TF_AVGDL = 'avgdl';
+
+    /**
      * {@inheritDoc}
      *
      * @param array<string, mixed> $explanation
@@ -233,13 +300,13 @@ class ExplanationParser implements ExplanationParserInterface
 
         if (str_starts_with($description, static::WEIGHT_NODE_PREFIX)) {
             if (preg_match(static::TERM_WEIGHT_PATTERN, $description, $matches)) {
-                $this->addTermWeight($terms, $matches['term'], $matches['field'], $value, $combineMode ?? static::COMBINE_MODE_MAX);
+                $this->addTermWeight($terms, $matches['term'], $matches['field'], $value, $combineMode ?? static::COMBINE_MODE_MAX, $this->extractBm25Breakdown($node));
 
                 return;
             }
 
             if (preg_match(static::SYNONYM_WEIGHT_PATTERN, $description, $matches)) {
-                $this->addSynonymWeight($terms, $matches['terms'], $value, $combineMode ?? static::COMBINE_MODE_MAX);
+                $this->addSynonymWeight($terms, $matches['terms'], $value, $combineMode ?? static::COMBINE_MODE_MAX, $this->extractBm25Breakdown($node));
 
                 return;
             }
@@ -400,6 +467,7 @@ class ExplanationParser implements ExplanationParserInterface
 
         $termNames = [];
         $field = null;
+        $winningChild = null;
 
         foreach ($details as $childNode) {
             $childDescription = (string)($childNode['description'] ?? '');
@@ -410,6 +478,12 @@ class ExplanationParser implements ExplanationParserInterface
 
             $field ??= $matches['field'];
             $termNames[] = $matches['term'];
+
+            // The group's own reported $value is exactly one child's value (Lucene picked the max) —
+            // that SAME child is the one whose own boost/idf/tf breakdown actually explains $value.
+            if ($winningChild === null && (float)($childNode['value'] ?? 0.0) === $value) {
+                $winningChild = $childNode;
+            }
         }
 
         $uniqueTermNames = array_unique($termNames);
@@ -422,7 +496,8 @@ class ExplanationParser implements ExplanationParserInterface
         }
 
         sort($uniqueTermNames);
-        $this->addTermWeight($terms, implode(static::SYNONYM_TERM_SEPARATOR, $uniqueTermNames), (string)$field, $value, static::COMBINE_MODE_MAX);
+        $breakdown = $winningChild !== null ? $this->extractBm25Breakdown($winningChild) : null;
+        $this->addTermWeight($terms, implode(static::SYNONYM_TERM_SEPARATOR, $uniqueTermNames), (string)$field, $value, static::COMBINE_MODE_MAX, $breakdown);
 
         return true;
     }
@@ -449,20 +524,34 @@ class ExplanationParser implements ExplanationParserInterface
      * only — `total` is the true sum across all fields, `field` does not claim to be the sole source of it.
      * The per-field map exists only locally, to compute both.
      *
+     * @phpstan-param array{boost: float, idf: array{value: float, n: float, capitalN: float}, tf: array{value: float, freq: float, k1: float, b: float, dl: float, avgdl: float}}|null $breakdown
+     *
      * @param array<string, array<string, mixed>> $terms
      * @param string $term
      * @param string $field
      * @param float $value
      * @param string $combineMode
+     * @param array<string, mixed>|null $breakdown
+     *   The BM25 boost/idf/tf breakdown behind THIS specific field weight (see {@see extractBm25Breakdown()}),
+     *   null when the node wasn't shaped as a recognizable BM25 leaf. Stored per field alongside
+     *   `fieldWeights` — only the primary (winning) field's breakdown is ever surfaced downstream (see
+     *   {@see splitByQueryTokens()}), matching `field`'s own existing "single largest individual field
+     *   weight" contract; a losing field's breakdown is simply never looked at again.
      *
      * @return void
      */
-    protected function addTermWeight(array &$terms, string $term, string $field, float $value, string $combineMode): void
+    protected function addTermWeight(array &$terms, string $term, string $field, float $value, string $combineMode, ?array $breakdown = null): void
     {
         $fields = $terms[$term]['fieldWeights'] ?? [];
+        $fieldBreakdowns = $terms[$term]['fieldBreakdowns'] ?? [];
+
         $fields[$field] = $combineMode === static::COMBINE_MODE_SUM
             ? ($fields[$field] ?? 0.0) + $value
             : max($fields[$field] ?? 0.0, $value);
+
+        if ($breakdown !== null) {
+            $fieldBreakdowns[$field] = $breakdown;
+        }
 
         $total = $combineMode === static::COMBINE_MODE_SUM ? array_sum($fields) : max($fields);
         $primaryField = array_search(max($fields), $fields, true);
@@ -471,7 +560,117 @@ class ExplanationParser implements ExplanationParserInterface
             'total' => $total,
             'field' => $primaryField,
             'fieldWeights' => $fields,
+            'fieldBreakdowns' => $fieldBreakdowns,
         ];
+    }
+
+    /**
+     * Extracts the boost/idf/tf breakdown from a `weight(field:term)` leaf's own child — the standard
+     * BM25Similarity explain shape confirmed live against this shop's real query:
+     *
+     *   weight(full-text:handcart in 7007) [PerFieldSimilarity], result of:
+     *   └─ score(freq=8.0), computed as boost * idf * tf from:
+     *      ├─ boost <- exact-match leaf
+     *      ├─ idf, computed as log(1 + (N - n + 0.5) / (n + 0.5)) from: <- has its own n/N children
+     *      │ ├─ n, number of documents containing term
+     *      │ └─ N, total number of documents with field
+     *      └─ tf, computed as freq / (freq + k1 * (1 - b + b * dl / avgdl)) from: <- own children
+     *         ├─ freq, occurrences of term within document
+     *         ├─ k1, term saturation parameter
+     *         ├─ b, length normalization parameter
+     *         ├─ dl, length of field (approximate)
+     *         └─ avgdl, average length of field
+     *
+     * Returns null when the node isn't shaped this way at all (missing child, wrong wording, or a
+     * different Similarity module entirely) — no partial or guessed breakdown is ever shown, matching
+     * this class's existing degrade-gracefully posture for every other unrecognized shape.
+     *
+     * @param array<string, mixed> $weightNode
+     *
+     * @return array{boost: float, idf: array{value: float, n: float, capitalN: float}, tf: array{value: float, freq: float, k1: float, b: float, dl: float, avgdl: float}}|null
+     */
+    protected function extractBm25Breakdown(array $weightNode): ?array
+    {
+        $scoreNode = ($weightNode['details'] ?? [])[0] ?? null;
+
+        if ($scoreNode === null || !str_contains((string)($scoreNode['description'] ?? ''), static::BM25_BREAKDOWN_MARKER)) {
+            return null;
+        }
+
+        $scoreDetails = $scoreNode['details'] ?? [];
+        $boostNode = $this->findChildByDescription($scoreDetails, static::BM25_CHILD_DESCRIPTION_BOOST);
+        $idfNode = $this->findChildByPrefix($scoreDetails, static::BM25_CHILD_PREFIX_IDF);
+        $tfNode = $this->findChildByPrefix($scoreDetails, static::BM25_CHILD_PREFIX_TF);
+
+        if ($boostNode === null || $idfNode === null || $tfNode === null) {
+            return null;
+        }
+
+        $idfDetails = $idfNode['details'] ?? [];
+        $tfDetails = $tfNode['details'] ?? [];
+
+        $n = $this->findChildByPrefix($idfDetails, static::BM25_CHILD_PREFIX_IDF_N);
+        $capitalN = $this->findChildByPrefix($idfDetails, static::BM25_CHILD_PREFIX_IDF_CAPITAL_N);
+        $freq = $this->findChildByPrefix($tfDetails, static::BM25_CHILD_PREFIX_TF_FREQ);
+        $k1 = $this->findChildByPrefix($tfDetails, static::BM25_CHILD_PREFIX_TF_K1);
+        $b = $this->findChildByPrefix($tfDetails, static::BM25_CHILD_PREFIX_TF_B);
+        $dl = $this->findChildByPrefix($tfDetails, static::BM25_CHILD_PREFIX_TF_DL);
+        $avgdl = $this->findChildByPrefix($tfDetails, static::BM25_CHILD_PREFIX_TF_AVGDL);
+
+        if ($n === null || $capitalN === null || $freq === null || $k1 === null || $b === null || $dl === null || $avgdl === null) {
+            return null;
+        }
+
+        return [
+            'boost' => (float)($boostNode['value'] ?? 0.0),
+            'idf' => [
+                'value' => (float)($idfNode['value'] ?? 0.0),
+                'n' => (float)($n['value'] ?? 0.0),
+                'capitalN' => (float)($capitalN['value'] ?? 0.0),
+            ],
+            'tf' => [
+                'value' => (float)($tfNode['value'] ?? 0.0),
+                'freq' => (float)($freq['value'] ?? 0.0),
+                'k1' => (float)($k1['value'] ?? 0.0),
+                'b' => (float)($b['value'] ?? 0.0),
+                'dl' => (float)($dl['value'] ?? 0.0),
+                'avgdl' => (float)($avgdl['value'] ?? 0.0),
+            ],
+        ];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $nodes
+     * @param string $description
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function findChildByDescription(array $nodes, string $description): ?array
+    {
+        foreach ($nodes as $node) {
+            if ((string)($node['description'] ?? '') === $description) {
+                return $node;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $nodes
+     * @param string $prefix
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function findChildByPrefix(array $nodes, string $prefix): ?array
+    {
+        foreach ($nodes as $node) {
+            if (str_starts_with((string)($node['description'] ?? ''), $prefix)) {
+                return $node;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -487,14 +686,21 @@ class ExplanationParser implements ExplanationParserInterface
      * duplicated: a synonym group scored via `full-text` AND `full-text-boosted` (as this shop's real
      * config does) needs the identical combine-mode logic, just keyed by the group instead of one word.
      *
+     * @phpstan-param array{boost: float, idf: array{value: float, n: float, capitalN: float}, tf: array{value: float, freq: float, k1: float, b: float, dl: float, avgdl: float}}|null $breakdown
+     *
      * @param array<string, array<string, mixed>> $terms
      * @param string $rawFieldTermPairs
      * @param float $value
      * @param string $combineMode
+     * @param array<string, mixed>|null $breakdown
+     *   Extracted from the SAME `weight(Synonym(...))` node the group's own $value came from — this shape
+     *   hasn't been confirmed live (this shop's real query produces the OTHER synonym shape,
+     *   {@see tryAddMaxOfDistinctTermsWeight()}, instead), so null here is the expected common case, not
+     *   a failure; {@see extractBm25Breakdown()} degrades to null on its own if the shape doesn't match.
      *
      * @return void
      */
-    protected function addSynonymWeight(array &$terms, string $rawFieldTermPairs, float $value, string $combineMode): void
+    protected function addSynonymWeight(array &$terms, string $rawFieldTermPairs, float $value, string $combineMode, ?array $breakdown = null): void
     {
         $field = '';
         $termNames = [];
@@ -516,7 +722,7 @@ class ExplanationParser implements ExplanationParserInterface
 
         sort($termNames);
 
-        $this->addTermWeight($terms, implode(static::SYNONYM_TERM_SEPARATOR, $termNames), $field, $value, $combineMode);
+        $this->addTermWeight($terms, implode(static::SYNONYM_TERM_SEPARATOR, $termNames), $field, $value, $combineMode, $breakdown);
     }
 
     /**
@@ -571,6 +777,16 @@ class ExplanationParser implements ExplanationParserInterface
                     'total' => $termInfo['total'],
                     'field' => $termInfo['field'],
                 ];
+
+                // `breakdown` (the winning field's own boost/idf/tf numbers) is only ever ADDED, never
+                // set to null — a different Similarity module, or a synonym shape the extractor hasn't
+                // been confirmed against live, simply leaves this key absent rather than present-but-null,
+                // so callers can keep using a plain `is not empty`/`isset` check either way.
+                $breakdown = $termInfo['fieldBreakdowns'][$termInfo['field']] ?? null;
+
+                if ($breakdown !== null) {
+                    $matchedTokens[$term]['breakdown'] = $breakdown;
+                }
 
                 continue;
             }
