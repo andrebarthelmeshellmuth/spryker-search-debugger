@@ -44,7 +44,7 @@
         <button type="button" class="button search-debug-pin-toggle {{ config.jsName }}__pin-toggle" title="{{ 'search_debug.pin' | trans }}" aria-pressed="false">
             {% include atom('icon') with {
                 data: {
-                    name: 'lock',
+                    name: 'pin',
                 },
             } only %}
         </button>
@@ -217,18 +217,29 @@
                                             <span class="search-debug-score-line__label">{{ 'search_debug.bm25.inverse_document_frequency' | trans }}:</span>
                                             <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.idf.value | number_format(scoreDecimalPlaces) }}</span>
                                         </li>
-                                        <li class="search-debug-bm25-breakdown__detail">
-                                            {{ 'search_debug.bm25.documents_containing_term' | trans }}: {{ tokenInfo.breakdown.idf.n | number_format(0) }},
-                                            {{ 'search_debug.bm25.total_documents' | trans }}: {{ tokenInfo.breakdown.idf.capitalN | number_format(0) }}
+                                        <li class="search-debug-bm25-breakdown__detail search-debug-score-line">
+                                            <span class="search-debug-score-line__label">{{ 'search_debug.bm25.documents_containing_term' | trans }}:</span>
+                                            <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.idf.n | number_format(0) }}</span>
+                                        </li>
+                                        <li class="search-debug-bm25-breakdown__detail search-debug-score-line">
+                                            <span class="search-debug-score-line__label">{{ 'search_debug.bm25.total_documents' | trans }}:</span>
+                                            <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.idf.capitalN | number_format(0) }}</span>
                                         </li>
                                         <li class="search-debug-score-line">
                                             <span class="search-debug-score-line__label">{{ 'search_debug.bm25.term_frequency' | trans }}:</span>
                                             <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.tf.value | number_format(scoreDecimalPlaces) }}</span>
                                         </li>
-                                        <li class="search-debug-bm25-breakdown__detail">
-                                            {{ 'search_debug.bm25.occurrences_in_document' | trans }}: {{ tokenInfo.breakdown.tf.freq | number_format(0) }},
-                                            {{ 'search_debug.bm25.field_length' | trans }}: {{ tokenInfo.breakdown.tf.dl | number_format(0) }},
-                                            {{ 'search_debug.bm25.average_field_length' | trans }}: {{ tokenInfo.breakdown.tf.avgdl | number_format(scoreDecimalPlaces) }}
+                                        <li class="search-debug-bm25-breakdown__detail search-debug-score-line">
+                                            <span class="search-debug-score-line__label">{{ 'search_debug.bm25.occurrences_in_document' | trans }}:</span>
+                                            <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.tf.freq | number_format(0) }}</span>
+                                        </li>
+                                        <li class="search-debug-bm25-breakdown__detail search-debug-score-line">
+                                            <span class="search-debug-score-line__label">{{ 'search_debug.bm25.field_length' | trans }}:</span>
+                                            <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.tf.dl | number_format(0) }}</span>
+                                        </li>
+                                        <li class="search-debug-bm25-breakdown__detail search-debug-score-line">
+                                            <span class="search-debug-score-line__label">{{ 'search_debug.bm25.average_field_length' | trans }}:</span>
+                                            <span class="search-debug-score-line__value">{{ tokenInfo.breakdown.tf.avgdl | number_format(scoreDecimalPlaces) }}</span>
                                         </li>
                                     </ul>
                                 </details>

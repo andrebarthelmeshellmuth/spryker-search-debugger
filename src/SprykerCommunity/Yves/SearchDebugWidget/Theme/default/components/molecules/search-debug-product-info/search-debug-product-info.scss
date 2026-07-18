@@ -73,6 +73,11 @@ $search-debug-trigger-color: $search-debug-feature-accent-color;
     // so overflow stays vertical-only (the overlay is pinned to the product card and cannot grow).
     overflow-wrap: break-word;
     padding: rem(12);
+    // Extra top clearance: the pin-toggle button below sits at top: rem(8), height: rem(24) — i.e. it
+    // occupies the box's top 32px regardless of which side padding says. Without this, whichever section
+    // renders first (see &__section:first-child below) sits flush under the plain rem(12) padding and its
+    // own top-right collapse icon collides with the pin button sitting right above it.
+    padding-top: rem(36);
     background-color: rgba($setting-color-black, 0.88);
     color: $setting-color-white;
     // A debug/data-dense panel of numbers reads better monospaced — it also keeps every score-line's
@@ -97,9 +102,10 @@ $search-debug-trigger-color: $search-debug-feature-accent-color;
         margin-top: rem(16);
 
         // Whichever element renders first (a `__section`, or `&__text-relevance` above it) must sit
-        // flush against the container's own `padding: rem(12)` — without this, a `__section` landing
-        // first (e.g. no queryScore line) stacks its own margin-top on top of that padding and reads as a
-        // blank line before the overlay's actual first line of text.
+        // flush against the container's own `padding-top` (see above, bumped to rem(36) to clear the pin
+        // button) — without this, a `__section` landing first (e.g. no queryScore line) stacks its own
+        // margin-top on top of that padding and reads as a blank line before the overlay's actual first
+        // line of text.
         &:first-child {
             margin-top: 0;
         }
@@ -206,7 +212,14 @@ $search-debug-trigger-color: $search-debug-feature-accent-color;
     }
 
     // Points down (the natural "more below" affordance) collapsed, flips to point up once expanded.
-    &[open] .search-debug-collapsible__icon {
+    // Scoped to `> .search-debug-collapsible__summary` (direct child), NOT a plain descendant selector:
+    // the BM25 breakdown's own `<details class="search-debug-collapsible search-debug-bm25-toggle">` is
+    // nested INSIDE "Matched tokens"' `<details>` (inside its content, not its summary) — a plain
+    // `&[open] .search-debug-collapsible__icon` would match the inner icon too as soon as the OUTER
+    // details opens, regardless of the inner one's own state, making the inner icon look stuck/unresponsive
+    // to its own clicks. Restricting to the direct-child summary means each `<details>` only ever rotates
+    // the icon living in ITS OWN summary.
+    &[open] > .search-debug-collapsible__summary .search-debug-collapsible__icon {
         transform: rotate(180deg);
     }
 }
