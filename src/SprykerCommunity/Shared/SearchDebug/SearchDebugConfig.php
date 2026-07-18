@@ -112,5 +112,5 @@ class SearchDebugConfig extends AbstractSharedConfig
      *
      * @var int
      */
-    public const SCORE_DECIMAL_PLACES = 2;
+    public const SCORE_DECIMAL_PLACES = 3;
 }
