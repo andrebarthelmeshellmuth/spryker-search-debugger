@@ -9,6 +9,7 @@ declare(strict_types = 1);
 
 namespace SprykerCommunity\Yves\SearchDebugWidget;
 
+use Spryker\Client\MerchantStorage\MerchantStorageClient;
 use Spryker\Yves\Kernel\AbstractBundleDependencyProvider;
 use Spryker\Yves\Kernel\Container;
 
@@ -45,6 +46,11 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
     public const CLIENT_STORE = 'CLIENT_STORE';
 
     /**
+     * @var string
+     */
+    public const PLUGINS_TOKEN_SOURCE_PROVIDER = 'PLUGINS_TOKEN_SOURCE_PROVIDER';
+
+    /**
      * @param \Spryker\Yves\Kernel\Container $container
      *
      * @return \Spryker\Yves\Kernel\Container
@@ -58,6 +64,7 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
         $container = $this->addMerchantStorageClient($container);
         $container = $this->addSearchDebugClient($container);
         $container = $this->addStoreClient($container);
+        $container = $this->addTokenSourceProviderPlugins($container);
 
         return $container;
     }
@@ -105,6 +112,17 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
     }
 
     /**
+     * Resolves to null on any shop without `spryker/merchant-storage` installed. Merchant names are a
+     * Marketplace-only concept, so requiring that module would force every plain B2B/B2C shop to install
+     * a Marketplace subsystem — `spryker/merchant-storage` pulls in `spryker/merchant`, publish/sync
+     * infrastructure and Propel tables — purely to satisfy one optional attribution line on the
+     * token-source page. The module is therefore a composer `suggest`, not a `require`, and its absence is
+     * detected here rather than allowed to fatal inside the service locator.
+     *
+     * `class_exists()` is the detection mechanism deliberately: the Yves locator resolves module names
+     * dynamically at call time, so asking it for a module that isn't installed throws rather than
+     * returning null — there is nothing to null-check without probing first.
+     *
      * @param \Spryker\Yves\Kernel\Container $container
      *
      * @return \Spryker\Yves\Kernel\Container
@@ -112,6 +130,10 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
     protected function addMerchantStorageClient(Container $container): Container
     {
         $container->set(static::CLIENT_MERCHANT_STORAGE, function (Container $container) {
+            if (!class_exists(MerchantStorageClient::class)) {
+                return null;
+            }
+
             return $container->getLocator()->merchantStorage()->client();
         });
 
@@ -144,5 +166,31 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
         });
 
         return $container;
+    }
+
+    /**
+     * @param \Spryker\Yves\Kernel\Container $container
+     *
+     * @return \Spryker\Yves\Kernel\Container
+     */
+    protected function addTokenSourceProviderPlugins(Container $container): Container
+    {
+        $container->set(static::PLUGINS_TOKEN_SOURCE_PROVIDER, function () {
+            return $this->getTokenSourceProviderPlugins();
+        });
+
+        return $container;
+    }
+
+    /**
+     * Override on project level to name the origin of values your own indexing contributes, so the
+     * token-source page can label them instead of falling back to "other indexed value". Empty by
+     * default: this package cannot know what a project's own map-expander plugins put into the index.
+     *
+     * @return array<\SprykerCommunity\Yves\SearchDebugWidget\Dependency\Plugin\TokenSourceProviderPluginInterface>
+     */
+    protected function getTokenSourceProviderPlugins(): array
+    {
+        return [];
     }
 }

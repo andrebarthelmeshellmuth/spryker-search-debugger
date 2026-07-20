@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    name: composer validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - run: composer validate --no-check-publish
+
+  style:
+    name: phpcs (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - run: composer install --prefer-dist --no-interaction --no-progress
+      - run: vendor/bin/phpcs
+
+  floors:
+    # The check that matters most for this package. Its dependency floors are claims about which
+    # Spryker versions an adopter may install; a shop leaner than the development shop is exactly
+    # where an undeclared dependency surfaces, and that cannot be observed while developing inside a
+    # full demo shop. This resolves every constraint to its oldest allowed version and asserts each
+    # vendor symbol used in src/ actually exists there.
+    name: dependency floors (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - run: composer check-floors

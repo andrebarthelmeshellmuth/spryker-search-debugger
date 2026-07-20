@@ -40,6 +40,7 @@ class SearchDebugWidgetFactory extends AbstractFactory
             $this->getSearchDebugClient(),
             $this->getStoreClient(),
             $this->createTokenHighlighter(),
+            $this->getTokenSourceProviderPlugins(),
         );
     }
 
@@ -92,9 +93,12 @@ class SearchDebugWidgetFactory extends AbstractFactory
     }
 
     /**
-     * @return \Spryker\Client\MerchantStorage\MerchantStorageClientInterface
+     * Null on shops without `spryker/merchant-storage` (non-Marketplace) — see
+     * {@see SearchDebugWidgetDependencyProvider::addMerchantStorageClient()}.
+     *
+     * @return \Spryker\Client\MerchantStorage\MerchantStorageClientInterface|null
      */
-    public function getMerchantStorageClient(): MerchantStorageClientInterface
+    public function getMerchantStorageClient(): ?MerchantStorageClientInterface
     {
         return $this->getProvidedDependency(SearchDebugWidgetDependencyProvider::CLIENT_MERCHANT_STORAGE);
     }
@@ -105,6 +109,14 @@ class SearchDebugWidgetFactory extends AbstractFactory
     public function getSearchDebugClient(): SearchDebugClientInterface
     {
         return $this->getProvidedDependency(SearchDebugWidgetDependencyProvider::CLIENT_SEARCH_DEBUG);
+    }
+
+    /**
+     * @return array<\SprykerCommunity\Yves\SearchDebugWidget\Dependency\Plugin\TokenSourceProviderPluginInterface>
+     */
+    public function getTokenSourceProviderPlugins(): array
+    {
+        return $this->getProvidedDependency(SearchDebugWidgetDependencyProvider::PLUGINS_TOKEN_SOURCE_PROVIDER);
     }
 
     /**

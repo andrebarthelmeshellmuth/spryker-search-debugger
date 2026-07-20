@@ -70,6 +70,30 @@ $token-source-field-label-color: $setting-color-darker;
     word-break: break-word;
 }
 
+// Marks the one row type on this page an adopter can actually act on: a value nothing named.
+// Deliberately a visible glyph rather than a bare `title` — an invisible tooltip is only ever found
+// by someone who already knew to look, which is precisely not the person who needs this explanation.
+// `tabindex` keeps it reachable without a mouse, since the explanation is the entire point.
+.token-source-field__hint {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: rem(14);
+    height: rem(14);
+    margin-left: rem(6);
+    border: rem(1) solid currentColor;
+    border-radius: 50%;
+    font-size: rem(9);
+    line-height: 1;
+    cursor: help;
+    opacity: 0.75;
+
+    &:hover,
+    &:focus {
+        opacity: 1;
+    }
+}
+
 // Opens the analysis-path page for the specific matched fragment it sits next to — injected right after
 // each `<mark>` (see the twig template), so it's inline with the mark it belongs to, wherever in the
 // (possibly long, scrollable) value text that mark happens to be. Reuses the same feature-accent color
