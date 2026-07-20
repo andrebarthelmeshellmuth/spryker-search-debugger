@@ -243,9 +243,15 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     protected CategoryStorageClientInterface $categoryStorageClient;
 
     /**
-     * @var \Spryker\Client\MerchantStorage\MerchantStorageClientInterface
+     * Null on any shop without `spryker/merchant-storage` installed — merchant names are a Marketplace-only
+     * concept, so a plain B2B/B2C shop has no such module and must not be forced to install one (with its
+     * Propel tables and publish/sync infrastructure) just to use this debug tool. Every merchant lookup is
+     * guarded; a shop without it simply gets no merchant-name attribution, which is exactly right because
+     * there are no merchants to attribute to. See {@see findMerchantName()}.
+     *
+     * @var \Spryker\Client\MerchantStorage\MerchantStorageClientInterface|null
      */
-    protected MerchantStorageClientInterface $merchantStorageClient;
+    protected ?MerchantStorageClientInterface $merchantStorageClient;
 
     /**
      * @var \SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface
@@ -263,6 +269,11 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     protected TokenHighlighterInterface $tokenHighlighter;
 
     /**
+     * @var array<\SprykerCommunity\Yves\SearchDebugWidget\Dependency\Plugin\TokenSourceProviderPluginInterface>
+     */
+    protected array $tokenSourceProviderPlugins;
+
+    /**
      * Memoizes `getTextTokenOffsets()` results per distinct element string — identical values recur in
      * one document (e.g. a concrete name equal to the abstract name) and need only one `_analyze` call.
      *
@@ -274,19 +285,23 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      * @param \Spryker\Client\ProductStorage\ProductStorageClientInterface $productStorageClient
      * @param \Spryker\Client\ProductCategoryStorage\ProductCategoryStorageClientInterface $productCategoryStorageClient
      * @param \Spryker\Client\CategoryStorage\CategoryStorageClientInterface $categoryStorageClient
-     * @param \Spryker\Client\MerchantStorage\MerchantStorageClientInterface $merchantStorageClient
+     * @param \Spryker\Client\MerchantStorage\MerchantStorageClientInterface|null $merchantStorageClient
+     *   Null on shops without `spryker/merchant-storage` (non-Marketplace) — merchant-name attribution is
+     *   then skipped rather than the whole tool being unavailable.
      * @param \SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface $searchDebugClient
      * @param \Spryker\Client\Store\StoreClientInterface $storeClient
      * @param \SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface $tokenHighlighter
+     * @param array<\SprykerCommunity\Yves\SearchDebugWidget\Dependency\Plugin\TokenSourceProviderPluginInterface> $tokenSourceProviderPlugins
      */
     public function __construct(
         ProductStorageClientInterface $productStorageClient,
         ProductCategoryStorageClientInterface $productCategoryStorageClient,
         CategoryStorageClientInterface $categoryStorageClient,
-        MerchantStorageClientInterface $merchantStorageClient,
+        ?MerchantStorageClientInterface $merchantStorageClient,
         SearchDebugClientInterface $searchDebugClient,
         StoreClientInterface $storeClient,
         TokenHighlighterInterface $tokenHighlighter,
+        array $tokenSourceProviderPlugins = [],
     ) {
         $this->productStorageClient = $productStorageClient;
         $this->productCategoryStorageClient = $productCategoryStorageClient;
@@ -295,6 +310,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
         $this->searchDebugClient = $searchDebugClient;
         $this->storeClient = $storeClient;
         $this->tokenHighlighter = $tokenHighlighter;
+        $this->tokenSourceProviderPlugins = $tokenSourceProviderPlugins;
     }
 
     /**
@@ -343,6 +359,12 @@ class TokenSourceResolver implements TokenSourceResolverInterface
 
         $sourceKeysByValue = $this->collectSourceKeysByValue($productData, $localeName, $concreteStorageData);
         $attributeLabelByValue = $this->collectAttributeLabelsByValue($productData, $concreteStorageData);
+        $attributeLabelByValue = $this->applyTokenSourceProviderPlugins(
+            $attributeLabelByValue,
+            $productData,
+            $concreteStorageData,
+            $localeName,
+        );
 
         return [
             'productTitle' => (string)($productData[static::STORAGE_KEY_NAME] ?? ''),
@@ -418,7 +440,13 @@ class TokenSourceResolver implements TokenSourceResolverInterface
                 'key' => $tier,
                 'labelKey' => static::TIER_LABEL_KEYS[$tier] ?? static::LABEL_KEY_TIER_GENERIC,
                 'boost' => $boost,
-                'rows' => $this->buildTierRows($elementsByTier[$tier], $sourceKeysByValue[$tier] ?? [], $attributeLabelByValue, $token),
+                'rows' => $this->buildTierRows(
+                    $elementsByTier[$tier],
+                    $sourceKeysByValue[$tier] ?? [],
+                    $this->flattenSourceKeysAcrossTiers($sourceKeysByValue),
+                    $attributeLabelByValue,
+                    $token,
+                ),
             ];
         }
 
@@ -473,13 +501,19 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      *
      * @param array<int, string> $elements
      * @param array<string, array<int, string>> $sourceKeysByValue
+     * @param array<string, array<int, string>> $sourceKeysByValueAnyTier
      * @param array<string, array<int, string>> $attributeLabelByValue
      * @param string $token
      *
      * @return array<int, array{labelKeys: array<int, string>, matched: bool, highlightedHtml: string|null, element: string|null, matches: array<int, array{token: string, startOffset: int, endOffset: int}>}>
      */
-    protected function buildTierRows(array $elements, array $sourceKeysByValue, array $attributeLabelByValue, string $token): array
-    {
+    protected function buildTierRows(
+        array $elements,
+        array $sourceKeysByValue,
+        array $sourceKeysByValueAnyTier,
+        array $attributeLabelByValue,
+        string $token,
+    ): array {
         $matchedRowsByGroupKey = [];
         $sourceKeysByGroupKey = [];
         $otherRows = [];
@@ -495,7 +529,12 @@ class TokenSourceResolver implements TokenSourceResolverInterface
             // links (built one per rendered `<mark>`, matched up by array position) can never drift out of
             // sync with which marks actually got rendered.
             $matches = $this->tokenHighlighter->filterRenderable($this->findTokenMatches($element, $token));
-            $sourceKeys = $sourceKeysByValue[$element] ?? [];
+            // Declared tier first; if this element is not where SOURCE_DEFINITIONS says it should be,
+            // fall back to the same value's definition from ANY tier. A project that moved a field
+            // between full-text and full-text-boosted then still gets its real label instead of
+            // degrading to "other indexed value" — the tier shown is the one the document actually
+            // has, because this method is already called once per REAL document tier.
+            $sourceKeys = $sourceKeysByValue[$element] ?? ($sourceKeysByValueAnyTier[$element] ?? []);
 
             if ($sourceKeys === []) {
                 $attributeKeys = $attributeLabelByValue[$element] ?? [];
@@ -517,6 +556,11 @@ class TokenSourceResolver implements TokenSourceResolverInterface
                     'highlightedHtml' => $this->tokenHighlighter->highlight($element, $matches),
                     'element' => $matches !== [] ? $element : null,
                     'matches' => $matches,
+                    // True only when NOTHING named this value — not even one of the product's own
+                    // attribute keys. That is the one case worth explaining in the UI, because it is
+                    // also the one an adopter can fix (by registering a TokenSourceProviderPlugin).
+                    // A value labeled with its real attribute key is already named and needs no hint.
+                    'isUnattributed' => $attributeKeys === [],
                 ];
 
                 continue;
@@ -543,6 +587,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
             $matchedRowsByGroupKey[$groupKey][] = [
                 'labelKeys' => array_map(fn (string $sourceKey): string => static::SOURCE_DEFINITIONS[$sourceKey]['labelKey'], $sourceKeys),
                 'matched' => true,
+                'isUnattributed' => false,
                 'highlightedHtml' => $this->tokenHighlighter->highlight($element, $matches),
                 'element' => $element,
                 'matches' => $matches,
@@ -570,6 +615,31 @@ class TokenSourceResolver implements TokenSourceResolverInterface
         }
 
         return array_merge($rows, $otherRows);
+    }
+
+    /**
+     * Collapses the tier-keyed source map into a plain `value => sourceKeys` lookup, so a value can still
+     * be identified when the project indexes it into a different tier than {@see SOURCE_DEFINITIONS}
+     * declares. Declared tiers stay the primary signal (they disambiguate values that legitimately mean
+     * different things per tier); this is only consulted when the declared tier produced nothing.
+     *
+     * @param array<string, array<string, array<int, string>>> $sourceKeysByValue
+     *
+     * @return array<string, array<int, string>>
+     */
+    protected function flattenSourceKeysAcrossTiers(array $sourceKeysByValue): array
+    {
+        $flattened = [];
+
+        foreach ($sourceKeysByValue as $sourceKeysByValueForTier) {
+            foreach ($sourceKeysByValueForTier as $value => $sourceKeys) {
+                $flattened[(string)$value] = array_values(array_unique(
+                    array_merge($flattened[(string)$value] ?? [], $sourceKeys),
+                ));
+            }
+        }
+
+        return $flattened;
     }
 
     /**
@@ -831,12 +901,54 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     }
 
     /**
+     * Project-registered plugins name values this package cannot possibly know about — anything a
+     * project's own `ProductPageSearch` map expanders contribute. Their labels take precedence over the
+     * generic attribute-key fallback for the same value: a plugin saying "this is the technical
+     * datasheet title" is strictly more informative than the raw attribute key it happens to live under.
+     *
+     * @param array<string, array<int, string>> $attributeLabelByValue
+     * @param array<string, mixed> $productData
+     * @param array<int, array<string, mixed>> $concreteStorageData
+     * @param string $localeName
+     *
+     * @return array<string, array<int, string>>
+     */
+    protected function applyTokenSourceProviderPlugins(
+        array $attributeLabelByValue,
+        array $productData,
+        array $concreteStorageData,
+        string $localeName,
+    ): array {
+        foreach ($this->tokenSourceProviderPlugins as $tokenSourceProviderPlugin) {
+            $labelsByValue = $tokenSourceProviderPlugin->getLabelsByValue($productData, $concreteStorageData, $localeName);
+
+            foreach ($labelsByValue as $value => $labels) {
+                $value = (string)$value;
+
+                if ($value === '' || $labels === []) {
+                    continue;
+                }
+
+                $attributeLabelByValue[$value] = array_values(array_unique(
+                    array_merge($attributeLabelByValue[$value] ?? [], array_map('strval', $labels)),
+                ));
+            }
+        }
+
+        return $attributeLabelByValue;
+    }
+
+    /**
      * @param array<string, mixed> $productData
      *
      * @return string
      */
     protected function findMerchantName(array $productData): string
     {
+        if ($this->merchantStorageClient === null) {
+            return '';
+        }
+
         $merchantReference = (string)($productData[static::STORAGE_KEY_MERCHANT_REFERENCE] ?? '');
 
         if ($merchantReference === '') {
