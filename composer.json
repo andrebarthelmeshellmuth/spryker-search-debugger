@@ -12,17 +12,43 @@
         "explain"
     ],
     "require": {
-        "php": ">=8.2",
+        "php": ">=8.3",
+        "spryker/category-storage": "^2.0.0",
+        "spryker/config": "^3.0.0",
+        "spryker/console": "^4.0.0",
+        "spryker/event-dispatcher": "^1.0.0",
+        "spryker/event-dispatcher-extension": "^1.0.0",
         "spryker/kernel": "^3.30.0",
         "spryker/permission": "^1.3.0",
+        "spryker/product-category-storage": "^2.0.0",
+        "spryker/product-storage": "^1.0.0",
+        "spryker/router": "^1.1.0",
         "spryker/search-elasticsearch": "^1.10.0",
         "spryker/search-extension": "^1.2.0",
+        "spryker/store": "^1.19.0",
         "spryker/synchronization": "^1.5.0",
-        "spryker/transfer": "^3.25.0"
+        "spryker/transfer": "^3.25.0",
+        "spryker/twig-extension": "^1.0.0",
+        "twig/twig": "^3.0.0"
     },
     "require-dev": {
         "codeception/codeception": "^5.0.0",
-        "phpunit/phpunit": "^10.0.0 || ^11.0.0"
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0.0",
+        "phpunit/phpunit": "^10.0.0 || ^11.0.0",
+        "spryker/code-sniffer": "^0.17.30",
+        "spryker/merchant-storage": "^1.0.0"
+    },
+    "suggest": {
+        "spryker/merchant-storage": "Marketplace shops only: adds merchant-name attribution to the token-source page. Without it every other token source still resolves; merchant names are simply omitted."
+    },
+    "scripts": {
+        "check-floors": [
+            "@composer update --prefer-lowest --prefer-stable --no-dev --no-interaction",
+            "php tools/floor-check.php"
+        ]
+    },
+    "scripts-descriptions": {
+        "check-floors": "Verifies the declared dependency floors are real: resolves every constraint to its oldest allowed version (production deps only) and asserts each vendor symbol used in src/ actually exists there."
     },
     "autoload": {
         "psr-4": {
@@ -35,7 +61,10 @@
         }
     },
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
     },
     "minimum-stability": "stable",
     "homepage": "https://github.com/andrebarthelmeshellmuth/spryker-search-debugger",

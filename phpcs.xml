@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<ruleset name="SprykerCommunitySearchDebug">
+    <description>
+        Coding standard for spryker-community/search-debug.
+
+        Mirrors the Spryker project standard, adjusted for a standalone package: it lints this
+        package's own paths and namespace rather than a shop's, so the same command runs in CI
+        without a host shop around it.
+    </description>
+
+    <config name="php_version" value="80300"/>
+
+    <file>src/</file>
+    <file>tests/</file>
+    <file>tools/</file>
+
+    <exclude-pattern>*/tests/*/_support/_generated/*</exclude-pattern>
+    <exclude-pattern>*/tests/*/_output/*</exclude-pattern>
+    <exclude-pattern>*/tests/*/_data/*</exclude-pattern>
+
+    <rule ref="vendor/spryker/code-sniffer/Spryker/ruleset.xml">
+        <exclude name="Spryker.Commenting.DocBlock"/>
+        <exclude name="Spryker.Commenting.DocBlockConst"/>
+        <exclude name="Spryker.Commenting.InlineDocBlock"/>
+        <exclude name="Spryker.Commenting.DocBlockApiAnnotation"/>
+        <exclude name="Spryker.Commenting.DocBlockReturnVoid"/>
+        <!--
+            Spryker's file-level doc block sniff rewrites the header to Spryker's own proprietary
+            copyright notice. This package is MIT licensed and every file carries the matching MIT
+            header, so this sniff must stay off — running it would silently replace the licence text.
+        -->
+        <exclude name="Spryker.Commenting.FileDocBlock"/>
+    </rule>
+
+    <rule ref="vendor/spryker/code-sniffer/SprykerStrict/ruleset.xml"/>
+
+    <rule ref="Spryker.Internal.SprykerDisallowFunctions">
+        <properties>
+            <!-- Keep 8.3 compatibility: the package declares php >= 8.3. -->
+            <property name="phpVersion" value="8.3"/>
+        </properties>
+    </rule>
+
+    <rule ref="Spryker.Namespaces.SprykerNamespace">
+        <properties>
+            <property name="namespace" value="SprykerCommunity"/>
+        </properties>
+    </rule>
+
+    <rule ref="SlevomatCodingStandard.Functions.RequireTrailingCommaInDeclaration"/>
+    <rule ref="SlevomatCodingStandard.Functions.RequireTrailingCommaInClosureUse"/>
+
+    <rule ref="SlevomatCodingStandard.ControlStructures.DisallowNullSafeObjectOperator">
+        <severity>0</severity>
+    </rule>
+    <rule ref="SlevomatCodingStandard.Functions.DisallowTrailingCommaInDeclaration">
+        <severity>0</severity>
+    </rule>
+    <rule ref="SlevomatCodingStandard.Functions.DisallowTrailingCommaInClosureUse">
+        <severity>0</severity>
+    </rule>
+
+    <rule ref="SlevomatCodingStandard.TypeHints.DeclareStrictTypes"/>
+    <rule ref="SlevomatCodingStandard.Operators.DisallowEqualOperators"/>
+    <rule ref="SlevomatCodingStandard.ControlStructures.EarlyExit"/>
+    <rule ref="SlevomatCodingStandard.PHP.OptimizedFunctionsWithoutUnpacking"/>
+    <rule ref="SlevomatCodingStandard.PHP.UselessSemicolon"/>
+    <rule ref="SlevomatCodingStandard.Variables.DisallowSuperGlobalVariable"/>
+    <rule ref="SlevomatCodingStandard.Variables.UselessVariable"/>
+    <rule ref="SlevomatCodingStandard.ControlStructures.UselessTernaryOperator"/>
+    <rule ref="SlevomatCodingStandard.Functions.UnusedParameter"/>
+    <rule ref="SlevomatCodingStandard.Variables.UnusedVariable"/>
+</ruleset>
