@@ -3,6 +3,34 @@
 Developer tools for inspecting, debugging and understanding OpenSearch/Elasticsearch queries in Spryker.
 Search Debug helps Search Engineers explain ranking decisions—quickly enough that they can confidently answer the business question: "Why did this product rank above that one?"
 
+## Contents
+
+- [What does this do?](#what-does-this-do)
+- [Status](#status)
+- [Search Debug — Spryker Community Extension](#search-debug-spryker-community-extension)
+- [Requirements](#requirements)
+  - [Search engine compatibility](#search-engine-compatibility)
+- [Installation](#installation)
+  - [1. Install the package](#1-install-the-package)
+  - [2. Register the core namespace](#2-register-the-core-namespace)
+  - [3. Generate transfers and clear caches](#3-generate-transfers-and-clear-caches)
+  - [4. Register the plugins](#4-register-the-plugins)
+  - [5. Register the Yves plugins](#5-register-the-yves-plugins)
+  - [6. Hook up the storefront templates](#6-hook-up-the-storefront-templates)
+  - [7. Frontend build](#7-frontend-build)
+  - [8. Glossary entries](#8-glossary-entries)
+  - [9. Grant the permission](#9-grant-the-permission)
+  - [10. Verify the installation](#10-verify-the-installation)
+- [How it works](#how-it-works)
+- [Extending the overlay](#extending-the-overlay)
+  - [Naming your own indexed values on the token-source page](#naming-your-own-indexed-values-on-the-token-source-page)
+  - [Display precision](#display-precision)
+- [Limitations](#limitations)
+- [Testing and CI](#testing-and-ci)
+  - [Automated checks](#automated-checks)
+  - [Test suite](#test-suite)
+- [License](#license)
+
 ## What does this do?
 
 A permission-gated user browsing the storefront search results gets a per-product overlay with the real
@@ -16,8 +44,12 @@ of the query.
 
 ## Status
 
-🚧 Early development — the first tool (search relevance debugging, including per-token analysis-path
-visualization) is functional; more are planned.
+Feature-complete and verified for its scope: search relevance debugging, including per-token
+analysis-path visualization. Pending a full code review before a 1.0 tag. More tools are planned.
+
+Verified: dependency floors resolved and checked at their oldest allowed versions (`composer
+check-floors`), explanation parsing confirmed against three engines across two Lucene generations (see
+"Search engine compatibility"), 107 tests, phpcs and phpstan level 6 clean.
 
 ## Search Debug — Spryker Community Extension
 
@@ -37,7 +69,8 @@ catalog search:
   merchant name). It reads the product's **real indexed document** and analyzes its elements with the
   **index-time analyzer**, so prefix/ngram matches (e.g. searching `öl` matching *Ölpapier*) and
   searchable-attribute contributions (Zed → Search Preferences) are attributed correctly — including
-  values no known source claims, which are shown honestly as "other indexed value".
+  values no known source claims, which are shown honestly as "other indexed value", carrying a `?`
+  affordance that explains why and how to name them.
 
   ![The token-source page: one tier per searched field, each matched fragment highlighted with a link to its analysis path, an unclaimed value labeled honestly by its real attribute key ("brand")](docs/screenshots/token-source-page.png)
 - **Analysis-path page** — a second magnifier next to each matched fragment on the token-source page opens
@@ -65,14 +98,67 @@ catalog search:
   (`analyzer` / `search_analyzer` of the `full-text` field, with Elasticsearch's own fallback rules), not
   from config, so the package works with any `page.json` customization or the vanilla core schema.
 
-Access is controlled through Spryker's Company Role permission system: only customers whose role holds
-the `SeeSearchDebugInfoPermissionPlugin` permission see any debug output. The permission is enforced in
-the Client layer, so it also covers non-Yves entry points (e.g. the Glue catalog-search resource).
+Access is controlled through Spryker's permission system: only customers granted the
+`SeeSearchDebugInfoPermissionPlugin` permission see any debug output. The permission is enforced in the
+Client layer, so it also covers non-Yves entry points (e.g. the Glue catalog-search resource).
+
+**On B2C shops, granting it needs one extra piece.** The permission *plugin* registers fine anywhere —
+`spryker/permission` ships in B2C too, and the B2C demo shop already has a
+`Pyz\Client\Permission\PermissionDependencyProvider` with a `getPermissionPlugins()` extension point. What
+differs is how permissions are *assigned*. B2B assigns them per Company Role, so you grant this to one
+role and only those users see the overlay. Stock B2C has no company roles: its only permission storage
+plugin is `CustomerAccessPermissionStoragePlugin`, which resolves permissions purely from logged-in vs
+logged-out state — so out of the box you could only grant this to *every* logged-in customer, which is
+not what you want for a debug tool. A B2C shop therefore needs a small custom
+`PermissionStoragePluginInterface` implementation that grants the permission to whichever customers it
+should apply to (e.g. an allowlist of customer references).
 
 ## Requirements
 
-- Spryker B2B/B2C/Marketplace shop on the `spryker/search-elasticsearch` stack (Elasticsearch 7 / OpenSearch 1)
-- PHP >= 8.2
+- Spryker B2B/B2C/Marketplace shop on the `spryker/search-elasticsearch` stack
+- PHP >= 8.3
+
+Dependency floors are verified, not guessed: `composer update --prefer-lowest --prefer-stable` resolves
+the declared constraints to their oldest allowed versions, and every vendor symbol the package references
+is checked to exist in that tree. PHP 8.2 is *not* supported — `spryker/store` pulls `spryker/propel-orm`,
+and every `propel-orm` release is either PHP >= 8.3 or depends on a non-stable `propel/propel`, so no
+valid PHP 8.2 resolution exists.
+
+### Search engine compatibility
+
+**Verified against real `_explanation` output from all of:**
+
+| engine | Lucene | result |
+|---|---|---|
+| OpenSearch 1.3.4 | 8.10.1 | ✅ |
+| OpenSearch 2.11.0 | 9.7.0 | ✅ |
+| Elasticsearch 8.11.0 | 9.8.0 | ✅ |
+
+On each engine the parser was run against both the plain `cross_fields` multi_match shape and the
+`function_score` + `script_score` shape, and on each it extracted the matched-token weights, the full
+BM25 boost/idf/tf breakdown, and the pre-`function_score` relevance score identically — same values, to
+the last digit, across both engine lineages and two Lucene generations.
+
+Elasticsearch 7.x has not been run against real output, but sits inside the verified range: it is the
+fork point OpenSearch 1.x descends from, and both neighbours on either side are verified.
+
+That two-Lucene-generation span is worth something concrete: Lucene did change explain wording between
+them (`dl, length of field (approximate)` in 8.10 became `dl, length of field` in 9.7). The parser reads
+that node by prefix rather than exact string, so it kept working — which is the degradation posture
+described below doing its job on a real version change rather than a hypothetical one.
+
+This package reads `_explanation` trees and `_analyze` output, and stays deliberately inside the feature
+set both engine lineages share. That subset is not arbitrary: Elasticsearch 7.10.2 (January 2021) was the
+last Apache-2.0 release before the SSPL/Elastic License change, and OpenSearch was forked from exactly
+that point. Anything at or below the fork exists in both lineages; anything Elastic added afterwards (the
+`pinned` query, for instance) exists only in Elasticsearch. Staying inside the pre-fork subset is what
+lets one package serve both.
+
+The residual risk on an unverified engine is that the explanation parser matches on `_explanation` *node
+description strings*, which Lucene produces and which can shift between Lucene versions (OpenSearch 1.3.4
+ships Lucene 8.10.1; Elasticsearch 7.10.2 shipped Lucene 8.7.0). Unrecognized node shapes degrade
+gracefully — they are kept verbatim as "other contributions" rather than dropped or mislabeled (see
+`ExplanationParser`) — so the failure mode there is *less* detail, not wrong numbers.
 
 ## Installation
 
@@ -164,63 +250,50 @@ use SprykerCommunity\Yves\SearchDebugWidget\Plugin\Router\SearchDebugWidgetRoute
     }
 ```
 
-### 5. Extend your catalog controller
+### 5. Register the Yves plugins
 
-The catalog controller is the single place where the permission decides whether a request produces debug
-output — the decision travels to the query plugins as a server-set request parameter that cannot be
-spoofed from the URL. Extend your `src/Pyz/Yves/CatalogPage/Controller/CatalogController.php`:
+`src/Pyz/Yves/EventDispatcher/EventDispatcherDependencyProvider.php` — marks search-results requests as a
+debug context for permitted customers:
 
 ```php
-use SprykerCommunity\Shared\SearchDebug\Plugin\SeeSearchDebugInfoPermissionPlugin;
-use SprykerCommunity\Shared\SearchDebug\SearchDebugConfig;
+use SprykerCommunity\Yves\SearchDebug\Plugin\EventDispatcher\SearchDebugContextEventDispatcherPlugin;
 
-class CatalogController extends SprykerShopCatalogController
-{
-    protected const VIEW_DATA_SEARCH_DEBUG_TOKEN_COLORS = 'searchDebugTokenColors';
-
-    protected bool $isSearchDebugContext = false;
-
-    protected function executeFulltextSearchAction(Request $request): array
+    protected function getEventDispatcherPlugins(): array
     {
-        $this->isSearchDebugContext = $this->can(SeeSearchDebugInfoPermissionPlugin::KEY);
-
-        $searchResults = parent::executeFulltextSearchAction($request);
-
-        $queryTokens = $searchResults[SearchDebugConfig::SEARCH_RESULT_KEY][SearchDebugConfig::KEY_TOKENS] ?? [];
-        $searchResults[static::VIEW_DATA_SEARCH_DEBUG_TOKEN_COLORS] = $this->getSearchDebugTokenColorClasses($queryTokens);
-
-        return $searchResults;
+        return [
+            new SearchDebugContextEventDispatcherPlugin(),
+            // ... existing plugins
+        ];
     }
-
-    protected function reduceRestrictedParameters(array $parameters): array
-    {
-        unset($parameters[SearchDebugConfig::REQUEST_PARAM_SEARCH_DEBUG]);
-
-        $parameters = parent::reduceRestrictedParameters($parameters);
-
-        if ($this->isSearchDebugContext) {
-            $parameters[SearchDebugConfig::REQUEST_PARAM_SEARCH_DEBUG] = true;
-        }
-
-        return $parameters;
-    }
-
-    protected function getSearchDebugTokenColorClasses(array $queryTokens): array
-    {
-        $colorClassByToken = [];
-        foreach (array_values($queryTokens) as $index => $token) {
-            $colorClassByToken[$token] = sprintf(
-                SearchDebugConfig::TOKEN_COLOR_CLASS_PATTERN,
-                ($index % SearchDebugConfig::TOKEN_COLOR_CLASS_COUNT) + 1,
-            );
-        }
-
-        return $colorClassByToken;
-    }
-}
 ```
 
-(Requires `use Spryker\Yves\Kernel\PermissionAwareTrait;` in the class if not present.)
+`src/Pyz/Yves/Twig/TwigDependencyProvider.php` — provides the `searchDebugTokenColors()` template
+function used in step 6:
+
+```php
+use SprykerCommunity\Yves\SearchDebug\Plugin\Twig\SearchDebugTwigPlugin;
+
+    protected function getTwigPlugins(): array
+    {
+        return [
+            new SearchDebugTwigPlugin(),
+            // ... existing plugins
+        ];
+    }
+```
+
+**No controller override is required.** Earlier versions of this package asked you to extend your own
+`CatalogController` to set the debug context and compute token colours. That was the most invasive part
+of installing it, and a guaranteed merge for the many shops that already override that controller —
+so both jobs moved into the two plugins above.
+
+The listener works because the core `CatalogController` builds its search parameters from
+`$request->query`, and its `reduceRestrictedParameters()` only strips *price* parameters — it does not
+whitelist, so a parameter set before the controller runs survives into `catalogSearch()`. Security is
+unchanged: the parameter never was the gate. It only marks "this is a search-results page", while
+`SearchDebugAccessChecker` independently re-checks the permission in the Client layer before any debug
+data is produced. The listener also unconditionally strips any incoming value of that parameter first, so
+a crafted URL cannot smuggle one in.
 
 ### 6. Hook up the storefront templates
 
@@ -235,7 +308,7 @@ view data:
     searchDebugTokens: _view.searchDebug.tokens | default([]),
     searchDebugProducts: _view.searchDebug.products | default([]),
     searchDebugFieldBoosts: _view.searchDebug.fieldBoosts | default([]),
-    searchDebugTokenColors: _view.searchDebugTokenColors | default([]),
+    searchDebugTokenColors: searchDebugTokenColors(_view.searchDebug.tokens | default([])),
 } %}
 ```
 
@@ -303,6 +376,36 @@ In Zed → Customer → Company Roles, assign the **SeeSearchDebugInfoPermission
 dedicated role (recommended: a separate "Search Admin" role rather than widening an existing admin
 role), and assign that role to the users who should see debug output.
 
+### 10. Verify the installation
+
+```bash
+vendor/bin/console search-debug:check-installation
+```
+
+Most of the steps above fail *silently* when missed — the overlay simply does not appear, with nothing in
+any log to say why. This command checks the core namespace registration, that every plugin class is
+loadable, that the search engine is reachable (reporting its distribution and Lucene version), that a
+page index exists, and that the engine really returns `_explanation` data. It exits non-zero and names the
+remedy for whatever is wrong.
+
+It is explicit about its own blind spots: running in Zed, it cannot introspect the Yves DI container, so
+it cannot confirm that you registered the plugins from step 5 or wired the templates in step 6 — it says
+so in its output, and those remain a load-the-page check.
+
+Register it in `src/Pyz/Zed/Console/ConsoleDependencyProvider.php`:
+
+```php
+use SprykerCommunity\Zed\SearchDebug\Communication\Console\SearchDebugCheckInstallationConsole;
+
+    protected function getConsoleCommands(Container $container): array
+    {
+        return [
+            // ... existing commands
+            new SearchDebugCheckInstallationConsole(),
+        ];
+    }
+```
+
 ## How it works
 
 - `SearchDebugQueryExpanderPlugin` switches Elasticsearch inline `explain` on — only when the request
@@ -361,6 +464,62 @@ relevance as `queryScore` (shown as "Text match score", the number the matched-t
 up against), suppresses Elasticsearch's float-max `maxBoost` sentinel from the output, and the
 overlay closes with the final `_score` actually used for ranking.
 
+### Naming your own indexed values on the token-source page
+
+`TokenSourceResolver` identifies the contributors a *default* Spryker shop indexes — title, SKU, variant
+names/SKUs, descriptions, categories, merchant name. It cannot know what your own `ProductPageSearch`
+map-expander plugins put into the index, and nothing in the cluster records it: the indexing pipeline
+flattens every contributed value into one flat `full-text` array, which is precisely why this feature
+exists.
+
+Values it cannot name still appear — attributed to their real product-attribute key where one claims
+them, otherwise labeled "other indexed value". Nothing is hidden or mislabeled. To give your own values a
+proper name, register a plugin:
+
+```php
+use SprykerCommunity\Yves\SearchDebugWidget\Dependency\Plugin\TokenSourceProviderPluginInterface;
+
+class TechnicalDatasheetTokenSourceProviderPlugin implements TokenSourceProviderPluginInterface
+{
+    public function getLabelsByValue(
+        array $productAbstractStorageData,
+        array $productConcreteStorageData,
+        string $localeName,
+    ): array {
+        $datasheetTitle = (string)($productAbstractStorageData['datasheet_title'] ?? '');
+
+        return $datasheetTitle !== ''
+            ? [$datasheetTitle => ['acme.search_debug.source.datasheet_title']]
+            : [];
+    }
+}
+```
+
+Register it in `src/Pyz/Yves/SearchDebugWidget/SearchDebugWidgetDependencyProvider.php`:
+
+```php
+    protected function getTokenSourceProviderPlugins(): array
+    {
+        return [
+            new TechnicalDatasheetTokenSourceProviderPlugin(),
+        ];
+    }
+```
+
+Values that end up unnamed are marked on the page with a `?` affordance explaining exactly that, so the
+gap is visible where it is encountered rather than only in this README. It is a visible glyph rather than
+a bare tooltip on the label, because an invisible hint is only ever found by someone who already knew to
+look for it.
+
+The returned key must be byte-identical to the element as it appears in the search document, because
+that is what it is matched against. **You do not declare a tier.** The page walks the real indexed
+document tier by tier, so your value is attributed to whichever tier actually contains it — including
+both, if you index it into `full-text` and `full-text-boosted` alike.
+
+For the same reason, the built-in definitions no longer depend on their declared tier being right: if
+your project moves one of them between `full-text` and `full-text-boosted`, the value is still
+recognised and still labeled correctly — it is simply shown under the tier the document really has.
+
 ### Display precision
 
 `SprykerCommunity\Shared\SearchDebug\SearchDebugConfig::SCORE_DECIMAL_PLACES` (default **3**) is the
@@ -383,46 +542,84 @@ how the number is shown.
   different catalog/search topology — a tabbed abstract/concrete search, an additional "single" product
   type with no abstract, or multiple search resources — need to adapt the resource name and SKU→ID lookup
   to their own model; this is a structural assumption the package does not attempt to generalize away.
-- **The field→tier mapping is a basic shop's default, not a discovered fact.** `TokenSourceResolver::SOURCE_DEFINITIONS`
-  mirrors a basic Spryker shop's default `ProductPageSearchDependencyProvider`
-  wiring (title/SKU/direct category/merchant name → `full-text-boosted`; concrete names/SKUs/descriptions
-  and indirect categories → `full-text`). Nothing in the indexed document or the live cluster records which
-  *source field* a value in `full-text`/`full-text-boosted` came from (that's the whole reason this feature
-  exists), so if your project registers different map-expander plugins, or moves a field between tiers,
-  edit `SOURCE_DEFINITIONS` to match your project's actual wiring — that's the one place to check.
+- **Values from your own map expanders need a plugin to be named.** `SOURCE_DEFINITIONS` identifies the
+  contributors a default Spryker shop indexes. Nothing in the indexed document or the live cluster
+  records which *source field* a value in `full-text`/`full-text-boosted` came from — the pipeline
+  flattens every contributed value into one flat array, which is the whole reason this feature exists.
+  So a project registering its own map-expander plugins gets those values shown but not *named*:
+  attributed to their real product-attribute key where one claims them, otherwise labeled "other indexed
+  value". This is a labeling gap, never a correctness one — nothing is hidden, mis-tiered or
+  mis-attributed. Register a `TokenSourceProviderPluginInterface` to name them (see "Extending the
+  overlay"). The declared `tier` of the built-in definitions is likewise only a hint: a project that
+  moves a field between tiers still gets it recognised, shown under the tier the document really has.
 
-  The real fix for this limitation would live upstream, not in this package: instead of flattening every
-  contributed value into a bare `["val1", "val2", ...]` array (which is what destroys the source-field
-  information in the first place), the indexing pipeline could export each value tagged with its own
-  origin field, e.g. `[{"field": "name", "value": "val1"}, {"field": "sku", "value": "val2"}, ...]`. We
-  looked at this and deliberately didn't go there — the cost isn't just the obvious one (a tagged
-  structure is heavier on disk than a flat string array, once per product, across the whole catalog).
-  The bigger issue is that `full-text`/`full-text-boosted` are plain `text` fields today specifically so a
-  simple `multi_match` can query them directly; tagged per-field values would need to be mapped as
-  `nested` (or dynamically-mapped `object`) fields instead, and `nested` queries are a genuinely more
-  expensive query shape in Elasticsearch (an extra join against hidden child documents per query, on
-  every storefront search, not just the rare debug-permitted one). It would also change how BM25's
-  field-length normalization is computed (today it's over the whole flattened field; per-tagged-value
-  would need its own model) and require a full catalog reindex to adopt. That's real risk to the
+  The deeper fix would live upstream, not here: instead of flattening every contributed value into a bare
+  `["val1", "val2", ...]` array, the indexing pipeline could export each value tagged with its origin
+  field, e.g. `[{"field": "name", "value": "val1"}, ...]`. We looked at this and deliberately didn't go
+  there. The cost isn't just the obvious one (a tagged structure is heavier on disk, once per product,
+  across the whole catalog). The bigger issue is that `full-text`/`full-text-boosted` are plain `text`
+  fields today specifically so a simple `multi_match` can query them directly; tagged per-field values
+  would need `nested` (or dynamically-mapped `object`) mappings instead, and `nested` queries are a
+  genuinely more expensive query shape (an extra join against hidden child documents per query, on every
+  storefront search, not just the rare debug-permitted one). It would also change how BM25's field-length
+  normalization is computed and require a full catalog reindex to adopt. That is real risk to the
   production relevance engine every shopper depends on, taken on to make an occasional debugging lookup
-  slightly more precise — not something a debug-only add-on package should be pushing a project toward.
-- **Category pages don't get debug output — deliberately, not because they can't.** The sample
-  `CatalogController` (step 5) only sets `isSearchDebugContext` inside `executeFulltextSearchAction()`,
-  even though `reduceRestrictedParameters()` — the method that actually turns that flag into the request
-  parameter the query plugins read — is shared with the category listing action underneath it. A category
-  page CAN carry a free-text `q` too (Spryker lets a customer search *within* a category), but most
-  category page loads have no query string at all, so there'd usually be nothing meaningful to explain;
-  enabling it there would mean paying Elasticsearch's real `explain` cost on every category page view for
-  output that's thrown away most of the time. This is an easy, mechanical extension if you want it: the
-  per-product overlay itself already lives in the SHARED `page-layout-catalog.twig` (search and category
-  pages both render through it), so it starts appearing automatically once debug data exists — the only
-  change needed is overriding `executeIndexAction()` the same way `executeFulltextSearchAction()` already
-  is, setting the same `isSearchDebugContext` flag at the top.
+  slightly more precise — not something a debug-only add-on should push a project toward.
+- **The BM25 `n` / `N` figures are per-shard, not whole-index.** The "one click deeper" BM25 breakdown
+  shows `n` (documents containing the term) and `N` (total documents with the field) exactly as Lucene
+  reports them — and Lucene computes those per *shard*, not across the whole index. On a single-shard
+  index they coincide with the whole-corpus figures, which is why they read like catalog-wide statistics.
+  On a multi-shard index they will not: every shard scores using its own local term statistics, so the
+  same term can show a different `idf` on two products that happen to live on different shards, and
+  neither figure matches what you would get by counting the whole catalog yourself. This is standard
+  Elasticsearch/OpenSearch behaviour, not something this package can correct
+  (`search_type=dfs_query_then_fetch` is the engine's opt-in for computing global term statistics first,
+  at a real performance cost) — but it is worth knowing before concluding the numbers are wrong. Note
+  this also means a relevance constant calibrated from observed `_score` values is shard-count-sensitive.
+- **Category pages don't get debug output — deliberately, not because they can't.**
+  `SearchDebugContextEventDispatcherPlugin` only marks the full-text search route (`search`) as a debug
+  context. A category listing page can carry a free-text `q` too (Spryker lets a customer search *within*
+  a category), but most category page loads have no query string at all, so there would usually be nothing
+  meaningful to explain; enabling it there would mean paying Elasticsearch's real `explain` cost on every
+  category page view for output that is thrown away most of the time. This is a one-line extension if you
+  want it: subclass the plugin and override `isSearchResultsPage()` to accept the category route as well.
+  The overlay itself already lives in the SHARED `page-layout-catalog.twig` (search and category pages
+  both render through it), so it starts appearing automatically once debug data exists.
 
-## Testing
+## Testing and CI
 
-The package ships Codeception suites under `tests/SprykerCommunityTest/`. They currently run inside a
-host shop (they use the host's test bootstrap and, for the analyzer tests, a live Elasticsearch):
+### Automated checks
+
+`.github/workflows/ci.yml` runs on every push and pull request:
+
+| check | what it protects |
+|---|---|
+| `composer validate` | the manifest stays well-formed |
+| `phpcs` (PHP 8.3, 8.4) | coding standard, via this package's own `phpcs.xml` |
+| `composer check-floors` (PHP 8.3, 8.4) | the declared dependency floors are real |
+
+`check-floors` is the one worth understanding. This package's `require` constraints are a promise about
+which Spryker versions an adopter may install — and that promise is exactly what a development shop
+cannot verify, because a full demo shop has every Spryker module present regardless of what this package
+declares. A missing declaration only surfaces on a leaner shop, as a fatal, after installation.
+
+So the check resolves every constraint to its **oldest** allowed version (`composer update
+--prefer-lowest --prefer-stable --no-dev`) and then asserts that every vendor symbol used in `src/`
+actually exists in that tree. It exits non-zero if not. Run it locally the same way:
+
+```bash
+composer check-floors
+```
+
+It reports three categories: resolved, host-generated (`Generated\*` classes, created by the host
+project's `transfer:generate` and correctly absent from any vendor tree), and optional-absent (symbols
+from `suggest`ed modules such as `spryker/merchant-storage`, whose every use is guarded at runtime).
+
+### Test suite
+
+The package ships Codeception suites under `tests/SprykerCommunityTest/`. They run **inside a host
+shop** — they use the host's test bootstrap (`\PyzTest\Shared\Testify\Helper\Environment`) and, for the
+analyzer tests, a live Elasticsearch/OpenSearch:
 
 ```bash
 vendor/bin/codecept build -c vendor/spryker-community/search-debug/tests/SprykerCommunityTest/Client/SearchDebug
@@ -430,8 +627,13 @@ vendor/bin/codecept run -c vendor/spryker-community/search-debug/tests/SprykerCo
 vendor/bin/codecept run -c vendor/spryker-community/search-debug/tests/SprykerCommunityTest/Yves/SearchDebugWidget
 ```
 
-Note: the suites reference the host's `\PyzTest\Shared\Testify\Helper\Environment` helper; a standalone
-CI bootstrap is on the roadmap.
+For that reason the suites are **not** part of CI: a clean runner has neither a Spryker shop nor a search
+cluster, and standing both up per build would cost far more than it returns. CI therefore covers the
+static guarantees; the test suite is run against a real shop before a release. A standalone bootstrap
+that would let CI run them too is on the roadmap.
+
+Static analysis (`phpstan`) is likewise run from a host shop rather than in CI: it needs the generated
+`Generated\Shared\Transfer\*` classes, which only exist once a project has run `transfer:generate`.
 
 ## License
 
