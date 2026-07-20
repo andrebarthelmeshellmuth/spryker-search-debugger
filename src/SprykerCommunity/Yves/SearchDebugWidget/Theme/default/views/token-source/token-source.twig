@@ -41,6 +41,18 @@
                         <div class="token-source-field {{ row.matched ? 'token-source-field--matched' : 'token-source-field--unmatched' }} {{ isAmbiguous ? 'token-source-field--ambiguous' : '' }}">
                             <div class="token-source-field__label" title="{{ isAmbiguous ? ('search_debug.token_source.field.ambiguous_hint' | trans) : '' }}">
                                 {{ row.labelKeys | map(labelKey => labelKey | trans) | join(' / ') }}
+                                {#- An unattributed value is the one case on this page an adopter can act
+                                    on: nothing named it, which almost always means a project-specific map
+                                    expander contributed it. The hint is rendered as a visible affordance
+                                    rather than a bare `title` (like the ambiguity hint above) precisely
+                                    because nobody hovers text that gives no sign of being hoverable. -#}
+                                {%- if row.isUnattributed | default(false) -%}
+                                    <span class="token-source-field__hint"
+                                          role="note"
+                                          tabindex="0"
+                                          aria-label="{{ 'search_debug.token_source.field.other_hint' | trans }}"
+                                          title="{{ 'search_debug.token_source.field.other_hint' | trans }}">?</span>
+                                {%- endif -%}
                             </div>
                             <div class="token-source-field__value">{%- if row.highlightedHtml is not null -%}
                                 {%- if row.matched and row.element is not null and row.matches is not empty -%}

@@ -128,6 +128,11 @@ trait TestPageIndexTrait
             }
 
             /**
+             * A fixture that always resolves to the one test index, so both arguments are unused by
+             * design — the signature is fixed by IndexNameResolverInterface.
+             *
+             * @phpcsSuppress SlevomatCodingStandard.Functions.UnusedParameter
+             *
              * @param string $sourceIdentifier
              * @param string|null $storeName
              *
