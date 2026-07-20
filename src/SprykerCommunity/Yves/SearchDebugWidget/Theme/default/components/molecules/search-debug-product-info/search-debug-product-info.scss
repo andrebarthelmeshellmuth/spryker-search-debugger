@@ -268,7 +268,9 @@ $search-debug-trigger-color: $search-debug-feature-accent-color;
     background-color: $search-debug-trigger-color;
     color: $setting-color-white;
 
-    .icon {
+    // The pin glyph is an inlined `<svg>` (see the twig for why it is not an `atom('icon')` reference),
+    // so it carries its own class rather than the atom's `.icon`. Sized identically.
+    .search-debug-pin-toggle__icon {
         width: rem(13);
         height: rem(13);
     }

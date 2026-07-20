@@ -42,11 +42,15 @@
            two products' overlays side by side. type="button": same reasoning as the trigger button above
            — this sits inside page-layout-catalog.twig's filter <form>. #}
         <button type="button" class="button search-debug-pin-toggle {{ config.jsName }}__pin-toggle" title="{{ 'search_debug.pin' | trans }}" aria-pressed="false">
-            {% include atom('icon') with {
-                data: {
-                    name: 'pin',
-                },
-            } only %}
+            {# Inlined rather than referenced via `atom('icon')` on purpose: a shop's icon sprite has no
+               `:pin` symbol (unlike `:search`, which is stock and IS used via the atom above), so relying
+               on the atom would render an empty button until the adopter hand-added a symbol to their own
+               sprite — a hidden install step for a self-contained debug widget. Shipping the glyph here
+               keeps the package dependency-free. Same 24×24 material "keep"/pin path Spryker's own sprite
+               conventions use; `currentColor` so it inherits the button's text color. #}
+            <svg class="search-debug-pin-toggle__icon" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" focusable="false">
+                <path d="m634-448 86 77v60H510v241l-30 30-30-30v-241H240v-60l80-77v-332h-50v-60h414v60h-50v332Zm-313 77h312l-59-55v-354H380v354l-59 55Zm156 0Z"/>
+            </svg>
         </button>
         {# Additional score sections contributed by ProductDebugDataExpanderPluginInterface plugins —
            e.g. search-ranking's business-signal breakdown (metric x weight = contribution per line,
