@@ -99,9 +99,10 @@ class SearchDebugConfig extends AbstractSharedConfig
      * Number of decimal places every score-related number in the SRP overlay is rounded and
      * displayed to: `_score`, matched-token weights, other contributions, and any section a
      * {@see \SprykerCommunity\Client\SearchDebug\Dependency\Plugin\ProductDebugDataExpanderPluginInterface}
-     * plugin contributes (e.g. spryker-community/search-ranking's business-signal breakdown, which
-     * reads this same constant for its own pre-built calculation/formula strings — one shared
-     * precision for the whole overlay, not two constants that could drift apart).
+     * plugin contributes — e.g. the companion spryker-community/search-ranking package (not yet released),
+     * whose business-signal breakdown reads this same constant for its own pre-built calculation/formula
+     * strings, so the whole overlay shows one shared precision rather than two constants that could
+     * drift apart.
      *
      * Rounding happens ONLY here, at display time. No business-logic class in this package, or in a
      * contributing plugin, rounds a value before this point — the full-precision float is always

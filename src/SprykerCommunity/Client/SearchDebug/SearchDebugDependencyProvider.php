@@ -65,8 +65,8 @@ class SearchDebugDependencyProvider extends AbstractDependencyProvider
     }
 
     /**
-     * Override on project level to plug additional per-product overlay sections in — e.g.
-     * spryker-community/search-ranking's business-signal breakdown.
+     * Override on project level to plug additional per-product overlay sections in — e.g. the companion
+     * spryker-community/search-ranking package (not yet released) contributes its business-signal breakdown this way.
      *
      * @return array<\SprykerCommunity\Client\SearchDebug\Dependency\Plugin\ProductDebugDataExpanderPluginInterface>
      */
