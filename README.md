@@ -455,9 +455,9 @@ Other packages can contribute additional score sections to the per-product SRP o
 (registered by overriding `SearchDebugDependencyProvider::getProductDebugDataExpanderPlugins()` on
 project level). Each plugin receives the parsed per-hit debug data plus the raw document `_source`
 and may append generically-rendered sections (title, `label: calculation = value` lines, a summary
-line and a free-text formula line) — e.g.
-[spryker-community/search-ranking](https://github.com/andrebarthelmeshellmuth/spryker-search-ranking)
-explains its business-signal `function_score` this way.
+line and a free-text formula line). This is how **spryker-community/search-ranking** — a companion
+Spryker Community extension, developed alongside this one but not yet released — explains its
+business-signal `function_score` in the same overlay.
 
 For a `function_score`-wrapped query the explain parser additionally exposes the WRAPPED query's own
 relevance as `queryScore` (shown as "Text match score", the number the matched-token breakdown adds
@@ -525,7 +525,7 @@ recognised and still labeled correctly — it is simply shown under the tier the
 `SprykerCommunity\Shared\SearchDebug\SearchDebugConfig::SCORE_DECIMAL_PLACES` (default **3**) is the
 single constant controlling how many decimal places EVERY number in the overlay is rounded and
 displayed to — the final `_score`, matched-token weights, other contributions, and any section a
-`ProductDebugDataExpanderPluginInterface` plugin contributes. Consuming plugins (e.g.
+`ProductDebugDataExpanderPluginInterface` plugin contributes. Consuming plugins (e.g. the companion
 spryker-community/search-ranking's business-signal breakdown) read this same constant for the
 calculation/formula strings they pre-build, so the whole overlay always shows one consistent
 precision — there is no second place to keep in sync.
@@ -553,18 +553,29 @@ how the number is shown.
   overlay"). The declared `tier` of the built-in definitions is likewise only a hint: a project that
   moves a field between tiers still gets it recognised, shown under the tier the document really has.
 
-  The deeper fix would live upstream, not here: instead of flattening every contributed value into a bare
-  `["val1", "val2", ...]` array, the indexing pipeline could export each value tagged with its origin
-  field, e.g. `[{"field": "name", "value": "val1"}, ...]`. We looked at this and deliberately didn't go
-  there. The cost isn't just the obvious one (a tagged structure is heavier on disk, once per product,
-  across the whole catalog). The bigger issue is that `full-text`/`full-text-boosted` are plain `text`
-  fields today specifically so a simple `multi_match` can query them directly; tagged per-field values
-  would need `nested` (or dynamically-mapped `object`) mappings instead, and `nested` queries are a
-  genuinely more expensive query shape (an extra join against hidden child documents per query, on every
-  storefront search, not just the rare debug-permitted one). It would also change how BM25's field-length
-  normalization is computed and require a full catalog reindex to adopt. That is real risk to the
-  production relevance engine every shopper depends on, taken on to make an occasional debugging lookup
-  slightly more precise — not something a debug-only add-on should push a project toward.
+  The deeper fix would live upstream, not here — but it matters *which* upstream fix, because the obvious
+  one and the workable one are not the same. The obvious one is to stop flattening the searched field and
+  tag each value inline instead, turning `full-text` from a bare `["val1", "val2", ...]` array into
+  `[{"field": "name", "value": "val1"}, ...]`. That one is a non-starter, and not for the disk cost:
+  `full-text`/`full-text-boosted` are plain `text` fields today specifically so a simple `multi_match` can
+  query them directly, and tagging them per-field would force `nested` (or dynamically-mapped `object`)
+  mappings — a genuinely more expensive query shape (an extra join against hidden child documents) paid on
+  *every* storefront search, not just the rare debug-permitted one. It would also change how BM25's
+  field-length normalization is computed and require a full catalog reindex. That is real risk to the
+  production relevance engine every shopper depends on, spent to make an occasional debug lookup more
+  precise.
+
+  The workable version leaves the searched fields exactly as they are and exports the origin map
+  *additionally* — a separate, debug-only field alongside `full-text`, stored but not indexed
+  (`index: false`), recording which source field each indexed value came from. The search never queries
+  it, so none of the above applies: no `nested`, no query-shape change, no effect on BM25 or on the
+  relevance every shopper sees — it is purely extra data in `_source` for the debug tool to read. We still
+  deliberately didn't do it, but now for a narrower and more honest reason: it is a change to the core
+  publish-and-sync **export pipeline** that every shop would then carry — extra per-product storage and
+  extra export work, catalog-wide — for a payload only the rare debug lookup ever reads. A debug add-on
+  that installs as a drop-in, with zero indexing changes, shouldn't push that cost into a project's core
+  export path; re-analyzing the live document at debug time keeps the cost on the debug request, where it
+  belongs, and the labeling gap stays a labeling gap rather than becoming a catalog-wide tax.
 - **The BM25 `n` / `N` figures are per-shard, not whole-index.** The "one click deeper" BM25 breakdown
   shows `n` (documents containing the term) and `N` (total documents with the field) exactly as Lucene
   reports them — and Lucene computes those per *shard*, not across the whole index. On a single-shard
