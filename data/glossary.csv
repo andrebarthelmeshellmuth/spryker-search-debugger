@@ -95,3 +95,19 @@ search_debug.pin,Keep this overlay open,en_US
 search_debug.pin,Diese Übersicht geöffnet lassen,de_DE
 search_debug.token_source.field.other_hint,"This value is in the search document, but no known source claims it — it is typically contributed by a project-specific map expander plugin. Register a TokenSourceProviderPluginInterface to give it a proper name.",en_US
 search_debug.token_source.field.other_hint,"Dieser Wert steht im Suchdokument, aber keine bekannte Quelle beansprucht ihn — er stammt typischerweise von einem projekteigenen Map-Expander-Plugin. Registriere ein TokenSourceProviderPluginInterface, um ihn korrekt zu benennen.",de_DE
+search_debug.check_installation.heading,Search Debug: installation check,en_US
+search_debug.check_installation.heading,Search Debug: Installationsprüfung,de_DE
+search_debug.check_installation.scope_hint,"Checks the parts of the installation only visible from the storefront (Yves) DI container. For search engine reachability, page index and explain support, run vendor/bin/console search-debug:check-installation in Zed.",en_US
+search_debug.check_installation.scope_hint,"Prüft die Teile der Installation, die nur aus dem Storefront-(Yves)-Container sichtbar sind. Für Suchmaschinen-Erreichbarkeit, Page-Index und Explain-Unterstützung führe vendor/bin/console search-debug:check-installation in Zed aus.",de_DE
+search_debug.check_installation.not_verifiable_heading,Not verifiable from this page:,en_US
+search_debug.check_installation.not_verifiable_heading,Von dieser Seite aus nicht prüfbar:,de_DE
+search_debug.check_installation.not_verifiable_templates,"Whether your project's search.twig / page-layout-catalog.twig actually renders the overlay — load a search results page as a permitted customer to confirm.",en_US
+search_debug.check_installation.not_verifiable_templates,"Ob search.twig / page-layout-catalog.twig deines Projekts die Übersicht tatsächlich rendern — lade eine Suchergebnisseite als berechtigter Kunde, um das zu bestätigen.",de_DE
+search_debug.check_installation.not_verifiable_frontend,"Whether the frontend build picked up this package's components — run yarn yves and reload the page to confirm.",en_US
+search_debug.check_installation.not_verifiable_frontend,"Ob der Frontend-Build die Komponenten dieses Pakets erfasst hat — führe yarn yves aus und lade die Seite neu, um das zu bestätigen.",de_DE
+search_debug.check_installation.cross_reference_zed,"For engine-level checks (search engine reachability, page index, explain support), run vendor/bin/console search-debug:check-installation in Zed.",en_US
+search_debug.check_installation.cross_reference_zed,"Für Prüfungen auf Engine-Ebene (Erreichbarkeit, Page-Index, Explain-Unterstützung) führe vendor/bin/console search-debug:check-installation in Zed aus.",de_DE
+search_debug.check_installation.permission_denied_heading,Search Debug: permission required,en_US
+search_debug.check_installation.permission_denied_heading,Search Debug: Berechtigung erforderlich,de_DE
+search_debug.check_installation.permission_denied_body,"This installation-check page is only shown to a customer holding the SeeSearchDebugInfoPermissionPlugin permission. Grant it to a Company Role in Zed → Customer → Company Roles, assign that role to your account, then reload this page.",en_US
+search_debug.check_installation.permission_denied_body,"Diese Installationsprüfung wird nur einem Kunden mit der Berechtigung SeeSearchDebugInfoPermissionPlugin angezeigt. Vergib sie in Zed → Kunde → Unternehmensrollen an eine Rolle, weise sie deinem Konto zu und lade die Seite neu.",de_DE

@@ -388,9 +388,9 @@ loadable, that the search engine is reachable (reporting its distribution and Lu
 page index exists, and that the engine really returns `_explanation` data. It exits non-zero and names the
 remedy for whatever is wrong.
 
-It is explicit about its own blind spots: running in Zed, it cannot introspect the Yves DI container, so
-it cannot confirm that you registered the plugins from step 5 or wired the templates in step 6 — it says
-so in its output, and those remain a load-the-page check.
+It is explicit about its own blind spots: running in Zed, it never bootstraps the Yves DI container, so it
+cannot confirm that you registered the EventDispatcher/Twig plugins from step 5, the widget routes from
+step 4, or wired the templates in step 6 — it says so in its output.
 
 Register it in `src/Pyz/Zed/Console/ConsoleDependencyProvider.php`:
 
@@ -405,6 +405,40 @@ use SprykerCommunity\Zed\SearchDebug\Communication\Console\SearchDebugCheckInsta
         ];
     }
 ```
+
+**Yves-side counterpart.** `/search-debug/check-installation` closes exactly the gap the console command
+names above — it runs from inside the real Yves DI container (no new plugin registration needed, it uses
+the same `SearchDebugWidgetRouteProviderPlugin` from step 4), and checks: the Twig helper function from
+step 5, the event listener from step 5, and the three widget routes from step 4. It is complementary, not
+a replacement: it does not re-check engine reachability, the page index, or explain support — run the
+console command for those. Together the two cover everything except the two things neither can prove
+generically — your project's own template wiring (step 6) and whether the frontend build picked the
+components up (step 7) — which stay a load-the-page check either way.
+
+Reachable only when BOTH hold:
+
+- The route exists at all — governed by
+  `SprykerCommunity\Shared\SearchDebug\SearchDebugConstants::IS_CHECK_INSTALLATION_PAGE_ENABLED`, which
+  defaults to enabled. **Set it to `false` in your production config** (e.g.
+  `config/Shared/config_default-production.php`):
+
+  ```php
+  $config[SearchDebugConstants::IS_CHECK_INSTALLATION_PAGE_ENABLED] = false;
+  ```
+
+  With the flag off, the route never registers there, so the URL 404s in production exactly like any
+  nonexistent path — regardless of permission. A permission check alone would still leak "this route
+  exists and is gated" to an anonymous prober; not registering the route at all removes that signal
+  entirely. This is deliberately a config flag rather than the package auto-detecting an environment name
+  — the same idiom Spryker's own `WebProfilerConstants::IS_WEB_PROFILER_ENABLED` uses, since environment
+  names and what counts as "production" vary per project, and guessing wrong in either direction is worse
+  than an explicit opt-out.
+- The visiting customer holds the `SeeSearchDebugInfoPermissionPlugin` permission — checked wherever the
+  flag above leaves the route enabled (e.g. staging), so enabling it outside production does not by itself
+  expose the page to anyone but a permitted customer. Missing the permission there renders a dedicated
+  explanation with the exact remedy (grant the permission, per step 9) at HTTP 403, rather than a bare
+  access-denied response — someone hitting this page without the permission yet is almost always mid-setup,
+  not an incident.
 
 ## How it works
 

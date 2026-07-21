@@ -33,7 +33,7 @@ class SearchDebugTwigPlugin extends AbstractPlugin implements TwigPluginInterfac
     /**
      * @var string
      */
-    protected const FUNCTION_NAME_TOKEN_COLORS = 'searchDebugTokenColors';
+    public const FUNCTION_NAME_TOKEN_COLORS = 'searchDebugTokenColors';
 
     /**
      * {@inheritDoc}

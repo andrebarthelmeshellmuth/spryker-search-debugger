@@ -1,0 +1,35 @@
+{# @var data.checks array<array{label: string, passed: bool, remedy: string|null}> #}
+
+{% extends template('page-blank') %}
+
+{% define data = {
+    checks: _view.checks,
+    title: 'search_debug.check_installation.heading' | trans,
+} %}
+
+{% block body %}
+    <div class="container check-installation-page">
+        <h1>{{ 'search_debug.check_installation.heading' | trans }}</h1>
+        <p class="text-small">{{ 'search_debug.check_installation.scope_hint' | trans }}</p>
+
+        <ul class="check-installation-page__list">
+            {% for check in data.checks %}
+                <li class="check-installation-check {{ check.passed ? 'check-installation-check--passed' : 'check-installation-check--failed' }}">
+                    <span class="check-installation-check__icon">{{ check.passed ? '✓' : '✗' }}</span>
+                    <span class="check-installation-check__label">{{ check.label }}</span>
+                    {% if not check.passed %}
+                        <p class="check-installation-check__remedy">{{ check.remedy }}</p>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+
+        <p class="check-installation-page__not-verifiable-heading">{{ 'search_debug.check_installation.not_verifiable_heading' | trans }}</p>
+        <ul class="check-installation-page__not-verifiable-list">
+            <li>{{ 'search_debug.check_installation.not_verifiable_templates' | trans }}</li>
+            <li>{{ 'search_debug.check_installation.not_verifiable_frontend' | trans }}</li>
+        </ul>
+
+        <p class="check-installation-page__cross-reference">{{ 'search_debug.check_installation.cross_reference_zed' | trans }}</p>
+    </div>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends template('page-blank') %}
+
+{% define data = {
+    title: 'search_debug.check_installation.permission_denied_heading' | trans,
+} %}
+
+{% block body %}
+    <div class="container check-installation-page">
+        <h1>{{ 'search_debug.check_installation.permission_denied_heading' | trans }}</h1>
+        <p>{{ 'search_debug.check_installation.permission_denied_body' | trans }}</p>
+    </div>
+{% endblock %}

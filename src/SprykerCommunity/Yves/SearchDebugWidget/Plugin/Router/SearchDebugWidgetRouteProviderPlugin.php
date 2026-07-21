@@ -9,8 +9,10 @@ declare(strict_types = 1);
 
 namespace SprykerCommunity\Yves\SearchDebugWidget\Plugin\Router;
 
+use Spryker\Shared\Config\Config;
 use Spryker\Yves\Router\Plugin\RouteProvider\AbstractRouteProviderPlugin;
 use Spryker\Yves\Router\Route\RouteCollection;
+use SprykerCommunity\Shared\SearchDebug\SearchDebugConstants;
 
 class SearchDebugWidgetRouteProviderPlugin extends AbstractRouteProviderPlugin
 {
@@ -30,6 +32,11 @@ class SearchDebugWidgetRouteProviderPlugin extends AbstractRouteProviderPlugin
     public const ROUTE_NAME_COMPONENT_CONFIG = 'search-debug/component-config';
 
     /**
+     * @var string
+     */
+    public const ROUTE_NAME_CHECK_INSTALLATION = 'search-debug/check-installation';
+
+    /**
      * @param \Spryker\Yves\Router\Route\RouteCollection $routeCollection
      *
      * @return \Spryker\Yves\Router\Route\RouteCollection
@@ -45,6 +52,28 @@ class SearchDebugWidgetRouteProviderPlugin extends AbstractRouteProviderPlugin
         $componentConfigRoute = $this->buildRoute('/search-debug/component-config', 'SearchDebugWidget', 'ComponentConfig', 'indexAction');
         $routeCollection->add(static::ROUTE_NAME_COMPONENT_CONFIG, $componentConfigRoute);
 
+        $this->addCheckInstallationRoute($routeCollection);
+
         return $routeCollection;
+    }
+
+    /**
+     * Only registered when {@see SearchDebugConstants::IS_CHECK_INSTALLATION_PAGE_ENABLED} allows it
+     * (default: yes) — a project's production config sets that to `false`, so on production this route
+     * never exists and the URL 404s exactly like any nonexistent path, rather than existing-but-denied.
+     * See that constant for why a runtime permission check alone would not be enough.
+     *
+     * @param \Spryker\Yves\Router\Route\RouteCollection $routeCollection
+     *
+     * @return void
+     */
+    protected function addCheckInstallationRoute(RouteCollection $routeCollection): void
+    {
+        if (!Config::get(SearchDebugConstants::IS_CHECK_INSTALLATION_PAGE_ENABLED, true)) {
+            return;
+        }
+
+        $checkInstallationRoute = $this->buildRoute('/search-debug/check-installation', 'SearchDebugWidget', 'CheckInstallation', 'indexAction');
+        $routeCollection->add(static::ROUTE_NAME_CHECK_INSTALLATION, $checkInstallationRoute);
     }
 }

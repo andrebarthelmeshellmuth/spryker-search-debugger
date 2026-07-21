@@ -34,6 +34,13 @@ use Throwable;
  * container or confirm that the storefront templates actually render the widget. It verifies that the
  * classes exist and that everything ELSE those steps depend on is in place, and says plainly which
  * checks it could not make.
+ *
+ * Complementary counterpart:
+ * {@see \SprykerCommunity\Yves\SearchDebugWidget\Controller\CheckInstallationController} (the
+ * `/search-debug/check-installation` page) closes exactly the Yves-side gap this command names above —
+ * event listener, Twig function and widget route registration — by running from inside the real Yves DI
+ * container. It does not re-check anything this command already covers (engine reachability, page index,
+ * explain support); run both for a full picture.
  */
 class SearchDebugCheckInstallationConsole extends Console
 {
@@ -107,10 +114,14 @@ class SearchDebugCheckInstallationConsole extends Console
         }
 
         $output->writeln('<info>Everything checkable from the CLI is in place.</info>');
-        $output->writeln('Not verifiable from Zed (verify by loading a search results page as a permitted customer):');
-        $output->writeln('  - Yves plugin registration (EventDispatcher + Twig dependency providers)');
+        $output->writeln('Not verifiable from Zed — Zed never bootstraps the Yves DI container, so it cannot confirm:');
+        $output->writeln('  - Yves plugin registration (EventDispatcher + Twig dependency providers, and the widget routes)');
         $output->writeln('  - storefront template integration and the compiled frontend assets');
         $output->writeln('  - that a customer actually holds the permission');
+        $output->writeln('');
+        $output->writeln('The first and third of those ARE checkable from Yves: load /search-debug/check-installation as a');
+        $output->writeln('permitted customer (SprykerCommunity\Yves\SearchDebugWidget\Controller\CheckInstallationController).');
+        $output->writeln('Template wiring and the frontend build remain a load-the-page check either way.');
 
         return static::CODE_SUCCESS;
     }
