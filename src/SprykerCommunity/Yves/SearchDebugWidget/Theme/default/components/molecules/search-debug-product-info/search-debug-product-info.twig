@@ -21,6 +21,10 @@
        constant for its own pre-built calculation/formula strings, so the whole overlay always
        shows one consistent precision. #}
     {% set scoreDecimalPlaces = constant('SprykerCommunity\\Shared\\SearchDebug\\SearchDebugConfig::SCORE_DECIMAL_PLACES') %}
+    {# Same reasoning as scoreDecimalPlaces above — read the key symbolically instead of hardcoding
+       'scoreSections' three times below, so a future rename of the constant can't silently drift out
+       of sync with this template. #}
+    {% set scoreSectionsKey = constant('SprykerCommunity\\Shared\\SearchDebug\\SearchDebugConfig::KEY_SCORE_SECTIONS') %}
     {% set score = data.debugInfo.score is null ? ('search_debug.score_unavailable' | trans) : data.debugInfo.score | number_format(scoreDecimalPlaces) %}
 
     {# type="button": this component renders inside page-layout-catalog.twig's <form method="GET">
@@ -59,7 +63,7 @@
            Section strings come from the plugin verbatim. The formula (and the final score it computes)
            are rendered separately, at the very bottom of the whole overlay — see below — so this first
            pass only covers the raw per-metric breakdown, the total, and the baseline. #}
-        {% for section in data.debugInfo.scoreSections ?? [] %}
+        {% for section in data.debugInfo[scoreSectionsKey] ?? [] %}
             <div class="search-debug-overlay__section">
                 {# Collapsed by default: this is the one part of the section whose height scales with HOW
                    MANY metrics are configured — with enough of them, it can push the more generally useful
@@ -298,7 +302,7 @@
            ScoreSectionBuilder), so they're read here right off `scoreSections` rather than as their own
            top-level `debugInfo` keys. Placed directly under "Text match total score" since that raw
            score is exactly what gets normalized on the very next line. #}
-        {% for section in data.debugInfo.scoreSections ?? [] %}
+        {% for section in data.debugInfo[scoreSectionsKey] ?? [] %}
             {% if section.relevanceSaturationPointLabel is defined %}
                 <div class="search-debug-score-line">
                     <span class="search-debug-score-line__label">{{ section.relevanceSaturationPointLabel }}:</span>
@@ -318,7 +322,7 @@
            (search-debug-overlay__formula) — a blank line between the last raw input and the calculation
            that combines them. Stops at "=" without repeating the result — the "Final score" line directly
            below already shows that same number, so spelling it out twice here would be redundant. #}
-        {% for section in data.debugInfo.scoreSections ?? [] %}
+        {% for section in data.debugInfo[scoreSectionsKey] ?? [] %}
             {% if section.relevanceWeightLabel is defined %}
                 <div class="search-debug-score-line">
                     <span class="search-debug-score-line__label">{{ section.relevanceWeightLabel }}:</span>
