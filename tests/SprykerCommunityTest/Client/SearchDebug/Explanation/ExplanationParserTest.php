@@ -10,6 +10,8 @@ declare(strict_types = 1);
 namespace SprykerCommunityTest\Client\SearchDebug\Explanation;
 
 use Codeception\Test\Unit;
+use SprykerCommunity\Client\SearchDebug\Explanation\Bm25BreakdownExtractor;
+use SprykerCommunity\Client\SearchDebug\Explanation\CrossFieldsSynonymMatcher;
 use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser;
 
 /**
@@ -27,6 +29,14 @@ use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser;
 class ExplanationParserTest extends Unit
 {
     /**
+     * @return \SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser
+     */
+    protected function createParser(): ExplanationParser
+    {
+        return new ExplanationParser(new CrossFieldsSynonymMatcher(), new Bm25BreakdownExtractor());
+    }
+
+    /**
      * @return void
      */
     public function testParseAttributesAQueryTokenWeightToTheMatchedTokens(): void
@@ -35,7 +45,7 @@ class ExplanationParserTest extends Unit
         $explanation = $this->createWeightNode('full-text', 'cable', 5.5);
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $this->assertSame(
@@ -57,7 +67,7 @@ class ExplanationParserTest extends Unit
         $explanation = $this->createWeightNode('full-text', '3000', 8.25);
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['3000']);
+        $result = $this->createParser()->parse($explanation, ['3000']);
 
         // Assert
         $this->assertArrayHasKey('3000', $result[ExplanationParser::KEY_MATCHED_TOKENS]);
@@ -73,7 +83,7 @@ class ExplanationParserTest extends Unit
         $explanation = $this->createWeightNode('type', 'product_abstract', 0.1656);
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $this->assertSame([], $result[ExplanationParser::KEY_MATCHED_TOKENS]);
@@ -102,7 +112,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $matchedToken = $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable'];
@@ -134,7 +144,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $this->assertSame([], $result[ExplanationParser::KEY_MATCHED_TOKENS]);
@@ -142,6 +152,46 @@ class ExplanationParserTest extends Unit
             [['description' => $description, 'value' => 3.5]],
             $result[ExplanationParser::KEY_OTHER_CONTRIBUTIONS],
         );
+    }
+
+    /**
+     * `walkNode()`'s dispatch is FIRST-MATCH-WINS: a node shaped like more than one recognized case at
+     * once is resolved by whichever `try*()` check runs first, not by some "most specific wins" logic.
+     * This node is deliberately shaped like TWO things at once — a recognized `weight(field:term)` leaf
+     * AND a parent with children that, if independently walked, would themselves look like a real
+     * function_score leaf (matches SCORE_FUNCTION_PATTERN) and an unrecognized contribution. Because the
+     * weight-node check runs before the has-children check, this node must be read ONLY as the term
+     * weight — its children are TF/IDF internals (multiplicative factors of ITS value), never additive
+     * score parts of their own, and must never leak into scoreFunctions or otherContributions.
+     *
+     * @return void
+     */
+    public function testParseTreatsAWeightNodeAsATermLeafEvenWhenItsChildrenLookLikeOtherShapes(): void
+    {
+        // Arrange
+        $explanation = [
+            'value' => 5.5,
+            'description' => 'weight(full-text:cable in 42) [PerFieldSimilarity], result of:',
+            'details' => [
+                // Looks like a function_score boost-function leaf (matches SCORE_FUNCTION_PATTERN) —
+                // must NOT be walked into and counted as one.
+                ['value' => 5.5, 'description' => 'field value function', 'details' => []],
+                // Looks like a plain unrecognized leaf — must NOT be walked into and counted as an
+                // otherContributions entry either.
+                ['value' => 5.5, 'description' => 'some rogue explanation, mysterious clause', 'details' => []],
+            ],
+        ];
+
+        // Act
+        $result = $this->createParser()->parse($explanation, ['cable']);
+
+        // Assert
+        $this->assertSame(
+            ['cable' => ['total' => 5.5, 'field' => 'full-text']],
+            $result[ExplanationParser::KEY_MATCHED_TOKENS],
+        );
+        $this->assertSame([], $result[ExplanationParser::KEY_OTHER_CONTRIBUTIONS]);
+        $this->assertSame([], $result[ExplanationParser::KEY_SCORE_FUNCTIONS]);
     }
 
     /**
@@ -169,7 +219,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['brenne', 'switch', 'button']);
+        $result = $this->createParser()->parse($explanation, ['brenne', 'switch', 'button']);
 
         // Assert — sorted, joined key; nothing left behind in otherContributions.
         $this->assertSame(
@@ -191,7 +241,7 @@ class ExplanationParserTest extends Unit
         $explanation = ['value' => 4.0, 'description' => $description, 'details' => []];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['power']);
+        $result = $this->createParser()->parse($explanation, ['power']);
 
         // Assert
         $this->assertSame(
@@ -214,7 +264,7 @@ class ExplanationParserTest extends Unit
         $explanation = ['value' => 4.0, 'description' => $description, 'details' => []];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $this->assertSame([], $result[ExplanationParser::KEY_MATCHED_TOKENS]);
@@ -252,7 +302,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['switch', 'button']);
+        $result = $this->createParser()->parse($explanation, ['switch', 'button']);
 
         // Assert
         $matchedToken = $result[ExplanationParser::KEY_MATCHED_TOKENS]['button, switch'];
@@ -289,7 +339,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['brenne', 'switch', 'button']);
+        $result = $this->createParser()->parse($explanation, ['brenne', 'switch', 'button']);
 
         // Assert — the node's OWN value (the max Lucene already computed), not the sum of both leaves.
         $this->assertSame(
@@ -320,7 +370,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert — the ordinary per-field term path, not a combined key.
         $this->assertArrayHasKey('cable', $result[ExplanationParser::KEY_MATCHED_TOKENS]);
@@ -347,7 +397,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $this->assertSame(
@@ -380,7 +430,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert — still resolves correctly via normal recursion, just not via the fast-path collapse.
         $this->assertSame(19.84, $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable']['total']);
@@ -446,7 +496,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['brenne', 'switch', 'button']);
+        $result = $this->createParser()->parse($explanation, ['brenne', 'switch', 'button']);
 
         // Assert — MAX of the two fields (45.650497), not their sum (51.079169).
         $matchedToken = $result[ExplanationParser::KEY_MATCHED_TOKENS]['button, switch'];
@@ -483,7 +533,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert — still MAX (19.84), not SUM (25.82), despite the single-child "sum of:" wrappers.
         $matchedToken = $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable'];
@@ -509,7 +559,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $this->assertSame([], $result[ExplanationParser::KEY_MATCHED_TOKENS]);
@@ -529,7 +579,7 @@ class ExplanationParserTest extends Unit
         $explanation = $this->createWeightNode('full-text', 'cable', 5.5);
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $this->assertArrayHasKey(ExplanationParser::KEY_SCORE_FUNCTIONS, $result);
@@ -554,7 +604,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, []);
+        $result = $this->createParser()->parse($explanation, []);
 
         // Assert
         $this->assertSame(
@@ -585,7 +635,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, []);
+        $result = $this->createParser()->parse($explanation, []);
 
         // Assert
         $this->assertSame(
@@ -615,7 +665,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $matchedToken = $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable'];
@@ -648,7 +698,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $matchedToken = $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable'];
@@ -678,7 +728,7 @@ class ExplanationParserTest extends Unit
         $explanation = $this->createScriptScoreExplanationTree(2.7416, 6.9244);
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert: the wrapped query's own relevance is exposed separately ...
         $this->assertSame(6.9244, $result[ExplanationParser::KEY_QUERY_SCORE]);
@@ -703,7 +753,7 @@ class ExplanationParserTest extends Unit
         $explanation = $this->createScriptScoreExplanationTree(2.7416, 6.9244);
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $this->assertSame([], $result[ExplanationParser::KEY_OTHER_CONTRIBUTIONS]);
@@ -721,7 +771,7 @@ class ExplanationParserTest extends Unit
         $explanation = $this->createWeightNode('full-text', 'cable', 6.9244);
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $this->assertNull($result[ExplanationParser::KEY_QUERY_SCORE]);
@@ -800,7 +850,7 @@ class ExplanationParserTest extends Unit
         ]);
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['handcart']);
+        $result = $this->createParser()->parse($explanation, ['handcart']);
 
         // Assert
         $breakdown = $result[ExplanationParser::KEY_MATCHED_TOKENS]['handcart']['breakdown'];
@@ -829,7 +879,7 @@ class ExplanationParserTest extends Unit
         $explanation = $this->createWeightNode('full-text', 'cable', 5.5);
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $this->assertArrayNotHasKey('breakdown', $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable']);
@@ -860,7 +910,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['handcart']);
+        $result = $this->createParser()->parse($explanation, ['handcart']);
 
         // Assert
         $matchedToken = $result[ExplanationParser::KEY_MATCHED_TOKENS]['handcart'];
@@ -896,7 +946,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['brenne', 'switch', 'button']);
+        $result = $this->createParser()->parse($explanation, ['brenne', 'switch', 'button']);
 
         // Assert — the "switch" leaf won (5.417414 matches the node's own reported value), so ITS
         // breakdown (idf from 10 documents, not button's 11) is the one that must surface.
@@ -923,7 +973,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $this->assertArrayNotHasKey('breakdown', $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable']);
@@ -973,7 +1023,7 @@ class ExplanationParserTest extends Unit
         ];
 
         // Act
-        $result = (new ExplanationParser())->parse($explanation, ['cable']);
+        $result = $this->createParser()->parse($explanation, ['cable']);
 
         // Assert
         $this->assertArrayNotHasKey('breakdown', $result[ExplanationParser::KEY_MATCHED_TOKENS]['cable']);

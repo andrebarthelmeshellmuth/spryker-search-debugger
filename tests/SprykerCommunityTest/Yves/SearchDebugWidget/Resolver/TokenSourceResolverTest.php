@@ -21,8 +21,11 @@ use Spryker\Client\ProductCategoryStorage\ProductCategoryStorageClientInterface;
 use Spryker\Client\ProductStorage\ProductStorageClientInterface;
 use Spryker\Client\Store\StoreClientInterface;
 use SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\CategoryAncestorNameCollector;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\ProductSourceMapBuilder;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolver;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceRow;
 
 /**
  * Auto-generated group annotations
@@ -124,10 +127,10 @@ class TokenSourceResolverTest extends Unit
         $boostedRows = $result['tiers'][0]['rows'];
         $this->assertSame('full-text-boosted', $result['tiers'][0]['key']);
         $this->assertSame(static::FIELD_BOOSTS['full-text-boosted'], $result['tiers'][0]['boost']);
-        $this->assertSame(
+        $this->assertEquals(
             [
-                ['labelKeys' => ['search_debug.token_source.field.title'], 'matched' => true, 'highlightedHtml' => 'HL[Steel Cable]', 'element' => 'Steel Cable', 'matches' => static::TOKEN_MATCHES],
-                ['labelKeys' => ['search_debug.token_source.field.sku'], 'matched' => false, 'highlightedHtml' => null, 'element' => null, 'matches' => []],
+                new TokenSourceRow(['search_debug.token_source.field.title'], true, false, 'HL[Steel Cable]', 'Steel Cable', static::TOKEN_MATCHES),
+                new TokenSourceRow(['search_debug.token_source.field.sku'], false, false, null, null, []),
             ],
             $boostedRows,
         );
@@ -135,9 +138,9 @@ class TokenSourceResolverTest extends Unit
         $fullTextRows = $result['tiers'][1]['rows'];
         $this->assertSame('full-text', $result['tiers'][1]['key']);
         $this->assertSame(1, $result['tiers'][1]['boost']);
-        $this->assertSame(
+        $this->assertEquals(
             [
-                ['labelKeys' => ['search_debug.token_source.field.abstract_description'], 'matched' => true, 'highlightedHtml' => 'HL[A cable for outdoor use]', 'element' => 'A cable for outdoor use', 'matches' => static::TOKEN_MATCHES],
+                new TokenSourceRow(['search_debug.token_source.field.abstract_description'], true, false, 'HL[A cable for outdoor use]', 'A cable for outdoor use', static::TOKEN_MATCHES),
             ],
             $fullTextRows,
         );
@@ -171,10 +174,10 @@ class TokenSourceResolverTest extends Unit
         $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US', static::FIELD_BOOSTS);
 
         // Assert
-        $this->assertSame(
+        $this->assertEquals(
             [
-                ['labelKeys' => ['search_debug.token_source.field.other'], 'matched' => false, 'highlightedHtml' => 'TXT[rot]', 'element' => null, 'matches' => []],
-                ['labelKeys' => ['search_debug.token_source.field.other'], 'matched' => true, 'highlightedHtml' => 'HL[cable-ish attribute]', 'element' => 'cable-ish attribute', 'matches' => static::TOKEN_MATCHES],
+                new TokenSourceRow(['search_debug.token_source.field.other'], false, true, 'TXT[rot]', null, []),
+                new TokenSourceRow(['search_debug.token_source.field.other'], true, true, 'HL[cable-ish attribute]', 'cable-ish attribute', static::TOKEN_MATCHES),
             ],
             $result['tiers'][0]['rows'],
         );
@@ -252,16 +255,17 @@ class TokenSourceResolverTest extends Unit
         $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US', static::FIELD_BOOSTS);
 
         // Assert
-        $this->assertSame(
+        $this->assertEquals(
             [
-                [
-                    'labelKeys' => ['search_debug.token_source.field.title', 'search_debug.token_source.field.merchant_name'],
-                    'matched' => false,
-                    'highlightedHtml' => null,
-                    'element' => null,
-                    'matches' => [],
-                ],
-                ['labelKeys' => ['search_debug.token_source.field.sku'], 'matched' => false, 'highlightedHtml' => null, 'element' => null, 'matches' => []],
+                new TokenSourceRow(
+                    ['search_debug.token_source.field.title', 'search_debug.token_source.field.merchant_name'],
+                    false,
+                    false,
+                    null,
+                    null,
+                    [],
+                ),
+                new TokenSourceRow(['search_debug.token_source.field.sku'], false, false, null, null, []),
             ],
             $result['tiers'][0]['rows'],
         );
@@ -302,10 +306,10 @@ class TokenSourceResolverTest extends Unit
         $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US', static::FIELD_BOOSTS);
 
         // Assert
-        $this->assertSame(
+        $this->assertEquals(
             [
-                ['labelKeys' => ['search_debug.token_source.field.concrete_names'], 'matched' => true, 'highlightedHtml' => 'HL[Cable A]', 'element' => 'Cable A', 'matches' => static::TOKEN_MATCHES],
-                ['labelKeys' => ['search_debug.token_source.field.concrete_names'], 'matched' => true, 'highlightedHtml' => 'HL[Cable B]', 'element' => 'Cable B', 'matches' => static::TOKEN_MATCHES],
+                new TokenSourceRow(['search_debug.token_source.field.concrete_names'], true, false, 'HL[Cable A]', 'Cable A', static::TOKEN_MATCHES),
+                new TokenSourceRow(['search_debug.token_source.field.concrete_names'], true, false, 'HL[Cable B]', 'Cable B', static::TOKEN_MATCHES),
             ],
             $result['tiers'][1]['rows'],
         );
@@ -614,9 +618,9 @@ class TokenSourceResolverTest extends Unit
         $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US', static::FIELD_BOOSTS);
 
         // Assert
-        $this->assertSame(
+        $this->assertEquals(
             [
-                ['labelKeys' => ['brand'], 'matched' => false, 'highlightedHtml' => 'TXT[Acme]', 'element' => null, 'matches' => []],
+                new TokenSourceRow(['brand'], false, false, 'TXT[Acme]', null, []),
             ],
             $result['tiers'][0]['rows'],
         );
@@ -651,9 +655,9 @@ class TokenSourceResolverTest extends Unit
         $result = $resolver->resolve(static::PRODUCT_ABSTRACT_SKU, static::TOKEN, 'en_US', static::FIELD_BOOSTS);
 
         // Assert
-        $this->assertSame(
+        $this->assertEquals(
             [
-                ['labelKeys' => ['search_debug.token_source.field.other'], 'matched' => false, 'highlightedHtml' => 'TXT[some unrelated value]', 'element' => null, 'matches' => []],
+                new TokenSourceRow(['search_debug.token_source.field.other'], false, true, 'TXT[some unrelated value]', null, []),
             ],
             $result['tiers'][0]['rows'],
         );
@@ -779,14 +783,20 @@ class TokenSourceResolverTest extends Unit
         // TokenHighlighter::filterRenderable() for every case exercised here.
         $tokenHighlighterMock->method('filterRenderable')->willReturnArgument(0);
 
-        return new TokenSourceResolver(
+        $productSourceMapBuilder = new ProductSourceMapBuilder(
             $productStorageClient,
             $productCategoryStorageClient,
             $categoryStorageClient ?? $this->createMock(CategoryStorageClientInterface::class),
             $merchantStorageClient ?? $this->createMock(MerchantStorageClientInterface::class),
-            $searchDebugClient,
             $storeClientMock,
+            new CategoryAncestorNameCollector(),
+        );
+
+        return new TokenSourceResolver(
+            $productStorageClient,
+            $searchDebugClient,
             $tokenHighlighterMock,
+            $productSourceMapBuilder,
         );
     }
 }
