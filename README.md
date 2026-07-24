@@ -45,11 +45,11 @@ of the query.
 ## Status
 
 Feature-complete and verified for its scope: search relevance debugging, including per-token
-analysis-path visualization. Pending a full code review before a 1.0 tag. More tools are planned.
+analysis-path visualization. More tools are planned.
 
 Verified: dependency floors resolved and checked at their oldest allowed versions (`composer
 check-floors`), explanation parsing confirmed against three engines across two Lucene generations (see
-"Search engine compatibility"), 107 tests, phpcs and phpstan level 6 clean.
+"Search engine compatibility"), 170 tests, phpcs and phpstan level 6 clean.
 
 ## Search Debug — Spryker Community Extension
 
@@ -676,6 +676,14 @@ For that reason the suites are **not** part of CI: a clean runner has neither a 
 cluster, and standing both up per build would cost far more than it returns. CI therefore covers the
 static guarantees; the test suite is run against a real shop before a release. A standalone bootstrap
 that would let CI run them too is on the roadmap.
+
+One branch is deliberately left untested: `SearchDebugContextEventDispatcherPlugin::handleRequest()`'s
+permission-granted path (the one that actually turns debug mode on) calls `PermissionAwareTrait::can()`,
+which reaches through Spryker's global `Locator` singleton rather than an injected dependency — there is
+no constructor seam to substitute a fake permission client. Both early-return paths (non-main request,
+non-search route) are covered directly; the permission check itself is exercised only by manually granting
+the permission (step 9, [Grant the permission](#9-grant-the-permission)) and confirming the overlay
+appears.
 
 Static analysis (`phpstan`) is likewise run from a host shop rather than in CI: it needs the generated
 `Generated\Shared\Transfer\*` classes, which only exist once a project has run `transfer:generate`.

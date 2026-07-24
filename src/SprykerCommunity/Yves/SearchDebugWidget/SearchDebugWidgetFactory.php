@@ -18,8 +18,10 @@ use Spryker\Yves\Kernel\AbstractFactory;
 use SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\AnalysisPathResolver;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\AnalysisPathResolverInterface;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\CategoryAncestorNameCollector;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\ComponentConfigFormatter;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\ComponentConfigFormatterInterface;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\ProductSourceMapBuilder;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighter;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolver;
@@ -34,14 +36,34 @@ class SearchDebugWidgetFactory extends AbstractFactory
     {
         return new TokenSourceResolver(
             $this->getProductStorageClient(),
+            $this->getSearchDebugClient(),
+            $this->createTokenHighlighter(),
+            $this->createProductSourceMapBuilder(),
+        );
+    }
+
+    /**
+     * @return \SprykerCommunity\Yves\SearchDebugWidget\Resolver\ProductSourceMapBuilder
+     */
+    public function createProductSourceMapBuilder(): ProductSourceMapBuilder
+    {
+        return new ProductSourceMapBuilder(
+            $this->getProductStorageClient(),
             $this->getProductCategoryStorageClient(),
             $this->getCategoryStorageClient(),
             $this->getMerchantStorageClient(),
-            $this->getSearchDebugClient(),
             $this->getStoreClient(),
-            $this->createTokenHighlighter(),
+            $this->createCategoryAncestorNameCollector(),
             $this->getTokenSourceProviderPlugins(),
         );
+    }
+
+    /**
+     * @return \SprykerCommunity\Yves\SearchDebugWidget\Resolver\CategoryAncestorNameCollector
+     */
+    public function createCategoryAncestorNameCollector(): CategoryAncestorNameCollector
+    {
+        return new CategoryAncestorNameCollector();
     }
 
     /**

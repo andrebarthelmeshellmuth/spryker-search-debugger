@@ -15,6 +15,8 @@ use Elastica\Response;
 use Elastica\Result;
 use Elastica\ResultSet;
 use SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessCheckerInterface;
+use SprykerCommunity\Client\SearchDebug\Explanation\Bm25BreakdownExtractor;
+use SprykerCommunity\Client\SearchDebug\Explanation\CrossFieldsSynonymMatcher;
 use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser;
 use SprykerCommunity\Client\SearchDebug\Plugin\Catalog\SearchDebugResultFormatterPlugin;
 use SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReaderInterface;
@@ -218,7 +220,7 @@ class SearchDebugResultFormatterPluginTest extends Unit
             ->willReturn($searchDebugAccessCheckerMock);
         $searchDebugFactoryMock
             ->method('createExplanationParser')
-            ->willReturn(new ExplanationParser());
+            ->willReturn(new ExplanationParser(new CrossFieldsSynonymMatcher(), new Bm25BreakdownExtractor()));
         $searchDebugFactoryMock
             ->method('createQueryFieldBoostReader')
             ->willReturn($queryFieldBoostReaderMock);
