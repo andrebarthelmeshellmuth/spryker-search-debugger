@@ -194,6 +194,11 @@ class ExplanationParser implements ExplanationParserInterface
     {
         // A fresh accumulator per call, never shared across calls — see TermWeightAccumulator's own doc
         // for why (one search-result page parses several hits' explain trees with the same parser).
+        // Deliberately not Factory-created: unlike the constructor-injected collaborators above (which are
+        // assembled once and reused for this parser's whole lifetime), this is throwaway per-call state
+        // with no dependencies of its own — the same category as a Transfer, Context, or Collection object,
+        // which Spryker core itself `new`s inline throughout (e.g. Oms\OrderStateMachine's
+        // ConditionCollection/CommandCollection, Discount\DecisionRuleProvider's DecisionRuleContext).
         $termWeightAccumulator = new TermWeightAccumulator();
         $otherContributions = [];
         $scoreFunctions = [];
