@@ -45,11 +45,11 @@ of the query.
 ## Status
 
 Feature-complete and verified for its scope: search relevance debugging, including per-token
-analysis-path visualization. Pending a full code review before a 1.0 tag. More tools are planned.
+analysis-path visualization. More tools are planned.
 
 Verified: dependency floors resolved and checked at their oldest allowed versions (`composer
 check-floors`), explanation parsing confirmed against three engines across two Lucene generations (see
-"Search engine compatibility"), 107 tests, phpcs and phpstan level 6 clean.
+"Search engine compatibility"), 170 tests, phpcs and phpstan level 6 clean.
 
 ## Search Debug — Spryker Community Extension
 
