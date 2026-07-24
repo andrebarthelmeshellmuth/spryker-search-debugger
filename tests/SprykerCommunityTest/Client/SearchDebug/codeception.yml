@@ -9,7 +9,8 @@ paths:
 coverage:
     enabled: true
     remote: false
-    whitelist: { include: ['../../../src/*'] }
+    include:
+        - 'packages/spryker-community/search-debug/src/*'
 
 suites:
     Client:
