@@ -683,3 +683,22 @@ Static analysis (`phpstan`) is likewise run from a host shop rather than in CI: 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Acknowledgements
+
+Search Debug is an original project, but it reflects more than a decade of building search solutions for
+e-commerce. Along the way, I had the privilege of working with engineers whose ideas and experience
+shaped my approach to search engineering.
+
+I'd particularly like to thank:
+
+- **Martin Loetsch** — for the architectural ideas behind Contorion's early search platform.
+- **Krešimir Slugan** — who handed over Contorion's search implementation to me and demonstrated an
+  uncompromising focus on performance.
+- **Alberto Reyer** (formerly Assmann) — for sharing the history and rationale behind Spryker Search's
+  original design decisions and the engineering trade-offs behind them.
+
+I'd also like to acknowledge the Spryker engineering team for creating an extensible platform that made
+community packages like Search Debug possible.
+
+Any mistakes, questionable design decisions or bugs in this project are, of course, entirely my own.
