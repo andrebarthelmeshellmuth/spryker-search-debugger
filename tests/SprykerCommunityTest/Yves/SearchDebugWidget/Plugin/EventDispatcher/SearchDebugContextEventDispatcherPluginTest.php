@@ -11,6 +11,7 @@ namespace SprykerCommunityTest\Yves\SearchDebugWidget\Plugin\EventDispatcher;
 
 use Codeception\Test\Unit;
 use ReflectionMethod;
+use Spryker\Service\Container\ContainerInterface;
 use Spryker\Shared\EventDispatcher\EventDispatcher;
 use Spryker\Shared\EventDispatcher\EventDispatcherInterface;
 use SprykerCommunity\Shared\SearchDebug\SearchDebugConfig;
@@ -136,7 +137,7 @@ class SearchDebugContextEventDispatcherPluginTest extends Unit
      */
     protected function extendDispatcher(SearchDebugContextEventDispatcherPlugin $plugin): EventDispatcherInterface
     {
-        return $plugin->extend(new EventDispatcher(), $this->createMock(\Spryker\Service\Container\ContainerInterface::class));
+        return $plugin->extend(new EventDispatcher(), $this->createMock(ContainerInterface::class));
     }
 
     /**
