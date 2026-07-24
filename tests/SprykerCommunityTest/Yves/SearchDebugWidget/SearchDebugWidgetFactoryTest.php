@@ -84,6 +84,7 @@ class SearchDebugWidgetFactoryTest extends Unit
         $container->set(SearchDebugWidgetDependencyProvider::CLIENT_MERCHANT_STORAGE, $this->createMock(MerchantStorageClientInterface::class));
         $container->set(SearchDebugWidgetDependencyProvider::CLIENT_SEARCH_DEBUG, $this->createMock(SearchDebugClientInterface::class));
         $container->set(SearchDebugWidgetDependencyProvider::CLIENT_STORE, $this->createMock(StoreClientInterface::class));
+        $container->set(SearchDebugWidgetDependencyProvider::PLUGINS_TOKEN_SOURCE_PROVIDER, []);
 
         $factory = new SearchDebugWidgetFactory();
         $factory->setContainer($container);
