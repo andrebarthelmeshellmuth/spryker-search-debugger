@@ -32,6 +32,8 @@ use SprykerCommunity\Client\SearchDebug\Analyzer\SearchStringAnalyzer;
 use SprykerCommunity\Client\SearchDebug\Analyzer\SearchStringAnalyzerInterface;
 use SprykerCommunity\Client\SearchDebug\Document\PageDocumentReader;
 use SprykerCommunity\Client\SearchDebug\Document\PageDocumentReaderInterface;
+use SprykerCommunity\Client\SearchDebug\Explanation\Bm25BreakdownExtractor;
+use SprykerCommunity\Client\SearchDebug\Explanation\CrossFieldsSynonymMatcher;
 use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser;
 use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParserInterface;
 use SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReader;
@@ -108,7 +110,23 @@ class SearchDebugFactory extends AbstractFactory
      */
     public function createExplanationParser(): ExplanationParserInterface
     {
-        return new ExplanationParser();
+        return new ExplanationParser($this->createCrossFieldsSynonymMatcher(), $this->createBm25BreakdownExtractor());
+    }
+
+    /**
+     * @return \SprykerCommunity\Client\SearchDebug\Explanation\CrossFieldsSynonymMatcher
+     */
+    public function createCrossFieldsSynonymMatcher(): CrossFieldsSynonymMatcher
+    {
+        return new CrossFieldsSynonymMatcher();
+    }
+
+    /**
+     * @return \SprykerCommunity\Client\SearchDebug\Explanation\Bm25BreakdownExtractor
+     */
+    public function createBm25BreakdownExtractor(): Bm25BreakdownExtractor
+    {
+        return new Bm25BreakdownExtractor();
     }
 
     /**
