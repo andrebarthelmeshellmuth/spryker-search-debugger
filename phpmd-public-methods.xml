@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<ruleset name="search-debug-public-methods"
+         xmlns="http://pmd.sf.net/ruleset/1.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sf.net/ruleset/1.0.0 http://pmd.sf.net/ruleset_xml_schema.xsd">
+
+    <description>
+        Public-method-count check, exempting Facades, Factories, Bridges and EntityManagers: Spryker's own
+        architecture gives every module Facade one public method per business-layer capability, every
+        Factory one create*() per collaborator it wires up, every Bridge one passthrough method per method
+        on the facade it bridges, and every EntityManager one method per persistence operation the module
+        needs — a high count in any of these reflects the framework's own DI/persistence conventions, not
+        a design problem this package can fix. Run as its own phpmd invocation, separate from phpmd.xml —
+        see that file's description for why.
+    </description>
+
+    <exclude-pattern>*Facade.php</exclude-pattern>
+    <exclude-pattern>*Factory.php</exclude-pattern>
+    <exclude-pattern>*Bridge.php</exclude-pattern>
+    <exclude-pattern>*EntityManager.php</exclude-pattern>
+
+    <rule ref="rulesets/codesize.xml/TooManyPublicMethods"/>
+</ruleset>

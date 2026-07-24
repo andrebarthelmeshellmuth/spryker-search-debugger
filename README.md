@@ -642,6 +642,7 @@ how the number is shown.
 | `composer validate` | the manifest stays well-formed |
 | `phpcs` (PHP 8.3, 8.4) | coding standard, via this package's own `phpcs.xml` |
 | `composer check-floors` (PHP 8.3, 8.4) | the declared dependency floors are real |
+| `phpmd` (`phpmd.xml` + `phpmd-public-methods.xml`) | cyclomatic/NPath complexity, method/class length stay reasonable — run as two separate invocations because PHPMD merges every loaded ruleset's `exclude-pattern` into one global file list per run, and only the public-method-count rule should skip Facades/Factories (Spryker's own DI convention gives each one method per capability/collaborator, not a design problem this package can fix) |
 
 `check-floors` is the one worth understanding. This package's `require` constraints are a promise about
 which Spryker versions an adopter may install — and that promise is exactly what a development shop
