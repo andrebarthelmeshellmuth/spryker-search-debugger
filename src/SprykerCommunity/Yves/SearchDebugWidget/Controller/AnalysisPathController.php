@@ -97,7 +97,7 @@ class AnalysisPathController extends AbstractController
             throw new BadRequestHttpException('Both `text` and `token` query parameters are required.');
         }
 
-        $useSearchAnalyzer = $request->query->get(static::PARAM_ANALYZER) === static::ANALYZER_SEARCH;
+        $useSearchAnalyzer = $this->resolveUseSearchAnalyzer($request);
 
         $offset = $this->resolveExplicitOffset($request) ?? $this->findFirstMatchOffset(
             $this->getFactory()->getSearchDebugClient()->getTextTokenOffsets($text, $useSearchAnalyzer),
@@ -157,6 +157,16 @@ class AnalysisPathController extends AbstractController
         }
 
         return $path;
+    }
+
+    /**
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     *
+     * @return bool
+     */
+    protected function resolveUseSearchAnalyzer(Request $request): bool
+    {
+        return $request->query->get(static::PARAM_ANALYZER) === static::ANALYZER_SEARCH;
     }
 
     /**
