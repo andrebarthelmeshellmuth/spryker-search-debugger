@@ -35,9 +35,12 @@ Search Debug helps Search Engineers explain ranking decisions—quickly enough t
 
 A permission-gated user browsing the storefront search results gets a per-product overlay with the real
 Elasticsearch `_score`, which query tokens matched, and — one click deeper — the exact BM25 boost/idf/tf
-numbers behind each match, pinned open for comparing two products side by side:
+numbers behind each match, pinned open for comparing two products side by side. Each query token in the
+headline also has its own magnifying-glass link (traced through the search-time analyzer — see
+"Analysis-path page" below), so how the shopper's own typed words became a search token is one click away
+too:
 
-![The SRP score overlay, pinned open, showing matched tokens with their BM25 breakdown and the final score used for ranking](docs/screenshots/srp-overlay.png)
+![The SRP score overlay: the query-token headline with a magnifying-glass link on each token, and the per-product overlay pinned open showing matched tokens with their BM25 breakdown and the final score used for ranking](docs/screenshots/srp-overlay.png)
 
 No more "because Elasticsearch said so" — every number on the page traces back to a real, inspectable part
 of the query.
