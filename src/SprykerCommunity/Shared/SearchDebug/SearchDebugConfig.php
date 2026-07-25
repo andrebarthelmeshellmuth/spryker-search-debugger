@@ -49,6 +49,21 @@ class SearchDebugConfig extends AbstractSharedConfig
     public const KEY_TOKENS = 'tokens';
 
     /**
+     * Key of the query string's own per-token character offsets (keyed by token text, one entry per
+     * DISTINCT token — same "first occurrence wins" simplification {@see TOKEN_COLOR_CLASS_PATTERN}'s
+     * color assignment already makes, since a repeated query token always gets the same badge and would
+     * therefore always open the same analysis path regardless of which occurrence's link was clicked),
+     * within the search debug result data. Powers the SRP overlay's own "trace this query token" link —
+     * distinct from the token-source page's per-match links, which carry a specific occurrence's offsets
+     * because two occurrences of the same matched TEXT in indexed product content can trace back to
+     * different origin words; a query string has no such ambiguity; the same typed word always analyzes
+     * the same way.
+     *
+     * @var string
+     */
+    public const KEY_TOKEN_OFFSETS = 'tokenOffsets';
+
+    /**
      * Key of the per-product debug data (keyed by abstract product id), within the search debug result data.
      *
      * @var string

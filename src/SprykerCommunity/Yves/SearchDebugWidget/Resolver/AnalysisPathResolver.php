@@ -41,12 +41,13 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
      * @param string $token
      * @param int $startOffset
      * @param int $endOffset
+     * @param bool $useSearchAnalyzer
      *
      * @return array<int, array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool}>|null
      */
-    public function resolve(string $text, string $token, int $startOffset, int $endOffset): ?array
+    public function resolve(string $text, string $token, int $startOffset, int $endOffset, bool $useSearchAnalyzer = false): ?array
     {
-        $stages = $this->searchDebugClient->getTextAnalysisStages($text);
+        $stages = $this->searchDebugClient->getTextAnalysisStages($text, $useSearchAnalyzer);
 
         if ($stages === []) {
             return null;

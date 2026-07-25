@@ -345,6 +345,37 @@ class AnalysisPathResolverTest extends Unit
     }
 
     /**
+     * `$useSearchAnalyzer` is forwarded verbatim to the client — this resolver has no analyzer choice of
+     * its own to make, it only threads the caller's choice through to whichever `_analyze` call actually
+     * produces the stages.
+     *
+     * @return void
+     */
+    public function testResolveForwardsTheSearchAnalyzerFlagToTheClient(): void
+    {
+        // Arrange
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->expects($this->once())
+            ->method('getTextAnalysisStages')
+            ->with('cable', true)
+            ->willReturn([
+                [
+                    'operation' => 'tokenizer: standard',
+                    'definition' => null,
+                    'componentKind' => null,
+                    'componentName' => null,
+                    'definitionTruncated' => false,
+                    'tokens' => [['token' => 'cable', 'startOffset' => 0, 'endOffset' => 5]],
+                ],
+            ]);
+
+        $resolver = new AnalysisPathResolver($searchDebugClientMock, new TokenHighlighter());
+
+        // Act
+        $resolver->resolve('cable', 'cable', 0, 5, true);
+    }
+
+    /**
      * @return void
      */
     public function testResolveReturnsNullWhenTheClientHasNoStagesAtAll(): void

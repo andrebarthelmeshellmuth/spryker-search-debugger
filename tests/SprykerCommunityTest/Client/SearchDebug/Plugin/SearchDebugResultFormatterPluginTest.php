@@ -110,6 +110,57 @@ class SearchDebugResultFormatterPluginTest extends Unit
     /**
      * @return void
      */
+    public function testFormatResultReturnsTheQueryTokenOffsetsResolvedThroughTheSearchAnalyzer(): void
+    {
+        // Arrange
+        $resultFormatterPlugin = $this->createResultFormatterPlugin(true, ['cable', 'tie'], [], [
+            ['token' => 'cable', 'startOffset' => 0, 'endOffset' => 5],
+            ['token' => 'tie', 'startOffset' => 6, 'endOffset' => 9],
+        ]);
+        $resultSet = $this->createResultSet([$this->createHit(20.7051)]);
+
+        // Act
+        $result = $resultFormatterPlugin->formatResult($resultSet, $this->createRequestParameters());
+
+        // Assert
+        $this->assertSame(
+            [
+                'cable' => ['startOffset' => 0, 'endOffset' => 5],
+                'tie' => ['startOffset' => 6, 'endOffset' => 9],
+            ],
+            $result[SearchDebugConfig::KEY_TOKEN_OFFSETS],
+        );
+    }
+
+    /**
+     * A query token searched more than once (e.g. "cable cable tie") must still produce exactly ONE
+     * offsets entry for it — the FIRST occurrence — mirroring the same simplification the token-color
+     * assignment already makes for a repeated token.
+     *
+     * @return void
+     */
+    public function testFormatResultKeepsOnlyTheFirstOffsetForARepeatedQueryToken(): void
+    {
+        // Arrange
+        $resultFormatterPlugin = $this->createResultFormatterPlugin(true, ['cable', 'cable'], [], [
+            ['token' => 'cable', 'startOffset' => 0, 'endOffset' => 5],
+            ['token' => 'cable', 'startOffset' => 6, 'endOffset' => 11],
+        ]);
+        $resultSet = $this->createResultSet([$this->createHit(20.7051)]);
+
+        // Act
+        $result = $resultFormatterPlugin->formatResult($resultSet, $this->createRequestParameters());
+
+        // Assert
+        $this->assertSame(
+            ['cable' => ['startOffset' => 0, 'endOffset' => 5]],
+            $result[SearchDebugConfig::KEY_TOKEN_OFFSETS],
+        );
+    }
+
+    /**
+     * @return void
+     */
     public function testFormatResultReturnsNoDataWhenSearchDebugIsDisabled(): void
     {
         // Arrange
@@ -187,6 +238,7 @@ class SearchDebugResultFormatterPluginTest extends Unit
      * @param bool $isSearchDebugEnabled
      * @param array<string> $queryTokens
      * @param array<string, int> $fieldBoosts
+     * @param array<array{token: string, startOffset: int, endOffset: int}> $queryTokenOffsets
      *
      * @return \SprykerCommunity\Client\SearchDebug\Plugin\Catalog\SearchDebugResultFormatterPlugin
      */
@@ -194,6 +246,7 @@ class SearchDebugResultFormatterPluginTest extends Unit
         bool $isSearchDebugEnabled,
         array $queryTokens,
         array $fieldBoosts = [],
+        array $queryTokenOffsets = [],
     ): SearchDebugResultFormatterPlugin {
         $searchDebugAccessCheckerMock = $this->createMock(SearchDebugAccessCheckerInterface::class);
         $searchDebugAccessCheckerMock
@@ -206,6 +259,10 @@ class SearchDebugResultFormatterPluginTest extends Unit
         $searchDebugClientMock
             ->method('getSearchStringTokens')
             ->willReturn($queryTokens);
+        $searchDebugClientMock
+            ->method('getTextTokenOffsets')
+            ->with($this->anything(), true)
+            ->willReturn($queryTokenOffsets);
 
         $queryFieldBoostReaderMock = $this->createMock(QueryFieldBoostReaderInterface::class);
         $queryFieldBoostReaderMock

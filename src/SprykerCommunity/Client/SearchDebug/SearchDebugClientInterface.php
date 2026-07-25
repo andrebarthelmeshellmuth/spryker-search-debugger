@@ -29,11 +29,14 @@ interface SearchDebugClientInterface
 
     /**
      * Specification:
-     * - Runs $text through the page index's INDEX-time analyzer (resolved from the live index's mapping),
-     *   via Elasticsearch's `_analyze` endpoint with `explain: true` — deliberately the index-time
-     *   analyzer, not the query-time one `getSearchStringTokens()` uses: this answers "does $text contain
-     *   token X", which is determined by what $text would be indexed as, not by how a query string gets
-     *   tokenized.
+     * - Runs $text through the page index's INDEX-time analyzer by default (resolved from the live
+     *   index's mapping), via Elasticsearch's `_analyze` endpoint with `explain: true` — deliberately the
+     *   index-time analyzer, not the query-time one `getSearchStringTokens()` uses: this answers "does
+     *   $text contain token X", which is determined by what $text would be indexed as, not by how a
+     *   query string gets tokenized.
+     * - Pass `$useSearchAnalyzer = true` to trace a QUERY string's own tokenization instead (the text was
+     *   never indexed, only searched) — e.g. for an analysis path reached from one of the SRP overlay's
+     *   own matched query tokens, rather than from a product's indexed content.
      * - Returns each resulting token together with its start/end character offset into $text, so a caller
      *   can locate exactly where in the original text a given token came from (e.g. to highlight it).
      * - Returns an empty array for empty text or when Elasticsearch is unreachable.
@@ -41,10 +44,11 @@ interface SearchDebugClientInterface
      * @api
      *
      * @param string $text
+     * @param bool $useSearchAnalyzer
      *
      * @return array<array{token: string, startOffset: int, endOffset: int}>
      */
-    public function getTextTokenOffsets(string $text): array;
+    public function getTextTokenOffsets(string $text, bool $useSearchAnalyzer = false): array;
 
     /**
      * Specification:
@@ -78,13 +82,17 @@ interface SearchDebugClientInterface
      *   was configured for it.
      * - Returns an empty array for empty text or when Elasticsearch is unreachable.
      *
+     * - Pass `$useSearchAnalyzer = true` to trace a QUERY string's own tokenization instead of a piece of
+     *   indexed product text — see {@see getTextTokenOffsets()}'s parameter of the same name.
+     *
      * @api
      *
      * @param string $text
+     * @param bool $useSearchAnalyzer
      *
      * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
      */
-    public function getTextAnalysisStages(string $text): array;
+    public function getTextAnalysisStages(string $text, bool $useSearchAnalyzer = false): array;
 
     /**
      * Specification:

@@ -61,7 +61,7 @@ class SearchDebugClientTest extends Unit
         $offsets = [['token' => 'cable', 'startOffset' => 0, 'endOffset' => 5]];
 
         $searchStringAnalyzerMock = $this->createMock(SearchStringAnalyzerInterface::class);
-        $searchStringAnalyzerMock->expects($this->once())->method('getTokenOffsets')->with('cable')->willReturn($offsets);
+        $searchStringAnalyzerMock->expects($this->once())->method('getTokenOffsets')->with('cable', false)->willReturn($offsets);
 
         $factoryMock = $this->getMockBuilder(SearchDebugFactory::class)
             ->onlyMethods(['createSearchStringAnalyzer'])
@@ -73,6 +73,32 @@ class SearchDebugClientTest extends Unit
 
         // Act
         $result = $client->getTextTokenOffsets('cable');
+
+        // Assert
+        $this->assertSame($offsets, $result);
+    }
+
+    /**
+     * @return void
+     */
+    public function testGetTextTokenOffsetsForwardsTheSearchAnalyzerFlagToTheSearchStringAnalyzer(): void
+    {
+        // Arrange
+        $offsets = [['token' => 'cable', 'startOffset' => 0, 'endOffset' => 5]];
+
+        $searchStringAnalyzerMock = $this->createMock(SearchStringAnalyzerInterface::class);
+        $searchStringAnalyzerMock->expects($this->once())->method('getTokenOffsets')->with('cable', true)->willReturn($offsets);
+
+        $factoryMock = $this->getMockBuilder(SearchDebugFactory::class)
+            ->onlyMethods(['createSearchStringAnalyzer'])
+            ->getMock();
+        $factoryMock->method('createSearchStringAnalyzer')->willReturn($searchStringAnalyzerMock);
+
+        $client = new SearchDebugClient();
+        $client->setFactory($factoryMock);
+
+        // Act
+        $result = $client->getTextTokenOffsets('cable', true);
 
         // Assert
         $this->assertSame($offsets, $result);
@@ -125,7 +151,7 @@ class SearchDebugClientTest extends Unit
         ];
 
         $searchStringAnalyzerMock = $this->createMock(SearchStringAnalyzerInterface::class);
-        $searchStringAnalyzerMock->expects($this->once())->method('getAnalysisStages')->with('cable')->willReturn($stages);
+        $searchStringAnalyzerMock->expects($this->once())->method('getAnalysisStages')->with('cable', false)->willReturn($stages);
 
         $factoryMock = $this->getMockBuilder(SearchDebugFactory::class)
             ->onlyMethods(['createSearchStringAnalyzer'])
@@ -137,6 +163,41 @@ class SearchDebugClientTest extends Unit
 
         // Act
         $result = $client->getTextAnalysisStages('cable');
+
+        // Assert
+        $this->assertSame($stages, $result);
+    }
+
+    /**
+     * @return void
+     */
+    public function testGetTextAnalysisStagesForwardsTheSearchAnalyzerFlagToTheSearchStringAnalyzer(): void
+    {
+        // Arrange
+        $stages = [
+            [
+                'operation' => 'analyzer: fulltext_search_analyzer',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
+                'tokens' => [],
+            ],
+        ];
+
+        $searchStringAnalyzerMock = $this->createMock(SearchStringAnalyzerInterface::class);
+        $searchStringAnalyzerMock->expects($this->once())->method('getAnalysisStages')->with('cable', true)->willReturn($stages);
+
+        $factoryMock = $this->getMockBuilder(SearchDebugFactory::class)
+            ->onlyMethods(['createSearchStringAnalyzer'])
+            ->getMock();
+        $factoryMock->method('createSearchStringAnalyzer')->willReturn($searchStringAnalyzerMock);
+
+        $client = new SearchDebugClient();
+        $client->setFactory($factoryMock);
+
+        // Act
+        $result = $client->getTextAnalysisStages('cable', true);
 
         // Assert
         $this->assertSame($stages, $result);

@@ -56,6 +56,22 @@ class AnalysisPathController extends AbstractController
     protected const PARAM_END_OFFSET = 'endOffset';
 
     /**
+     * Selects which analyzer the path is traced through — absent or any other value means the index-time
+     * analyzer (tracing a piece of indexed product text, reached from the token-source page); the one
+     * recognized non-default value is {@see ANALYZER_SEARCH} (tracing a QUERY string's own tokenization,
+     * reached from the SRP overlay's own matched query tokens — that text was never indexed, only
+     * searched).
+     *
+     * @var string
+     */
+    protected const PARAM_ANALYZER = 'analyzer';
+
+    /**
+     * @var string
+     */
+    protected const ANALYZER_SEARCH = 'search';
+
+    /**
      * @param \Symfony\Component\HttpFoundation\Request $request
      *
      * @throws \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException
@@ -81,8 +97,10 @@ class AnalysisPathController extends AbstractController
             throw new BadRequestHttpException('Both `text` and `token` query parameters are required.');
         }
 
+        $useSearchAnalyzer = $request->query->get(static::PARAM_ANALYZER) === static::ANALYZER_SEARCH;
+
         $offset = $this->resolveExplicitOffset($request) ?? $this->findFirstMatchOffset(
-            $this->getFactory()->getSearchDebugClient()->getTextTokenOffsets($text),
+            $this->getFactory()->getSearchDebugClient()->getTextTokenOffsets($text, $useSearchAnalyzer),
             $token,
         );
 
@@ -92,7 +110,7 @@ class AnalysisPathController extends AbstractController
 
         $path = $this->getFactory()
             ->createAnalysisPathResolver()
-            ->resolve($text, $token, $offset['startOffset'], $offset['endOffset']);
+            ->resolve($text, $token, $offset['startOffset'], $offset['endOffset'], $useSearchAnalyzer);
 
         if ($path === null) {
             throw new NotFoundHttpException('Could not reconstruct an analysis path for this token.');

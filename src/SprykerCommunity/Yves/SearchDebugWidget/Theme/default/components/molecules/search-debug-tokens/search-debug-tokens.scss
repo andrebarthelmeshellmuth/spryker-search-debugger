@@ -2,3 +2,32 @@
 // (a shared partial, so search-debug-product-info can `@import` it too without depending on this
 // component's compiled bundle).
 @import 'search-debug-token-badge';
+// For $search-debug-feature-accent-color below.
+@import 'search-debug-palette';
+
+// Opens the analysis-path page for this exact query token, traced through the SEARCH-time analyzer (see
+// AnalysisPathController's `analyzer=search` param) rather than the index-time one the token-source
+// page's own links use — reuses the SAME feature-accent color as those links, so both read as the same
+// "go deeper" affordance regardless of which analyzer traced them.
+.search-debug-token__analysis-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: rem(14);
+    height: rem(14);
+    margin-left: rem(4);
+    vertical-align: middle;
+    border-radius: 50%;
+    background-color: $search-debug-feature-accent-color;
+    color: $setting-color-white;
+
+    .icon {
+        width: rem(8);
+        height: rem(8);
+    }
+
+    &:hover,
+    &:focus {
+        background-color: darken($search-debug-feature-accent-color, 8%);
+    }
+}

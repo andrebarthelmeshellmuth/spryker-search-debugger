@@ -49,7 +49,7 @@ analysis-path visualization. More tools are planned.
 
 Verified: dependency floors resolved and checked at their oldest allowed versions (`composer
 check-floors`), explanation parsing confirmed against three engines across two Lucene generations (see
-"Search engine compatibility"), 170 tests, phpcs and phpstan level 6 clean.
+"Search engine compatibility"), 223 tests, phpcs and phpstan level 6 clean.
 
 ## Search Debug — Spryker Community Extension
 
@@ -89,6 +89,12 @@ catalog search:
   filter actually transformed the text (e.g. a synonym injecting a different word), not just decoration.
 
   ![The analysis-path page: "trolley" traced stage by stage until the fulltext_synonyms filter injects "handcart" — the color change from green to orange is the visual tell](docs/screenshots/analysis-path-page.png)
+
+  The SRP overlay's own query-token headline has the same magnifier, on each token — traced through the
+  **search-time** analyzer instead, since a query token was never indexed, only searched. When a shop's
+  index- and search-time analyzers genuinely differ (synonym expansion applied on only one side, different
+  stemming/ngram settings), this is the one that explains how the shopper's own typed words became a
+  search token — the token-source page's index-time trace only ever explains product content.
 - **Component-config page** — when a filter's configuration is too long to show inline (a `stop`/`synonym`
   filter's word list can run into the hundreds), the analysis-path page's definition line shows a preview
   plus a "view full definition" link instead of dumping everything into one line. It opens a new tab
@@ -306,19 +312,22 @@ view data:
     {# ...your existing entries... #}
 
     searchDebugTokens: _view.searchDebug.tokens | default([]),
+    searchDebugTokenOffsets: _view.searchDebug.tokenOffsets | default([]),
     searchDebugProducts: _view.searchDebug.products | default([]),
     searchDebugFieldBoosts: _view.searchDebug.fieldBoosts | default([]),
     searchDebugTokenColors: searchDebugTokenColors(_view.searchDebug.tokens | default([])),
 } %}
 ```
 
-Then render the query-token headline:
+Then render the query-token headline — `searchString` (your view's own raw query string, e.g. `_view.searchString`) lets each token's magnifying-glass link re-analyze the exact text it was searched as:
 
 ```twig
 {% include molecule('search-debug-tokens', 'SearchDebugWidget') with {
     data: {
         tokens: data.searchDebugTokens,
         tokenColors: data.searchDebugTokenColors,
+        tokenOffsets: data.searchDebugTokenOffsets,
+        searchString: data.searchString,
     },
 } only %}
 ```
