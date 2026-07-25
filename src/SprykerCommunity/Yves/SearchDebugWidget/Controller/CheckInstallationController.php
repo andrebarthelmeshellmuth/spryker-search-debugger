@@ -32,12 +32,13 @@ use Twig\Error\SyntaxError;
  *
  * Reachable only when BOTH gates pass: the route itself only exists when
  * {@see \SprykerCommunity\Shared\SearchDebug\SearchDebugConstants::IS_CHECK_INSTALLATION_PAGE_ENABLED}
- * allows it (a project's production config sets that to `false`, so the URL 404s in production
- * regardless of permission — see that constant for why), AND the visiting customer holds
+ * allows it (defaults to `false` — a project opts in via its development-tier config, so the URL 404s
+ * everywhere else regardless of permission — see that constant for why), AND the visiting customer holds
  * {@see SeeSearchDebugInfoPermissionPlugin}. Missing the permission on an environment where the route
  * does exist renders a dedicated explanation with the exact remedy, rather than a bare 403 — a customer
  * lacking the permission is not a security incident here, it is almost always someone mid-setup who
- * has not granted it yet, so it does not warrant the exact same anonymous non-response production gets.
+ * has not granted it yet, so it does not warrant the exact same anonymous non-response an unflagged
+ * environment gets.
  *
  * @method \SprykerCommunity\Yves\SearchDebugWidget\SearchDebugWidgetFactory getFactory()
  */

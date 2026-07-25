@@ -17,14 +17,20 @@ interface SearchDebugConstants
     /**
      * Specification:
      * - Toggles whether the `search-debug:check-installation` Yves diagnostic page's route registers at all.
-     * - Defaults to enabled so the page helps diagnose a fresh install out of the box.
-     * - Set to `false` in a project's production config (e.g. `config_default-production.php`) so the
-     *   route never registers there: the URL then 404s exactly like any nonexistent path, rather than
-     *   existing-but-denied. A permission check alone would still leak "this route exists and is gated"
-     *   to an unauthenticated prober; not registering the route at all removes that signal entirely.
+     * - Defaults to **disabled**: the route does not exist anywhere unless a project opts in. Fail-closed
+     *   by default, matching both this package's own convention (every other capability — plugins, routes,
+     *   the permission itself — requires explicit registration, nothing auto-activates) and Spryker core's
+     *   own idiom for exactly this kind of dev diagnostic (`Spryker\Shared\WebProfiler\WebProfilerConstants::IS_WEB_PROFILER_ENABLED`
+     *   likewise defaults to `false`, turned on only in a dev-tier config).
+     * - Set to `true` in a project's development-tier config (e.g. `config_default-development.php`) to
+     *   opt in — the page is genuinely useful while wiring up steps 1-9 above, so enabling it there is the
+     *   recommended first thing to do, not an afterthought.
      * - The permission check in {@see \SprykerCommunity\Yves\SearchDebugWidget\Controller\CheckInstallationController}
-     *   still applies wherever this flag leaves the route enabled (e.g. staging), so enabling it outside
-     *   production does not by itself expose the page to anyone but a permitted customer.
+     *   still applies wherever a project opts this flag on, so enabling it (even in a shared staging
+     *   environment) does not by itself expose the page to anyone but a permitted customer. Not registering
+     *   the route at all is still the stronger default, though: a permission check alone would still leak
+     *   "this route exists and is gated" to an unauthenticated prober, which leaving the flag off entirely
+     *   avoids.
      *
      * @api
      *

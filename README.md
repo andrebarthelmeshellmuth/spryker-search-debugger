@@ -30,6 +30,7 @@ Search Debug helps Search Engineers explain ranking decisions—quickly enough t
   - [Automated checks](#automated-checks)
   - [Test suite](#test-suite)
 - [License](#license)
+- [Acknowledgements](#acknowledgements)
 
 ## What does this do?
 
@@ -431,26 +432,28 @@ Reachable only when BOTH hold:
 
 - The route exists at all — governed by
   `SprykerCommunity\Shared\SearchDebug\SearchDebugConstants::IS_CHECK_INSTALLATION_PAGE_ENABLED`, which
-  defaults to enabled. **Set it to `false` in your production config** (e.g.
-  `config/Shared/config_default-production.php`):
+  **defaults to disabled**: the route does not register anywhere unless a project explicitly opts in. This
+  matches every other capability in this package (nothing activates without explicit registration) and
+  Spryker core's own idiom for this kind of dev diagnostic — `WebProfilerConstants::IS_WEB_PROFILER_ENABLED`
+  likewise defaults to `false`, turned on only in a dev-tier config. **Enable it in your development-tier
+  config** (e.g. `config/Shared/config_default-development.php`) — the page is genuinely useful while
+  wiring up steps 1-9 above, so turning it on there is worth doing as you go, not an afterthought:
 
   ```php
-  $config[SearchDebugConstants::IS_CHECK_INSTALLATION_PAGE_ENABLED] = false;
+  $config[SearchDebugConstants::IS_CHECK_INSTALLATION_PAGE_ENABLED] = true;
   ```
 
-  With the flag off, the route never registers there, so the URL 404s in production exactly like any
-  nonexistent path — regardless of permission. A permission check alone would still leak "this route
-  exists and is gated" to an anonymous prober; not registering the route at all removes that signal
-  entirely. This is deliberately a config flag rather than the package auto-detecting an environment name
-  — the same idiom Spryker's own `WebProfilerConstants::IS_WEB_PROFILER_ENABLED` uses, since environment
-  names and what counts as "production" vary per project, and guessing wrong in either direction is worse
-  than an explicit opt-out.
+  This is deliberately a config flag rather than the package auto-detecting an environment name — since
+  environment names and tier boundaries vary per project, and guessing wrong in either direction is worse
+  than an explicit opt-in. Leaving it off in shared/production-like environments means the URL 404s exactly
+  like any nonexistent path, regardless of permission — a permission check alone would still leak "this
+  route exists and is gated" to an anonymous prober, which not registering the route at all avoids entirely.
 - The visiting customer holds the `SeeSearchDebugInfoPermissionPlugin` permission — checked wherever the
-  flag above leaves the route enabled (e.g. staging), so enabling it outside production does not by itself
-  expose the page to anyone but a permitted customer. Missing the permission there renders a dedicated
-  explanation with the exact remedy (grant the permission, per step 9) at HTTP 403, rather than a bare
-  access-denied response — someone hitting this page without the permission yet is almost always mid-setup,
-  not an incident.
+  flag above leaves the route enabled, so opting in on a shared environment does not by itself expose the
+  page to anyone but a permitted customer. Missing the permission there renders a dedicated explanation
+  with the exact remedy (grant the permission, per step 9) at HTTP 403, rather than a bare access-denied
+  response — someone hitting this page without the permission yet is almost always mid-setup, not an
+  incident.
 
 ## How it works
 
