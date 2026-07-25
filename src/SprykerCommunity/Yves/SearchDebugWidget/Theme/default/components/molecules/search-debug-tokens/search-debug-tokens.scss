@@ -5,6 +5,16 @@
 // For $search-debug-feature-accent-color below.
 @import 'search-debug-palette';
 
+// One token badge + its magnifying-glass link per row — block-level, so each token gets its own line
+// instead of wrapping inline with its neighbors.
+.search-debug-token-row {
+    display: block;
+
+    &:not(:last-child) {
+        margin-bottom: rem(4);
+    }
+}
+
 // Opens the analysis-path page for this exact query token, traced through the SEARCH-time analyzer (see
 // AnalysisPathController's `analyzer=search` param) rather than the index-time one the token-source
 // page's own links use — reuses the SAME feature-accent color as those links, so both read as the same
