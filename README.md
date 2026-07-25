@@ -52,7 +52,7 @@ analysis-path visualization. More tools are planned.
 
 Verified: dependency floors resolved and checked at their oldest allowed versions (`composer
 check-floors`), explanation parsing confirmed against three engines across two Lucene generations (see
-"Search engine compatibility"), 223 tests, phpcs and phpstan level 6 clean.
+"Search engine compatibility"), 226 tests, phpcs and phpstan level 6 clean.
 
 ## Search Debug — Spryker Community Extension
 
