@@ -2,3 +2,43 @@
 // (a shared partial, so search-debug-product-info can `@import` it too without depending on this
 // component's compiled bundle).
 @import 'search-debug-token-badge';
+// For $search-debug-feature-accent-color below.
+@import 'search-debug-palette';
+
+// One token badge + its magnifying-glass link per row — block-level, so each token gets its own line
+// instead of wrapping inline with its neighbors.
+.search-debug-token-row {
+    display: block;
+
+    &:not(:last-child) {
+        margin-bottom: rem(4);
+    }
+}
+
+// Opens the analysis-path page for this exact query token, traced through the SEARCH-time analyzer (see
+// AnalysisPathController's `analyzer=search` param) rather than the index-time one the token-source
+// page's own links use — reuses the SAME feature-accent color and circular-badge sizing as
+// `.search-debug-token-source-link` in the per-product mouseover overlay, so every "go deeper" affordance
+// in this package reads as the same debug-tooling control regardless of which page it's on.
+.search-debug-token__analysis-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: rem(20);
+    height: rem(20);
+    margin-left: rem(4);
+    vertical-align: middle;
+    border-radius: 50%;
+    background-color: $search-debug-feature-accent-color;
+    color: $setting-color-white;
+
+    .icon {
+        width: rem(12);
+        height: rem(12);
+    }
+
+    &:hover,
+    &:focus {
+        background-color: darken($search-debug-feature-accent-color, 8%);
+    }
+}

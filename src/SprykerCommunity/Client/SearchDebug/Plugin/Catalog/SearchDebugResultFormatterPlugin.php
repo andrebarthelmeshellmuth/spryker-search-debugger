@@ -60,9 +60,11 @@ class SearchDebugResultFormatterPlugin extends AbstractElasticsearchResultFormat
 
     /**
      * {@inheritDoc}
-     * - Returns the analyzer tokens of the search string, plus per-product debug data keyed by abstract
-     *   product id: `_score`, the matched query tokens with their score contributions (parsed from the
-     *   Elasticsearch explain tree) and any other score contributions verbatim.
+     * - Returns the analyzer tokens of the search string (plus each distinct token's own character
+     *   offset into the search string, for the SRP overlay's "trace this query token" link), plus
+     *   per-product debug data keyed by abstract product id: `_score`, the matched query tokens with
+     *   their score contributions (parsed from the Elasticsearch explain tree) and any other score
+     *   contributions verbatim.
      * - Also returns the query's real field=>boost pairs, captured live off the query by
      *   `SearchDebugQueryExpanderPlugin`/`QueryFieldBoostReader` earlier in the same request.
      * - Returns an empty array unless search debug output was requested AND the current customer holds
@@ -88,9 +90,38 @@ class SearchDebugResultFormatterPlugin extends AbstractElasticsearchResultFormat
 
         return [
             SearchDebugConfig::KEY_TOKENS => $queryTokens,
+            SearchDebugConfig::KEY_TOKEN_OFFSETS => $this->getQueryTokenOffsets($searchString),
             SearchDebugConfig::KEY_PRODUCTS => $this->getProductDebugData($searchResult, $queryTokens),
             SearchDebugConfig::KEY_FIELD_BOOSTS => $this->getFactory()->createQueryFieldBoostReader()->getFieldBoosts(),
         ];
+    }
+
+    /**
+     * One entry per DISTINCT query token (first occurrence wins for a token searched more than once —
+     * see {@see SearchDebugConfig::KEY_TOKEN_OFFSETS} for why that is fine here), resolved through the
+     * SEARCH-time analyzer: the raw query string was never indexed, only searched, so only that analyzer
+     * actually processed it — unlike a product element's text, which the index-time analyzer produced.
+     *
+     * @param string $searchString
+     *
+     * @return array<string, array{startOffset: int, endOffset: int}>
+     */
+    protected function getQueryTokenOffsets(string $searchString): array
+    {
+        $tokenOffsets = [];
+
+        foreach ($this->getClient()->getTextTokenOffsets($searchString, true) as $tokenOffset) {
+            if (isset($tokenOffsets[$tokenOffset['token']])) {
+                continue;
+            }
+
+            $tokenOffsets[$tokenOffset['token']] = [
+                'startOffset' => $tokenOffset['startOffset'],
+                'endOffset' => $tokenOffset['endOffset'],
+            ];
+        }
+
+        return $tokenOffsets;
     }
 
     /**

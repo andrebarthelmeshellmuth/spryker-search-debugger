@@ -38,14 +38,15 @@ class SearchDebugClient extends AbstractClient implements SearchDebugClientInter
      * @api
      *
      * @param string $text
+     * @param bool $useSearchAnalyzer
      *
      * @return array<array{token: string, startOffset: int, endOffset: int}>
      */
-    public function getTextTokenOffsets(string $text): array
+    public function getTextTokenOffsets(string $text, bool $useSearchAnalyzer = false): array
     {
         return $this->getFactory()
             ->createSearchStringAnalyzer()
-            ->getTokenOffsets($text);
+            ->getTokenOffsets($text, $useSearchAnalyzer);
     }
 
     /**
@@ -70,14 +71,15 @@ class SearchDebugClient extends AbstractClient implements SearchDebugClientInter
      * @api
      *
      * @param string $text
+     * @param bool $useSearchAnalyzer
      *
      * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
      */
-    public function getTextAnalysisStages(string $text): array
+    public function getTextAnalysisStages(string $text, bool $useSearchAnalyzer = false): array
     {
         return $this->getFactory()
             ->createSearchStringAnalyzer()
-            ->getAnalysisStages($text);
+            ->getAnalysisStages($text, $useSearchAnalyzer);
     }
 
     /**

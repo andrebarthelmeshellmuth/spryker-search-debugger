@@ -29,6 +29,10 @@ interface AnalysisPathResolverInterface
      * @param string $token
      * @param int $startOffset
      * @param int $endOffset
+     * @param bool $useSearchAnalyzer Defaults to the index-time analyzer, correct for a path reached from
+     *   the token-source page (a product's own indexed content). Pass `true` for a path reached from one
+     *   of the SRP overlay's own matched QUERY tokens instead — that text was never indexed, only
+     *   searched, so only the search-time analyzer actually processed it.
      *
      * @return array<int, array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, highlightedHtml: string|null}>|null
      *   Null when $token isn't found at that offset in the last analysis stage at all (e.g. stale offsets
@@ -45,5 +49,5 @@ interface AnalysisPathResolverInterface
      *   (see `AnalysisPathResolver::addOriginHighlight()` for when that isn't guaranteed) — mirrors the
      *   token-source page's `<mark>` treatment. Every other entry's `highlightedHtml` is always null.
      */
-    public function resolve(string $text, string $token, int $startOffset, int $endOffset): ?array;
+    public function resolve(string $text, string $token, int $startOffset, int $endOffset, bool $useSearchAnalyzer = false): ?array;
 }

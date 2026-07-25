@@ -6,7 +6,9 @@
 
 {% define data = {
     tokens: [],
-    tokenColors: []
+    tokenColors: [],
+    tokenOffsets: [],
+    searchString: ''
 } %}
 
 {% block component %}
@@ -19,9 +21,18 @@
     <div class="box">
         <strong>{{ 'search_debug.query_tokens' | trans }}</strong>
         {% for token in data.tokens %}
-            {# tokenColors is a total map over exactly these tokens — both are built together by
-               CatalogController::executeFulltextSearchAction(), so every token has a color class. #}
-            <span class="search-debug-token {{ data.tokenColors[token] }}">{{ token }}</span>
+            {# One row per token (block-level wrapper, not an inline run) — tokenColors is a total map
+               over exactly these tokens, built by the searchDebugTokenColors() twig function, so every
+               token has a color class. tokenOffsets, by contrast, only has an entry when the search-time
+               analyzer's `_analyze` call succeeded (e.g. not when Elasticsearch was unreachable) — the
+               magnifying-glass link (a SIBLING of the badge, not nested inside it) is only rendered when
+               this token's own entry exists, same fail-soft posture as every other search-debug page. #}
+            <div class="search-debug-token-row">
+                <span class="search-debug-token {{ data.tokenColors[token] }}">{{ token }}</span>
+                {%- if data.tokenOffsets[token] is defined -%}
+                    <a href="{{ url('search-debug/token-analysis', { text: data.searchString, token: token, startOffset: data.tokenOffsets[token].startOffset, endOffset: data.tokenOffsets[token].endOffset, analyzer: 'search' }) }}" target="_blank" rel="noopener noreferrer" class="search-debug-token__analysis-link" title="{{ 'search_debug.token_analysis.open' | trans }}">{% include atom('icon') with { data: { name: 'search' } } only %}</a>
+                {%- endif -%}
+            </div>
         {% endfor %}
     </div>
 {% endblock %}

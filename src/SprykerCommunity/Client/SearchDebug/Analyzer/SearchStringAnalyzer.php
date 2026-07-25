@@ -95,22 +95,27 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
     }
 
     /**
-     * Deliberately the INDEX-time analyzer, not the search-time one `getTokens()` above uses: this method
-     * answers "does this piece of product text contain token X", and that's determined entirely by
-     * what the text was indexed as — the query-time analyzer only ever tokenizes the query string, it
-     * never touches document content. This matters whenever an analyzer transforms text asymmetrically
-     * between index- and query-time — ngram/edge-ngram filters, decompounding, synonym expansion, and
-     * stemming are all common examples — because only the index-time analyzer that actually produced a
-     * document's tokens can explain why a query token matched it. E.g., in a basic shop using an
-     * edge-ngram index analyzer (search-as-you-type prefix matching), a query token like "öl" can
-     * legitimately match a document that only contains "Ölpapier" — the search-time analyzer alone could
-     * never explain that match.
+     * Deliberately the INDEX-time analyzer BY DEFAULT, not the search-time one `getTokens()` above uses:
+     * this method answers "does this piece of product text contain token X", and that's determined
+     * entirely by what the text was indexed as — the query-time analyzer only ever tokenizes the query
+     * string, it never touches document content. This matters whenever an analyzer transforms text
+     * asymmetrically between index- and query-time — ngram/edge-ngram filters, decompounding, synonym
+     * expansion, and stemming are all common examples — because only the index-time analyzer that
+     * actually produced a document's tokens can explain why a query token matched it. E.g., in a basic
+     * shop using an edge-ngram index analyzer (search-as-you-type prefix matching), a query token like
+     * "öl" can legitimately match a document that only contains "Ölpapier" — the search-time analyzer
+     * alone could never explain that match.
+     *
+     * `$useSearchAnalyzer` exists for the opposite question: tracing how a QUERY string itself (not
+     * product content) was tokenized — the text in that case was never indexed, only searched, so the
+     * search-time analyzer is the only one that actually processed it.
      *
      * @param string $text
+     * @param bool $useSearchAnalyzer
      *
      * @return array<array{token: string, startOffset: int, endOffset: int}>
      */
-    public function getTokenOffsets(string $text): array
+    public function getTokenOffsets(string $text, bool $useSearchAnalyzer = false): array
     {
         if ($text === '') {
             return [];
@@ -123,7 +128,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
                 ->getIndex($indexName)
                 ->analyze([
                     'text' => $text,
-                    'analyzer' => $this->resolveIndexAnalyzerName(),
+                    'analyzer' => $useSearchAnalyzer ? $this->resolveSearchAnalyzerName() : $this->resolveIndexAnalyzerName(),
                     'explain' => true,
                 ]);
         } catch (ExceptionInterface $exception) {
@@ -256,10 +261,11 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      * matching offsets — see `SprykerCommunity\Yves\SearchDebugWidget\Resolver\AnalysisPathResolver`).
      *
      * @param string $text
+     * @param bool $useSearchAnalyzer See {@see getTokenOffsets()}'s parameter of the same name.
      *
      * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
      */
-    public function getAnalysisStages(string $text): array
+    public function getAnalysisStages(string $text, bool $useSearchAnalyzer = false): array
     {
         if ($text === '') {
             return [];
@@ -272,7 +278,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
                 ->getIndex($indexName)
                 ->analyze([
                     'text' => $text,
-                    'analyzer' => $this->resolveIndexAnalyzerName(),
+                    'analyzer' => $useSearchAnalyzer ? $this->resolveSearchAnalyzerName() : $this->resolveIndexAnalyzerName(),
                     'explain' => true,
                 ]);
         } catch (ExceptionInterface $exception) {

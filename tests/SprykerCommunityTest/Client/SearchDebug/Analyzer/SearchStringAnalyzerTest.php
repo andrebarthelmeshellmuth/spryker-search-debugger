@@ -131,6 +131,29 @@ class SearchStringAnalyzerTest extends Unit
     }
 
     /**
+     * `$useSearchAnalyzer = true` must resolve `fulltext_search_analyzer` instead — the fixture's search
+     * analyzer shares every filter with the index one EXCEPT the edge-ngram filter, so the same input
+     * that explodes into 9 prefix tokens above must come back as exactly the 2 whole words here, each at
+     * its own real offset (not the whole-word offset every ngram prefix above shares).
+     *
+     * @return void
+     */
+    public function testGetTokenOffsetsUsesTheSearchTimeAnalyzerWhenRequested(): void
+    {
+        // Act
+        $tokenOffsets = $this->createTestSearchStringAnalyzer()->getTokenOffsets('Eisen-Hammer', true);
+
+        // Assert
+        $this->assertSame(
+            [
+                ['token' => 'eisen', 'startOffset' => 0, 'endOffset' => 5],
+                ['token' => 'hammer', 'startOffset' => 6, 'endOffset' => 12],
+            ],
+            $tokenOffsets,
+        );
+    }
+
+    /**
      * @return void
      */
     public function testGetTextTokenOffsetsReturnsAnEmptyListForEmptyText(): void
@@ -289,6 +312,37 @@ class SearchStringAnalyzerTest extends Unit
             $stages[7]['tokens'],
         );
         $this->assertSame('edge_ngram (min_gram: 2, max_gram: 20)', $stages[7]['definition']);
+    }
+
+    /**
+     * The fixture's search analyzer shares every stage with the index one EXCEPT the trailing edge-ngram
+     * filter — same char filter, tokenizer, and first 5 filters, verified here by re-asserting the exact
+     * same operations/tokens the index-analyzer test above does, then confirming the ngram stage the
+     * index analyzer adds on top is genuinely absent, not just unasserted.
+     *
+     * @return void
+     */
+    public function testGetTextAnalysisStagesUsesTheSearchTimeAnalyzerWhenRequested(): void
+    {
+        // Act
+        $stages = $this->createTestSearchStringAnalyzer()->getAnalysisStages('Ölpapier', true);
+
+        // Assert
+        $this->assertCount(7, $stages);
+
+        $this->assertSame('char filter: unit_symbol_normalizer', $stages[0]['operation']);
+        $this->assertSame('tokenizer: standard', $stages[1]['operation']);
+        $this->assertSame('filter: lowercase', $stages[2]['operation']);
+        $this->assertSame('filter: fulltext_synonyms', $stages[3]['operation']);
+        $this->assertSame('filter: fulltext_word_delimiter', $stages[4]['operation']);
+        $this->assertSame('filter: fulltext_stop_words', $stages[5]['operation']);
+
+        $this->assertSame('filter: fulltext_min_length', $stages[6]['operation']);
+        $this->assertSame([['token' => 'ölpapier', 'startOffset' => 0, 'endOffset' => 8]], $stages[6]['tokens']);
+
+        foreach ($stages as $stage) {
+            $this->assertNotSame('filter: fulltext_index_ngram_filter', $stage['operation']);
+        }
     }
 
     /**
