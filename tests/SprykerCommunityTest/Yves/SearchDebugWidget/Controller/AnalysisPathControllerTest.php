@@ -127,6 +127,51 @@ class AnalysisPathControllerTest extends Unit
     /**
      * @return void
      */
+    public function testResolveUseSearchAnalyzerReturnsFalseWhenTheAnalyzerParameterIsAbsent(): void
+    {
+        // Arrange
+        $request = new Request();
+
+        // Act
+        $useSearchAnalyzer = $this->invokeResolveUseSearchAnalyzer($request);
+
+        // Assert
+        $this->assertFalse($useSearchAnalyzer);
+    }
+
+    /**
+     * @return void
+     */
+    public function testResolveUseSearchAnalyzerReturnsFalseForAnyUnrecognizedValue(): void
+    {
+        // Arrange
+        $request = new Request(['analyzer' => 'index']);
+
+        // Act
+        $useSearchAnalyzer = $this->invokeResolveUseSearchAnalyzer($request);
+
+        // Assert
+        $this->assertFalse($useSearchAnalyzer);
+    }
+
+    /**
+     * @return void
+     */
+    public function testResolveUseSearchAnalyzerReturnsTrueForTheRecognizedSearchValue(): void
+    {
+        // Arrange
+        $request = new Request(['analyzer' => 'search']);
+
+        // Act
+        $useSearchAnalyzer = $this->invokeResolveUseSearchAnalyzer($request);
+
+        // Assert
+        $this->assertTrue($useSearchAnalyzer);
+    }
+
+    /**
+     * @return void
+     */
     public function testResolveExplicitOffsetReturnsNullWhenBothOffsetParametersAreMissing(): void
     {
         // Arrange
@@ -258,6 +303,19 @@ class AnalysisPathControllerTest extends Unit
         $reflectionMethod->setAccessible(true);
 
         return $reflectionMethod->invoke(new AnalysisPathController(), $path);
+    }
+
+    /**
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     *
+     * @return bool
+     */
+    protected function invokeResolveUseSearchAnalyzer(Request $request): bool
+    {
+        $reflectionMethod = new ReflectionMethod(AnalysisPathController::class, 'resolveUseSearchAnalyzer');
+        $reflectionMethod->setAccessible(true);
+
+        return $reflectionMethod->invoke(new AnalysisPathController(), $request);
     }
 
     /**
