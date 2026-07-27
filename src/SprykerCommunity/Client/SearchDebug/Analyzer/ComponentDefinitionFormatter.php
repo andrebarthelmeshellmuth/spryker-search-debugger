@@ -50,7 +50,7 @@ class ComponentDefinitionFormatter implements ComponentDefinitionFormatterInterf
         $parameters = [];
         $truncated = false;
 
-        foreach ($component->getConfig() as $key => $value) {
+        foreach ($component->getConfigOrFail() as $key => $value) {
             $parameters[] = $key . ': ' . $this->formatConfigValue($value);
 
             if (!is_array($value) || count($value) <= static::CONFIG_LIST_PREVIEW_ITEM_LIMIT) {
@@ -61,8 +61,8 @@ class ComponentDefinitionFormatter implements ComponentDefinitionFormatterInterf
         }
 
         $label = $parameters === []
-            ? $component->getType()
-            : sprintf('%s (%s)', $component->getType(), implode(', ', $parameters));
+            ? $component->getTypeOrFail()
+            : sprintf('%s (%s)', $component->getTypeOrFail(), implode(', ', $parameters));
 
         // Belt-and-suspenders on top of the list preview above: a config value can still be an
         // arbitrarily long single scalar (e.g. a long regex `pattern`) or a nested structure (a

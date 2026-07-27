@@ -55,7 +55,7 @@ class ExplanationParser implements ExplanationParserInterface
      *
      * @var string
      */
-    public const SYNONYM_TERM_SEPARATOR = ', ';
+    final public const SYNONYM_TERM_SEPARATOR = ', ';
 
     /**
      * Matches a `function_score` boost-function leaf's own description — the documented Lucene/ES
@@ -563,8 +563,11 @@ class ExplanationParser implements ExplanationParserInterface
         $matchedTokens = [];
 
         foreach ($terms as $term => $termInfo) {
-            $termNames = str_contains((string)$term, static::SYNONYM_TERM_SEPARATOR)
-                ? explode(static::SYNONYM_TERM_SEPARATOR, (string)$term)
+            /** @var non-empty-string $separator */
+            $separator = static::SYNONYM_TERM_SEPARATOR;
+
+            $termNames = str_contains((string)$term, $separator)
+                ? explode($separator, (string)$term)
                 : [(string)$term];
 
             $isMatchedQueryToken = false;

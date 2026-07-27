@@ -144,7 +144,7 @@ class AnalysisPathController extends AbstractController
         $colorClassByText = [];
         $nextColorIndex = 0;
 
-        foreach ($path as &$step) {
+        return array_map(function (array $step) use (&$colorClassByText, &$nextColorIndex): array {
             if (!isset($colorClassByText[$step['text']])) {
                 $colorClassByText[$step['text']] = sprintf(
                     SearchDebugConfig::TOKEN_COLOR_CLASS_PATTERN,
@@ -153,10 +153,8 @@ class AnalysisPathController extends AbstractController
                 $nextColorIndex++;
             }
 
-            $step['colorClass'] = $colorClassByText[$step['text']];
-        }
-
-        return $path;
+            return $step + ['colorClass' => $colorClassByText[$step['text']]];
+        }, $path);
     }
 
     /**
