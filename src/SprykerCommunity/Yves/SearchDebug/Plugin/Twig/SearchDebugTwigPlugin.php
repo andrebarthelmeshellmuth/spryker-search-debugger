@@ -51,9 +51,7 @@ class SearchDebugTwigPlugin extends AbstractPlugin implements TwigPluginInterfac
     {
         $twig->addFunction(new TwigFunction(
             static::FUNCTION_NAME_TOKEN_COLORS,
-            function (array $queryTokens): array {
-                return $this->getTokenColorClasses($queryTokens);
-            },
+            fn (array $queryTokens): array => $this->getTokenColorClasses($queryTokens),
         ));
 
         return $twig;

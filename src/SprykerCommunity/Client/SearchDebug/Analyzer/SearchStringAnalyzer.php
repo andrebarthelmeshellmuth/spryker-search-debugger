@@ -22,31 +22,6 @@ use SprykerCommunity\Shared\SearchDebug\Utf16\Utf16CodeUnitConverter;
 class SearchStringAnalyzer implements SearchStringAnalyzerInterface
 {
     /**
-     * @var \Elastica\Client
-     */
-    protected Client $elasticaClient;
-
-    /**
-     * @var \Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolverInterface
-     */
-    protected IndexNameResolverInterface $indexNameResolver;
-
-    /**
-     * @var \SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaReaderInterface
-     */
-    protected IndexSchemaReaderInterface $indexSchemaReader;
-
-    /**
-     * @var \SprykerCommunity\Client\SearchDebug\SearchDebugConfig
-     */
-    protected SearchDebugConfig $config;
-
-    /**
-     * @var \SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatterInterface
-     */
-    protected ComponentDefinitionFormatterInterface $componentDefinitionFormatter;
-
-    /**
      * @param \Elastica\Client $elasticaClient
      * @param \Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolverInterface $indexNameResolver
      * @param \SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaReaderInterface $indexSchemaReader
@@ -54,17 +29,12 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      * @param \SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatterInterface $componentDefinitionFormatter
      */
     public function __construct(
-        Client $elasticaClient,
-        IndexNameResolverInterface $indexNameResolver,
-        IndexSchemaReaderInterface $indexSchemaReader,
-        SearchDebugConfig $config,
-        ComponentDefinitionFormatterInterface $componentDefinitionFormatter,
+        protected Client $elasticaClient,
+        protected IndexNameResolverInterface $indexNameResolver,
+        protected IndexSchemaReaderInterface $indexSchemaReader,
+        protected SearchDebugConfig $config,
+        protected ComponentDefinitionFormatterInterface $componentDefinitionFormatter,
     ) {
-        $this->elasticaClient = $elasticaClient;
-        $this->indexNameResolver = $indexNameResolver;
-        $this->indexSchemaReader = $indexSchemaReader;
-        $this->config = $config;
-        $this->componentDefinitionFormatter = $componentDefinitionFormatter;
     }
 
     /**
@@ -87,7 +57,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
                     'text' => $searchString,
                     'analyzer' => $this->resolveSearchAnalyzerName(),
                 ]);
-        } catch (ExceptionInterface $exception) {
+        } catch (ExceptionInterface) {
             return [];
         }
 
@@ -131,7 +101,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
                     'analyzer' => $useSearchAnalyzer ? $this->resolveSearchAnalyzerName() : $this->resolveIndexAnalyzerName(),
                     'explain' => true,
                 ]);
-        } catch (ExceptionInterface $exception) {
+        } catch (ExceptionInterface) {
             return [];
         }
 
@@ -181,7 +151,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
                     'analyzer' => $this->resolveIndexAnalyzerName(),
                     'explain' => true,
                 ]);
-        } catch (ExceptionInterface $exception) {
+        } catch (ExceptionInterface) {
             return array_fill_keys($texts, []);
         }
 
@@ -281,7 +251,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
                     'analyzer' => $useSearchAnalyzer ? $this->resolveSearchAnalyzerName() : $this->resolveIndexAnalyzerName(),
                     'explain' => true,
                 ]);
-        } catch (ExceptionInterface $exception) {
+        } catch (ExceptionInterface) {
             return [];
         }
 

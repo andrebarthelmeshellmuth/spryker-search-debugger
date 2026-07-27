@@ -35,41 +35,17 @@ class IndexSchemaReader implements IndexSchemaReaderInterface
     protected static array $searchIndexSchemaTransferCache = [];
 
     /**
-     * @var \Elastica\Client
-     */
-    protected Client $elasticaClient;
-
-    /**
-     * @var \Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolverInterface
-     */
-    protected IndexNameResolverInterface $indexNameResolver;
-
-    /**
-     * @var \SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaMapperInterface
-     */
-    protected IndexSchemaMapperInterface $indexSchemaMapper;
-
-    /**
-     * @var \SprykerCommunity\Client\SearchDebug\SearchDebugConfig
-     */
-    protected SearchDebugConfig $config;
-
-    /**
      * @param \Elastica\Client $elasticaClient
      * @param \Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolverInterface $indexNameResolver
      * @param \SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaMapperInterface $indexSchemaMapper
      * @param \SprykerCommunity\Client\SearchDebug\SearchDebugConfig $config
      */
     public function __construct(
-        Client $elasticaClient,
-        IndexNameResolverInterface $indexNameResolver,
-        IndexSchemaMapperInterface $indexSchemaMapper,
-        SearchDebugConfig $config,
+        protected Client $elasticaClient,
+        protected IndexNameResolverInterface $indexNameResolver,
+        protected IndexSchemaMapperInterface $indexSchemaMapper,
+        protected SearchDebugConfig $config,
     ) {
-        $this->elasticaClient = $elasticaClient;
-        $this->indexNameResolver = $indexNameResolver;
-        $this->indexSchemaMapper = $indexSchemaMapper;
-        $this->config = $config;
     }
 
     /**
@@ -87,7 +63,7 @@ class IndexSchemaReader implements IndexSchemaReaderInterface
             $index = $this->elasticaClient->getIndex($indexName);
             $mapping = $index->getMapping();
             $analysisSettings = (array)($index->getSettings()->get(static::SETTINGS_KEY_ANALYSIS) ?: []);
-        } catch (ExceptionInterface $exception) {
+        } catch (ExceptionInterface) {
             // Fail-soft, uncached: an empty schema makes consumers fall back to Elasticsearch's
             // "standard" analyzer — the same posture as the analyze calls themselves, which return
             // empty results when the cluster is unreachable.

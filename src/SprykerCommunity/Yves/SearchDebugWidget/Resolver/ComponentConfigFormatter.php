@@ -24,7 +24,7 @@ class ComponentConfigFormatter implements ComponentConfigFormatterInterface
 
         foreach ($config as $key => $value) {
             $formatted[$key] = is_array($value)
-                ? array_map([ConfigValueScalarFormatter::class, 'format'], $value)
+                ? array_map(ConfigValueScalarFormatter::format(...), $value)
                 : ConfigValueScalarFormatter::format($value);
         }
 

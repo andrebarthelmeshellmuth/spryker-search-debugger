@@ -163,23 +163,11 @@ class ExplanationParser implements ExplanationParserInterface
     public const KEY_QUERY_SCORE = 'queryScore';
 
     /**
-     * @var \SprykerCommunity\Client\SearchDebug\Explanation\CrossFieldsSynonymMatcher
-     */
-    protected CrossFieldsSynonymMatcher $crossFieldsSynonymMatcher;
-
-    /**
-     * @var \SprykerCommunity\Client\SearchDebug\Explanation\Bm25BreakdownExtractor
-     */
-    protected Bm25BreakdownExtractor $bm25BreakdownExtractor;
-
-    /**
      * @param \SprykerCommunity\Client\SearchDebug\Explanation\CrossFieldsSynonymMatcher $crossFieldsSynonymMatcher
      * @param \SprykerCommunity\Client\SearchDebug\Explanation\Bm25BreakdownExtractor $bm25BreakdownExtractor
      */
-    public function __construct(CrossFieldsSynonymMatcher $crossFieldsSynonymMatcher, Bm25BreakdownExtractor $bm25BreakdownExtractor)
+    public function __construct(protected CrossFieldsSynonymMatcher $crossFieldsSynonymMatcher, protected Bm25BreakdownExtractor $bm25BreakdownExtractor)
     {
-        $this->crossFieldsSynonymMatcher = $crossFieldsSynonymMatcher;
-        $this->bm25BreakdownExtractor = $bm25BreakdownExtractor;
     }
 
     /**

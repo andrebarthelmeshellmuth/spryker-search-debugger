@@ -39,6 +39,7 @@ class SearchDebugDependencyProvider extends AbstractDependencyProvider
      *
      * @return \Spryker\Client\Kernel\Container
      */
+    #[\Override]
     public function provideServiceLayerDependencies(Container $container): Container
     {
         $container = parent::provideServiceLayerDependencies($container);
@@ -57,9 +58,7 @@ class SearchDebugDependencyProvider extends AbstractDependencyProvider
      */
     protected function addProductDebugDataExpanderPlugins(Container $container): Container
     {
-        $container->set(static::PLUGINS_PRODUCT_DEBUG_DATA_EXPANDER, function () {
-            return $this->getProductDebugDataExpanderPlugins();
-        });
+        $container->set(static::PLUGINS_PRODUCT_DEBUG_DATA_EXPANDER, fn () => $this->getProductDebugDataExpanderPlugins());
 
         return $container;
     }
@@ -82,9 +81,7 @@ class SearchDebugDependencyProvider extends AbstractDependencyProvider
      */
     protected function addStoreClient(Container $container): Container
     {
-        $container->set(static::CLIENT_STORE, function (Container $container) {
-            return $container->getLocator()->store()->client();
-        });
+        $container->set(static::CLIENT_STORE, fn (Container $container) => $container->getLocator()->store()->client());
 
         return $container;
     }
@@ -96,9 +93,7 @@ class SearchDebugDependencyProvider extends AbstractDependencyProvider
      */
     protected function addPermissionClient(Container $container): Container
     {
-        $container->set(static::CLIENT_PERMISSION, function (Container $container) {
-            return $container->getLocator()->permission()->client();
-        });
+        $container->set(static::CLIENT_PERMISSION, fn (Container $container) => $container->getLocator()->permission()->client());
 
         return $container;
     }
@@ -113,9 +108,7 @@ class SearchDebugDependencyProvider extends AbstractDependencyProvider
      */
     protected function addSynchronizationService(Container $container): Container
     {
-        $container->set(static::SERVICE_SYNCHRONIZATION, function (Container $container) {
-            return $container->getLocator()->synchronization()->service();
-        });
+        $container->set(static::SERVICE_SYNCHRONIZATION, fn (Container $container) => $container->getLocator()->synchronization()->service());
 
         return $container;
     }

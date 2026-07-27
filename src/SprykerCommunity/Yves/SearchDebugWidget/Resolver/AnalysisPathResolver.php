@@ -15,23 +15,11 @@ use SprykerCommunity\Shared\SearchDebug\Utf16\Utf16CodeUnitConverter;
 class AnalysisPathResolver implements AnalysisPathResolverInterface
 {
     /**
-     * @var \SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface
-     */
-    protected SearchDebugClientInterface $searchDebugClient;
-
-    /**
-     * @var \SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface
-     */
-    protected TokenHighlighterInterface $tokenHighlighter;
-
-    /**
      * @param \SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface $searchDebugClient
      * @param \SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface $tokenHighlighter
      */
-    public function __construct(SearchDebugClientInterface $searchDebugClient, TokenHighlighterInterface $tokenHighlighter)
+    public function __construct(protected SearchDebugClientInterface $searchDebugClient, protected TokenHighlighterInterface $tokenHighlighter)
     {
-        $this->searchDebugClient = $searchDebugClient;
-        $this->tokenHighlighter = $tokenHighlighter;
     }
 
     /**

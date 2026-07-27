@@ -115,7 +115,7 @@ class ComponentDefinitionFormatter implements ComponentDefinitionFormatterInterf
         }
 
         $preview = array_map(
-            [ConfigValueScalarFormatter::class, 'format'],
+            ConfigValueScalarFormatter::format(...),
             array_slice($values, 0, static::CONFIG_LIST_PREVIEW_ITEM_LIMIT),
         );
 

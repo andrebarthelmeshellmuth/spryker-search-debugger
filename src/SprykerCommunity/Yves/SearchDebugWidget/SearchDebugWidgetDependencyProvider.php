@@ -55,6 +55,7 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
      *
      * @return \Spryker\Yves\Kernel\Container
      */
+    #[\Override]
     public function provideDependencies(Container $container): Container
     {
         $container = parent::provideDependencies($container);
@@ -76,9 +77,7 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
      */
     protected function addProductStorageClient(Container $container): Container
     {
-        $container->set(static::CLIENT_PRODUCT_STORAGE, function (Container $container) {
-            return $container->getLocator()->productStorage()->client();
-        });
+        $container->set(static::CLIENT_PRODUCT_STORAGE, fn (Container $container) => $container->getLocator()->productStorage()->client());
 
         return $container;
     }
@@ -90,9 +89,7 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
      */
     protected function addProductCategoryStorageClient(Container $container): Container
     {
-        $container->set(static::CLIENT_PRODUCT_CATEGORY_STORAGE, function (Container $container) {
-            return $container->getLocator()->productCategoryStorage()->client();
-        });
+        $container->set(static::CLIENT_PRODUCT_CATEGORY_STORAGE, fn (Container $container) => $container->getLocator()->productCategoryStorage()->client());
 
         return $container;
     }
@@ -104,9 +101,7 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
      */
     protected function addCategoryStorageClient(Container $container): Container
     {
-        $container->set(static::CLIENT_CATEGORY_STORAGE, function (Container $container) {
-            return $container->getLocator()->categoryStorage()->client();
-        });
+        $container->set(static::CLIENT_CATEGORY_STORAGE, fn (Container $container) => $container->getLocator()->categoryStorage()->client());
 
         return $container;
     }
@@ -147,9 +142,7 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
      */
     protected function addSearchDebugClient(Container $container): Container
     {
-        $container->set(static::CLIENT_SEARCH_DEBUG, function (Container $container) {
-            return $container->getLocator()->searchDebug()->client();
-        });
+        $container->set(static::CLIENT_SEARCH_DEBUG, fn (Container $container) => $container->getLocator()->searchDebug()->client());
 
         return $container;
     }
@@ -161,9 +154,7 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
      */
     protected function addStoreClient(Container $container): Container
     {
-        $container->set(static::CLIENT_STORE, function (Container $container) {
-            return $container->getLocator()->store()->client();
-        });
+        $container->set(static::CLIENT_STORE, fn (Container $container) => $container->getLocator()->store()->client());
 
         return $container;
     }
@@ -175,9 +166,7 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
      */
     protected function addTokenSourceProviderPlugins(Container $container): Container
     {
-        $container->set(static::PLUGINS_TOKEN_SOURCE_PROVIDER, function () {
-            return $this->getTokenSourceProviderPlugins();
-        });
+        $container->set(static::PLUGINS_TOKEN_SOURCE_PROVIDER, fn () => $this->getTokenSourceProviderPlugins());
 
         return $container;
     }

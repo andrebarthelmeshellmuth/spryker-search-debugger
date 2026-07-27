@@ -172,47 +172,6 @@ class ProductSourceMapBuilder
     ];
 
     /**
-     * @var \Spryker\Client\ProductStorage\ProductStorageClientInterface
-     */
-    protected ProductStorageClientInterface $productStorageClient;
-
-    /**
-     * @var \Spryker\Client\ProductCategoryStorage\ProductCategoryStorageClientInterface
-     */
-    protected ProductCategoryStorageClientInterface $productCategoryStorageClient;
-
-    /**
-     * @var \Spryker\Client\CategoryStorage\CategoryStorageClientInterface
-     */
-    protected CategoryStorageClientInterface $categoryStorageClient;
-
-    /**
-     * Null on any shop without `spryker/merchant-storage` installed — merchant names are a Marketplace-only
-     * concept, so a plain B2B/B2C shop has no such module and must not be forced to install one (with its
-     * Propel tables and publish/sync infrastructure) just to use this debug tool. Every merchant lookup is
-     * guarded; a shop without it simply gets no merchant-name attribution, which is exactly right because
-     * there are no merchants to attribute to. See {@see findMerchantName()}.
-     *
-     * @var \Spryker\Client\MerchantStorage\MerchantStorageClientInterface|null
-     */
-    protected ?MerchantStorageClientInterface $merchantStorageClient;
-
-    /**
-     * @var \Spryker\Client\Store\StoreClientInterface
-     */
-    protected StoreClientInterface $storeClient;
-
-    /**
-     * @var \SprykerCommunity\Yves\SearchDebugWidget\Resolver\CategoryAncestorNameCollector
-     */
-    protected CategoryAncestorNameCollector $categoryAncestorNameCollector;
-
-    /**
-     * @var array<\SprykerCommunity\Yves\SearchDebugWidget\Dependency\Plugin\TokenSourceProviderPluginInterface>
-     */
-    protected array $tokenSourceProviderPlugins;
-
-    /**
      * @param \Spryker\Client\ProductStorage\ProductStorageClientInterface $productStorageClient
      * @param \Spryker\Client\ProductCategoryStorage\ProductCategoryStorageClientInterface $productCategoryStorageClient
      * @param \Spryker\Client\CategoryStorage\CategoryStorageClientInterface $categoryStorageClient
@@ -224,21 +183,21 @@ class ProductSourceMapBuilder
      * @param array<\SprykerCommunity\Yves\SearchDebugWidget\Dependency\Plugin\TokenSourceProviderPluginInterface> $tokenSourceProviderPlugins
      */
     public function __construct(
-        ProductStorageClientInterface $productStorageClient,
-        ProductCategoryStorageClientInterface $productCategoryStorageClient,
-        CategoryStorageClientInterface $categoryStorageClient,
-        ?MerchantStorageClientInterface $merchantStorageClient,
-        StoreClientInterface $storeClient,
-        CategoryAncestorNameCollector $categoryAncestorNameCollector,
-        array $tokenSourceProviderPlugins = [],
+        protected ProductStorageClientInterface $productStorageClient,
+        protected ProductCategoryStorageClientInterface $productCategoryStorageClient,
+        protected CategoryStorageClientInterface $categoryStorageClient,
+        /**
+         * Null on any shop without `spryker/merchant-storage` installed — merchant names are a Marketplace-only
+         * concept, so a plain B2B/B2C shop has no such module and must not be forced to install one (with its
+         * Propel tables and publish/sync infrastructure) just to use this debug tool. Every merchant lookup is
+         * guarded; a shop without it simply gets no merchant-name attribution, which is exactly right because
+         * there are no merchants to attribute to. See {@see findMerchantName()}.
+         */
+        protected ?MerchantStorageClientInterface $merchantStorageClient,
+        protected StoreClientInterface $storeClient,
+        protected CategoryAncestorNameCollector $categoryAncestorNameCollector,
+        protected array $tokenSourceProviderPlugins = [],
     ) {
-        $this->productStorageClient = $productStorageClient;
-        $this->productCategoryStorageClient = $productCategoryStorageClient;
-        $this->categoryStorageClient = $categoryStorageClient;
-        $this->merchantStorageClient = $merchantStorageClient;
-        $this->storeClient = $storeClient;
-        $this->categoryAncestorNameCollector = $categoryAncestorNameCollector;
-        $this->tokenSourceProviderPlugins = $tokenSourceProviderPlugins;
     }
 
     /**
@@ -278,7 +237,7 @@ class ProductSourceMapBuilder
         }
 
         return $this->productStorageClient->getBulkProductConcreteStorageData(
-            array_values(array_map('intval', (array)$productConcreteIds)),
+            array_values(array_map(static fn ($value): int => (int)$value, (array)$productConcreteIds)),
             $localeName,
         );
     }
@@ -507,7 +466,7 @@ class ProductSourceMapBuilder
                 }
 
                 $attributeLabelByValue[$value] = array_values(array_unique(
-                    array_merge($attributeLabelByValue[$value] ?? [], array_map('strval', $labels)),
+                    array_merge($attributeLabelByValue[$value] ?? [], array_map(static fn ($label): string => (string)$label, $labels)),
                 ));
             }
         }

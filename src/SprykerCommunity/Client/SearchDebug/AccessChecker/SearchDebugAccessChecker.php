@@ -26,16 +26,10 @@ use SprykerCommunity\Shared\SearchDebug\SearchDebugConfig;
 class SearchDebugAccessChecker implements SearchDebugAccessCheckerInterface
 {
     /**
-     * @var \Spryker\Client\Permission\PermissionClientInterface
-     */
-    protected PermissionClientInterface $permissionClient;
-
-    /**
      * @param \Spryker\Client\Permission\PermissionClientInterface $permissionClient
      */
-    public function __construct(PermissionClientInterface $permissionClient)
+    public function __construct(protected PermissionClientInterface $permissionClient)
     {
-        $this->permissionClient = $permissionClient;
     }
 
     /**

@@ -62,7 +62,7 @@ class QueryFieldBoostReader implements QueryFieldBoostReaderInterface
     {
         try {
             static::$fieldBoosts = $this->extractFieldBoosts($searchQuery);
-        } catch (ExceptionInterface $exception) {
+        } catch (ExceptionInterface) {
             static::$fieldBoosts = [];
         }
 

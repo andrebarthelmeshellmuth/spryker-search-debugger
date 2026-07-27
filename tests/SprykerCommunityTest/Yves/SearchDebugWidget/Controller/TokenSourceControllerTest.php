@@ -122,7 +122,6 @@ class TokenSourceControllerTest extends Unit
     protected function invokeSanitizeFieldBoosts(array $rawFieldBoosts): array
     {
         $reflectionMethod = new ReflectionMethod(TokenSourceController::class, 'sanitizeFieldBoosts');
-        $reflectionMethod->setAccessible(true);
 
         return $reflectionMethod->invoke(new TokenSourceController(), $rawFieldBoosts);
     }

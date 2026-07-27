@@ -138,8 +138,8 @@ class IndexSchemaMapper implements IndexSchemaMapperInterface
         return (new SearchAnalyzerTransfer())
             ->setName($analyzerName)
             ->setTokenizerName((string)($analyzerDefinition['tokenizer'] ?? ''))
-            ->setCharFilterNames(array_map('strval', (array)($analyzerDefinition['char_filter'] ?? [])))
-            ->setFilterNames(array_map('strval', (array)($analyzerDefinition['filter'] ?? [])));
+            ->setCharFilterNames(array_map(static fn ($value): string => (string)$value, (array)($analyzerDefinition['char_filter'] ?? [])))
+            ->setFilterNames(array_map(static fn ($value): string => (string)$value, (array)($analyzerDefinition['filter'] ?? [])));
     }
 
     /**
