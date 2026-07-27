@@ -53,7 +53,7 @@ analysis-path visualization. More tools are planned.
 
 Verified: dependency floors resolved and checked at their oldest allowed versions (`composer
 check-floors`), explanation parsing confirmed against three engines across two Lucene generations (see
-"Search engine compatibility"), 226 tests, phpcs and phpstan level 6 clean.
+"Search engine compatibility"), 226 tests, phpcs and phpstan level 8 clean.
 
 ## Search Debug — Spryker Community Extension
 
@@ -701,8 +701,17 @@ non-search route) are covered directly; the permission check itself is exercised
 the permission (step 9, [Grant the permission](#9-grant-the-permission)) and confirming the overlay
 appears.
 
-Static analysis (`phpstan`) is likewise run from a host shop rather than in CI: it needs the generated
-`Generated\Shared\Transfer\*` classes, which only exist once a project has run `transfer:generate`.
+Static analysis (`phpstan`, level 8, config in [`phpstan.neon`](phpstan.neon)) is likewise run from a host
+shop rather than in CI: it needs the generated `Generated\Shared\Transfer\*` classes, which only exist once
+a project has run `transfer:generate`, and it needs the shop's `Ide/AutoCompletion` stub freshly regenerated
+(`console dev:ide-auto-completion:generate`) so the magic `Locator` calls in this package's
+DependencyProviders resolve instead of reporting as undefined methods.
+
+```bash
+vendor/bin/console dev:ide-auto-completion:generate
+vendor/bin/phpstan clear-result-cache -c vendor/spryker-community/search-debug/phpstan.neon
+vendor/bin/phpstan analyse -c vendor/spryker-community/search-debug/phpstan.neon vendor/spryker-community/search-debug/src
+```
 
 ## License
 

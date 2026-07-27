@@ -103,9 +103,9 @@ class SearchDebugClient extends AbstractClient implements SearchDebugClientInter
         }
 
         return [
-            'name' => $component->getName(),
-            'type' => $component->getType(),
-            'config' => $component->getConfig(),
+            'name' => $component->getNameOrFail(),
+            'type' => $component->getTypeOrFail(),
+            'config' => $component->getConfigOrFail(),
         ];
     }
 

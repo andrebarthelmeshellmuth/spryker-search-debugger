@@ -262,7 +262,7 @@ class ProductSourceMapBuilder
      */
     protected function collectSourceKeysByValue(array $productData, string $localeName, array $concreteStorageData): array
     {
-        $storeName = $this->storeClient->getCurrentStore()->getName();
+        $storeName = $this->storeClient->getCurrentStore()->getNameOrFail();
 
         $valuesBySourceKey = [
             static::KEY_TITLE => [(string)($productData[TokenSourceResolver::STORAGE_KEY_NAME] ?? '')],
