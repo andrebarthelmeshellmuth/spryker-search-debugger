@@ -170,7 +170,7 @@ class ProductSourceMapBuilderTest extends Unit
         ], 'en_US');
 
         // Assert — no "merchantName" source key appears anywhere.
-        $allSourceKeys = array_merge(...array_values(array_map('array_values', $result['sourceKeysByValue'])));
+        $allSourceKeys = array_merge(...array_values(array_map(array_values(...), $result['sourceKeysByValue'])));
         $this->assertNotContains(['merchantName'], $allSourceKeys);
     }
 

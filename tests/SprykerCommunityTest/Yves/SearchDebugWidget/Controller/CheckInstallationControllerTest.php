@@ -101,7 +101,6 @@ class CheckInstallationControllerTest extends Unit
     protected function invokeIsListenerBound(EventDispatcher $eventDispatcher, string $eventName, string $listenerClassName): bool
     {
         $reflectionMethod = new ReflectionMethod(CheckInstallationController::class, 'isListenerBound');
-        $reflectionMethod->setAccessible(true);
 
         return $reflectionMethod->invoke(new CheckInstallationController(), $eventDispatcher, $eventName, $listenerClassName);
     }

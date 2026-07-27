@@ -149,7 +149,6 @@ class SearchDebugContextEventDispatcherPluginTest extends Unit
     protected function invokeIsSearchResultsPage(SearchDebugContextEventDispatcherPlugin $plugin, Request $request): bool
     {
         $method = new ReflectionMethod($plugin, 'isSearchResultsPage');
-        $method->setAccessible(true);
 
         return $method->invoke($plugin, $request);
     }

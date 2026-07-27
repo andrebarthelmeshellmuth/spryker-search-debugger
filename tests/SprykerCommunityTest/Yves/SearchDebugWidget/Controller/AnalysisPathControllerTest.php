@@ -300,7 +300,6 @@ class AnalysisPathControllerTest extends Unit
     protected function invokeAssignStepColors(array $path): array
     {
         $reflectionMethod = new ReflectionMethod(AnalysisPathController::class, 'assignStepColors');
-        $reflectionMethod->setAccessible(true);
 
         return $reflectionMethod->invoke(new AnalysisPathController(), $path);
     }
@@ -313,7 +312,6 @@ class AnalysisPathControllerTest extends Unit
     protected function invokeResolveUseSearchAnalyzer(Request $request): bool
     {
         $reflectionMethod = new ReflectionMethod(AnalysisPathController::class, 'resolveUseSearchAnalyzer');
-        $reflectionMethod->setAccessible(true);
 
         return $reflectionMethod->invoke(new AnalysisPathController(), $request);
     }
@@ -326,7 +324,6 @@ class AnalysisPathControllerTest extends Unit
     protected function invokeResolveExplicitOffset(Request $request): ?array
     {
         $reflectionMethod = new ReflectionMethod(AnalysisPathController::class, 'resolveExplicitOffset');
-        $reflectionMethod->setAccessible(true);
 
         return $reflectionMethod->invoke(new AnalysisPathController(), $request);
     }
@@ -340,7 +337,6 @@ class AnalysisPathControllerTest extends Unit
     protected function invokeFindFirstMatchOffset(array $tokenOffsets, string $token): ?array
     {
         $reflectionMethod = new ReflectionMethod(AnalysisPathController::class, 'findFirstMatchOffset');
-        $reflectionMethod->setAccessible(true);
 
         return $reflectionMethod->invoke(new AnalysisPathController(), $tokenOffsets, $token);
     }

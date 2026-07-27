@@ -50,20 +50,16 @@ class PageDocumentReaderTest extends Unit
         $keyGeneratorPluginMock
             ->expects($this->once())
             ->method('generateKey')
-            ->with($this->callback(function (SynchronizationDataTransfer $synchronizationDataTransfer) {
-                return $synchronizationDataTransfer->getStore() === 'DE'
-                    && $synchronizationDataTransfer->getLocale() === 'de_DE'
-                    && $synchronizationDataTransfer->getReference() === '238';
-            }))
+            ->with($this->callback(fn (SynchronizationDataTransfer $synchronizationDataTransfer) => $synchronizationDataTransfer->getStore() === 'DE'
+                && $synchronizationDataTransfer->getLocale() === 'de_DE'
+                && $synchronizationDataTransfer->getReference() === '238'))
             ->willReturn('product_abstract:de:de_de:238');
 
         $documentReaderMock = $this->createMock(DocumentReaderInterface::class);
         $documentReaderMock
             ->expects($this->once())
             ->method('readDocument')
-            ->with($this->callback(function (SearchDocumentTransfer $searchDocumentTransfer) {
-                return $searchDocumentTransfer->getId() === 'product_abstract:de:de_de:238';
-            }))
+            ->with($this->callback(fn (SearchDocumentTransfer $searchDocumentTransfer) => $searchDocumentTransfer->getId() === 'product_abstract:de:de_de:238'))
             ->willReturn((new SearchDocumentTransfer())->setData(['full-text' => ['Cable']]));
 
         $pageDocumentReader = $this->createPageDocumentReader($documentReaderMock, $keyGeneratorPluginMock);
@@ -91,18 +87,14 @@ class PageDocumentReaderTest extends Unit
         $searchContextExpanderMock
             ->expects($this->once())
             ->method('expandSearchContext')
-            ->with($this->callback(function (SearchContextTransfer $searchContextTransfer) {
-                return $searchContextTransfer->getSourceIdentifier() === 'page';
-            }))
+            ->with($this->callback(fn (SearchContextTransfer $searchContextTransfer) => $searchContextTransfer->getSourceIdentifier() === 'page'))
             ->willReturn($expandedSearchContextTransfer);
 
         $documentReaderMock = $this->createMock(DocumentReaderInterface::class);
         $documentReaderMock
             ->expects($this->once())
             ->method('readDocument')
-            ->with($this->callback(function (SearchDocumentTransfer $searchDocumentTransfer) use ($expandedSearchContextTransfer) {
-                return $searchDocumentTransfer->getSearchContext() === $expandedSearchContextTransfer;
-            }))
+            ->with($this->callback(fn (SearchDocumentTransfer $searchDocumentTransfer) => $searchDocumentTransfer->getSearchContext() === $expandedSearchContextTransfer))
             ->willReturn((new SearchDocumentTransfer())->setData([]));
 
         $pageDocumentReader = $this->createPageDocumentReader($documentReaderMock, null, $searchContextExpanderMock);

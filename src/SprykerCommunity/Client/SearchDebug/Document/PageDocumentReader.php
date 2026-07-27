@@ -22,31 +22,6 @@ use SprykerCommunity\Client\SearchDebug\SearchDebugConfig;
 class PageDocumentReader implements PageDocumentReaderInterface
 {
     /**
-     * @var \Spryker\Client\SearchElasticsearch\Reader\DocumentReaderInterface
-     */
-    protected DocumentReaderInterface $documentReader;
-
-    /**
-     * @var \Spryker\Client\SearchElasticsearch\SearchContextExpander\SearchContextExpanderInterface
-     */
-    protected SearchContextExpanderInterface $searchContextExpander;
-
-    /**
-     * @var \Spryker\Service\Synchronization\SynchronizationServiceInterface
-     */
-    protected SynchronizationServiceInterface $synchronizationService;
-
-    /**
-     * @var \Spryker\Client\SearchElasticsearch\Dependency\Client\SearchElasticsearchToStoreClientInterface
-     */
-    protected SearchElasticsearchToStoreClientInterface $storeClient;
-
-    /**
-     * @var \SprykerCommunity\Client\SearchDebug\SearchDebugConfig
-     */
-    protected SearchDebugConfig $config;
-
-    /**
      * @param \Spryker\Client\SearchElasticsearch\Reader\DocumentReaderInterface $documentReader
      * @param \Spryker\Client\SearchElasticsearch\SearchContextExpander\SearchContextExpanderInterface $searchContextExpander
      * @param \Spryker\Service\Synchronization\SynchronizationServiceInterface $synchronizationService
@@ -54,17 +29,12 @@ class PageDocumentReader implements PageDocumentReaderInterface
      * @param \SprykerCommunity\Client\SearchDebug\SearchDebugConfig $config
      */
     public function __construct(
-        DocumentReaderInterface $documentReader,
-        SearchContextExpanderInterface $searchContextExpander,
-        SynchronizationServiceInterface $synchronizationService,
-        SearchElasticsearchToStoreClientInterface $storeClient,
-        SearchDebugConfig $config,
+        protected DocumentReaderInterface $documentReader,
+        protected SearchContextExpanderInterface $searchContextExpander,
+        protected SynchronizationServiceInterface $synchronizationService,
+        protected SearchElasticsearchToStoreClientInterface $storeClient,
+        protected SearchDebugConfig $config,
     ) {
-        $this->documentReader = $documentReader;
-        $this->searchContextExpander = $searchContextExpander;
-        $this->synchronizationService = $synchronizationService;
-        $this->storeClient = $storeClient;
-        $this->config = $config;
     }
 
     /**
@@ -82,7 +52,7 @@ class PageDocumentReader implements PageDocumentReaderInterface
 
         try {
             return $this->documentReader->readDocument($searchDocumentTransfer)->getData();
-        } catch (ExceptionInterface $exception) {
+        } catch (ExceptionInterface) {
             // Missing document (Elastica NotFoundException) and an unreachable Elasticsearch both
             // degrade to "no document data" — same fail-soft posture as SearchStringAnalyzer.
             return null;

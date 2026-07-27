@@ -75,26 +75,6 @@ class TokenSourceResolver implements TokenSourceResolverInterface
     ];
 
     /**
-     * @var \Spryker\Client\ProductStorage\ProductStorageClientInterface
-     */
-    protected ProductStorageClientInterface $productStorageClient;
-
-    /**
-     * @var \SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface
-     */
-    protected SearchDebugClientInterface $searchDebugClient;
-
-    /**
-     * @var \SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface
-     */
-    protected TokenHighlighterInterface $tokenHighlighter;
-
-    /**
-     * @var \SprykerCommunity\Yves\SearchDebugWidget\Resolver\ProductSourceMapBuilder
-     */
-    protected ProductSourceMapBuilder $productSourceMapBuilder;
-
-    /**
      * Memoizes `getTextTokenOffsets()` results per distinct element string — identical values recur in
      * one document (e.g. a concrete name equal to the abstract name) and need only one `_analyze` call.
      *
@@ -109,15 +89,11 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      * @param \SprykerCommunity\Yves\SearchDebugWidget\Resolver\ProductSourceMapBuilder $productSourceMapBuilder
      */
     public function __construct(
-        ProductStorageClientInterface $productStorageClient,
-        SearchDebugClientInterface $searchDebugClient,
-        TokenHighlighterInterface $tokenHighlighter,
-        ProductSourceMapBuilder $productSourceMapBuilder,
+        protected ProductStorageClientInterface $productStorageClient,
+        protected SearchDebugClientInterface $searchDebugClient,
+        protected TokenHighlighterInterface $tokenHighlighter,
+        protected ProductSourceMapBuilder $productSourceMapBuilder,
     ) {
-        $this->productStorageClient = $productStorageClient;
-        $this->searchDebugClient = $searchDebugClient;
-        $this->tokenHighlighter = $tokenHighlighter;
-        $this->productSourceMapBuilder = $productSourceMapBuilder;
     }
 
     /**
@@ -210,7 +186,7 @@ class TokenSourceResolver implements TokenSourceResolverInterface
 
         $elementsByTier = [];
         foreach ($fieldBoosts as $tier => $boost) {
-            $elementsByTier[$tier] = array_map('strval', (array)($documentData[$tier] ?? []));
+            $elementsByTier[$tier] = array_map(static fn ($value): string => (string)$value, (array)($documentData[$tier] ?? []));
         }
 
         $this->warmTokenOffsetsCache(array_merge(...array_values($elementsByTier)));
