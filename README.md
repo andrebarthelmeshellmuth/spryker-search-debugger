@@ -3,6 +3,8 @@
 Developer tools for inspecting, debugging and understanding OpenSearch/Elasticsearch queries in Spryker.
 Search Debug helps Search Engineers explain ranking decisions—quickly enough that they can confidently answer the business question: "Why did this product rank above that one?"
 
+*Part of the [Search Relevance](https://search-relevance.dev/) project — explore the interactive ranking-formula walkthrough there.*
+
 ## Contents
 
 - [What does this do?](#what-does-this-do)
