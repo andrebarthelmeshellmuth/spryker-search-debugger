@@ -111,3 +111,5 @@ search_debug.check_installation.permission_denied_heading,Search Debug: permissi
 search_debug.check_installation.permission_denied_heading,Search Debug: Berechtigung erforderlich,de_DE
 search_debug.check_installation.permission_denied_body,"This installation-check page is only shown to a customer holding the SeeSearchDebugInfoPermissionPlugin permission. Grant it to a Company Role in Zed → Customer → Company Roles, assign that role to your account, then reload this page.",en_US
 search_debug.check_installation.permission_denied_body,"Diese Installationsprüfung wird nur einem Kunden mit der Berechtigung SeeSearchDebugInfoPermissionPlugin angezeigt. Vergib sie in Zed → Kunde → Unternehmensrollen an eine Rolle, weise sie deinem Konto zu und lade die Seite neu.",de_DE
+permission.name.SeeSearchDebugInfoPermissionPlugin,See search debug info,en_US
+permission.name.SeeSearchDebugInfoPermissionPlugin,Suchdebug-Informationen einsehen,de_DE
