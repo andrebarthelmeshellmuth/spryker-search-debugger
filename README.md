@@ -511,7 +511,7 @@ Spryker Community extension, developed alongside this one but not yet released â
 business-signal `function_score` in the same overlay.
 
 For a `function_score`-wrapped query the explain parser additionally exposes the WRAPPED query's own
-relevance as `queryScore` (shown as "Text match score", the number the matched-token breakdown adds
+relevance as `queryScore` (shown as "Text match raw score", the number the matched-token breakdown adds
 up against), suppresses Elasticsearch's float-max `maxBoost` sentinel from the output, and the
 overlay closes with the final `_score` actually used for ranking.
 
