@@ -54,6 +54,12 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
 
         $path = [$this->originPathEntry($currentToken['token'])];
 
+        // Whether $currentToken (by the time the loop below ends) is stages[0]'s own matched token — either
+        // because there was only ever one stage to begin with, or because every backward step found a
+        // containing parent all the way down. Only then is it safe to attribute stages[0]'s OWN operation
+        // (see below) and to prepend the true, pre-pipeline raw input as the path's real origin.
+        $tracedToFirstStage = $lastStageIndex === 0;
+
         for ($stageIndex = $lastStageIndex; $stageIndex > 0; $stageIndex--) {
             $parentToken = $this->findContainingToken(
                 $stages[$stageIndex - 1]['tokens'],
@@ -85,9 +91,28 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
                 // it in the origin box mirrors the token-source page's `<mark>` treatment: "this part of the
                 // text is what led here" — see addOriginHighlight() for why this is validated, not assumed.
                 $this->addOriginHighlight($path[0], $currentToken);
+                $tracedToFirstStage = true;
             }
 
             $currentToken = $parentToken;
+        }
+
+        // Without this, stages[0]'s own operation (a char filter, or the tokenizer itself when the
+        // analyzer has no char filters) is never attributed to anything — the loop above only ever labels
+        // an entry with the stage that comes AFTER it, so whatever produced $path[0] at this point has no
+        // label yet, and $text itself (the actual raw, pre-pipeline input) never appears on the page at
+        // all: $path[0]'s text is already stages[0]'s OUTPUT, which a char filter can have rewritten (e.g.
+        // this shop's own "& => and"), silently passing off transformed text as if it were the origin.
+        if ($tracedToFirstStage) {
+            $path[0]['operation'] = $stages[0]['operation'];
+            $path[0]['definition'] = $stages[0]['definition'];
+            $path[0]['componentKind'] = $stages[0]['componentKind'];
+            $path[0]['componentName'] = $stages[0]['componentName'];
+            $path[0]['definitionTruncated'] = $stages[0]['definitionTruncated'];
+
+            $rawOrigin = $this->originPathEntry($text);
+            $this->addOriginHighlight($rawOrigin, $currentToken);
+            array_unshift($path, $rawOrigin);
         }
 
         return $path;
@@ -151,12 +176,14 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
 
     /**
      * A freshly unshifted/seeded path entry — nothing has produced it FROM an earlier stage yet, so
-     * every "how did we get here" field starts null/false, to potentially be filled in one loop
-     * iteration later. `highlightedHtml` starts null too: it is only ever filled in by
-     * {@see addOriginHighlight()}, called exactly once, on the walk's LAST iteration — the one that
-     * confirms this entry is the true, final origin (index 0) and won't be shifted deeper by a further
-     * iteration. A path that `break`s early (an earlier stage's containing token wasn't found) never
-     * reaches that call, so its first entry correctly stays unhighlighted.
+     * every "how did we get here" field starts null/false, to potentially be filled in later (either by
+     * the loop's next iteration, or — for stages[0]'s own entry and the true raw-input entry prepended
+     * ahead of it — by the code directly after the loop in {@see resolve()}). `highlightedHtml` starts
+     * null too: it is only ever filled in by {@see addOriginHighlight()}, called once for the entry that
+     * traces stages[0]'s token within its OWN parent's text (inside the loop, when `$stageIndex === 1`),
+     * and once more for the true raw-input entry tracing stages[0]'s token within `$text` (after the
+     * loop). A path that `break`s early (an earlier stage's containing token wasn't found) never reaches
+     * either call, so its first entry correctly stays unhighlighted.
      *
      * @param string $text
      *
