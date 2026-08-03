@@ -120,26 +120,40 @@
         {% endfor %}
 
         {# "Text signals" groups everything about the wrapped query's own text relevance under one
-           headline: the itemized matched-token/other-contribution breakdown (collapsed by default, exactly
-           as before), plus — moved IN here from their old standalone spots elsewhere in the overlay — the
-           raw text-match score and the saturation point (k) it gets normalized against. The [0;1]-normalized
-           RESULT of that pair ("Text Signal total", below) deliberately stays OUTSIDE this box instead of
-           becoming one more line inside it: it's the one number this whole group actually produces for the
-           closing blend formula to consume, so it reads as this group's OUTPUT, not one more raw input
-           buried alongside the others. #}
+           collapsible: the itemized matched-token/other-contribution breakdown, the raw text-match score,
+           and the saturation point (k) it gets normalized against — moved IN here from their old
+           standalone spots elsewhere in the overlay. Collapsed by default, same reasoning as every other
+           collapsible in this overlay: hides this section's own child "Matched tokens" collapsible AND the
+           two always-visible lines together as one unit, rather than requiring two separate clicks (this
+           toggle, then "Matched tokens") to get the raw score/saturation-point lines out of the way too.
+           The [0;1]-normalized RESULT of that pair ("Text Signal total", below) deliberately stays OUTSIDE
+           this box instead of becoming one more line inside it: it's the one number this whole group
+           actually produces for the closing blend formula to consume, so it reads as this group's OUTPUT,
+           not one more raw input buried alongside (and hidden along with) the others. #}
         {% set hasTextSignals = data.debugInfo.matchedTokens is not empty or (data.debugInfo.queryScore is defined and data.debugInfo.queryScore is not null) %}
         {% if hasTextSignals %}
             <div class="search-debug-overlay__section">
-                <strong class="search-debug-overlay__section-title">{{ 'search_debug.text_signals' | trans }}</strong>
+                <details class="search-debug-collapsible">
+                    <summary class="search-debug-collapsible__summary">
+                        <strong>{{ 'search_debug.text_signals' | trans }}</strong>
+                        <span class="search-debug-collapsible__icon">
+                            {% include atom('icon') with {
+                                data: {
+                                    name: 'caret-down',
+                                },
+                            } only %}
+                        </span>
+                    </summary>
 
                 {# matchedTokens holds only tokens from the user's actual query: everything else the explain
                    tree scored (e.g. the internal type filter clause) is listed under otherContributions
                    instead, so the numbers shown always account for the score rather than silently omitting
                    part of it. #}
                 {% if data.debugInfo.matchedTokens is not empty %}
-                    {# Collapsed by default — the list grows with how many of the user's query tokens
-                       matched, which for a longer query can push the final-score-explaining content below
-                       it out of view without scrolling. #}
+                    {# Nested inside the "Text signals" toggle above — collapsed independently of it (both
+                       default closed), so the token-by-token breakdown stays one extra click away even
+                       once "Text signals" itself is open, exactly like the BM25 breakdown nested inside
+                       THIS toggle further below. #}
                     <details class="search-debug-collapsible">
                         <summary class="search-debug-collapsible__summary">
                             <strong>{{ 'search_debug.matched_tokens' | trans }}</strong>
@@ -332,6 +346,7 @@
                         </div>
                     {% endif %}
                 {% endfor %}
+                </details>
             </div>
         {% endif %}
 
