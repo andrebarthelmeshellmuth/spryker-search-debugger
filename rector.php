@@ -22,6 +22,6 @@ return RectorConfig::configure()
     // Picks up the PHP floor (>=8.3) from composer.json.
     ->withPhpSets()
     // Gradual levels (0 = safest rules only). Raise one level at a time in a later pass.
-    ->withDeadCodeLevel(5)
-    ->withCodeQualityLevel(5)
+    ->withDeadCodeLevel(6)
+    ->withCodeQualityLevel(6)
     ->withoutParallel();
