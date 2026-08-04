@@ -50,6 +50,30 @@
     <rule ref="SlevomatCodingStandard.Functions.RequireTrailingCommaInDeclaration"/>
     <rule ref="SlevomatCodingStandard.Functions.RequireTrailingCommaInClosureUse"/>
 
+    <!--
+        Codeception's generated Actor/Tester classes always carry the bare `@SuppressWarnings(PHPMD)`
+        annotation — PHPMD's own suppression convention, where "PHPMD" is a literal token, not a class
+        reference. This sniff doesn't know that and wants it "fully qualified", which would rewrite it
+        into a nonexistent class path. Spryker's own core packages carry this exact same bare form in
+        every one of their generated Testers, unfixed — this is a sniff/annotation mismatch, not a real
+        violation.
+    -->
+    <rule ref="SlevomatCodingStandard.Namespaces.FullyQualifiedClassNameInAnnotation">
+        <exclude-pattern>*/tests/*/_support/*Tester.php</exclude-pattern>
+    </rule>
+
+    <!--
+        This sniff only recognizes a docblock as attached to a declaration (rather than a floating
+        inline comment) when the very next token is private/protected/public/readonly/const, or static
+        followed by one of those — it never checks for `final`. ExplanationParser.php's
+        `final public const SYNONYM_TERM_SEPARATOR` (the package's only `final` constant) falls through
+        that gap and gets misclassified; an inline @phpcsSuppress on the same misclassified docblock
+        doesn't help, since the misclassification itself is what defeats the suppression lookup.
+    -->
+    <rule ref="SlevomatCodingStandard.Commenting.InlineDocCommentDeclaration">
+        <exclude-pattern>*/src/SprykerCommunity/Client/SearchDebug/Explanation/ExplanationParser.php</exclude-pattern>
+    </rule>
+
     <rule ref="SlevomatCodingStandard.ControlStructures.DisallowNullSafeObjectOperator">
         <severity>0</severity>
     </rule>

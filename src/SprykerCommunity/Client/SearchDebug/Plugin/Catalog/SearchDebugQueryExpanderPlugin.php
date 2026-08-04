@@ -37,7 +37,7 @@ class SearchDebugQueryExpanderPlugin extends AbstractPlugin implements QueryExpa
      *
      * @return \Spryker\Client\SearchExtension\Dependency\Plugin\QueryInterface
      */
-    public function expandQuery(QueryInterface $searchQuery, array $requestParameters = [])
+    public function expandQuery(QueryInterface $searchQuery, array $requestParameters = []): QueryInterface
     {
         $isSearchDebugEnabled = $this->getFactory()
             ->createSearchDebugAccessChecker()
