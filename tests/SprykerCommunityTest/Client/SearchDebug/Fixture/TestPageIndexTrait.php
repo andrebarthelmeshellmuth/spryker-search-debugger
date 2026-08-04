@@ -142,9 +142,6 @@ trait TestPageIndexTrait
         return $this->getTestElasticaClient()->getIndex(static::TEST_INDEX_NAME);
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Analyzer\SearchStringAnalyzerInterface
-     */
     protected function createNonexistentIndexSearchStringAnalyzer(): SearchStringAnalyzerInterface
     {
         return new SearchStringAnalyzer(
@@ -156,9 +153,6 @@ trait TestPageIndexTrait
         );
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaReaderInterface
-     */
     protected function createNonexistentIndexSchemaReader(): IndexSchemaReaderInterface
     {
         return new IndexSchemaReader(

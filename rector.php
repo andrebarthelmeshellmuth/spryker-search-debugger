@@ -17,7 +17,13 @@ return RectorConfig::configure()
         __DIR__ . '/tools',
     ])
     ->withSkip([
+        // The bare directory pattern alone doesn't reliably skip the FILES inside it -- fnmatch() needs
+        // an exact string match, and a per-file path has a filename trailing the directory this pattern
+        // matches. Confirmed empirically on the sibling search-ranking package: this let
+        // RemoveUselessReturnTagRector reach into a regenerated *TesterActions.php file there. Both
+        // forms kept since which one actually matches depends on how the caller passes the path.
         __DIR__ . '/tests/*/_support/_generated',
+        __DIR__ . '/tests/*/_support/_generated/*',
         __DIR__ . '/tests/*/_output',
         __DIR__ . '/tests/*/_data',
         // Typed class constants (PHP 8.3) aren't understood by the installed phpcs 3.7.1
