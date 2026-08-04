@@ -62,9 +62,7 @@ class TokenHighlighter implements TokenHighlighterInterface
             $cursor = $endOffset;
         }
 
-        $html .= $this->escape(Utf16CodeUnitConverter::slice($textUtf16, $cursor, $lengthInCodeUnits));
-
-        return $html;
+        return $html . $this->escape(Utf16CodeUnitConverter::slice($textUtf16, $cursor, $lengthInCodeUnits));
     }
 
     /**
