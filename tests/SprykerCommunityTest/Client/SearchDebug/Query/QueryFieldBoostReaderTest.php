@@ -184,17 +184,8 @@ class QueryFieldBoostReaderTest extends Unit
     protected function createSearchQuery($query): QueryInterface
     {
         return new class ($query) implements QueryInterface {
-            /**
-             * @var mixed
-             */
-            protected $query;
-
-            /**
-             * @param mixed $query
-             */
-            public function __construct($query)
+            public function __construct(protected mixed $query)
             {
-                $this->query = $query;
             }
 
             /**
