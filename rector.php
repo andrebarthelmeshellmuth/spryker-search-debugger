@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
+use Rector\DeadCode\Rector\ClassMethod\RemoveUselessParamTagRector;
 use Rector\DeadCode\Rector\Concat\RemoveConcatAutocastRector;
 use Rector\Php83\Rector\ClassConst\AddTypeToConstRector;
 
@@ -26,11 +27,16 @@ return RectorConfig::configure()
         RemoveConcatAutocastRector::class => [
             __DIR__ . '/src/SprykerCommunity/Client/SearchDebug/Analyzer/SearchStringAnalyzer.php',
         ],
+        // Spryker.Commenting.DocBlockParam (active in this project's phpcs.xml) requires exactly one
+        // @param tag per method parameter, typed or not. This rule strips @param tags for natively
+        // typed params, which produced 140 "Doc Block params do not match method signature" errors
+        // across 58 files when tried — a direct, systemic contradiction of that convention.
+        RemoveUselessParamTagRector::class,
     ])
     // Picks up the PHP floor (>=8.3) from composer.json.
     ->withPhpSets()
     // Gradual levels (0 = safest rules only). Raising in batches; stop at the first hit that
     // conflicts with established Spryker style rather than applying it automatically.
-    ->withDeadCodeLevel(22)
-    ->withCodeQualityLevel(22)
+    ->withDeadCodeLevel(25)
+    ->withCodeQualityLevel(25)
     ->withoutParallel();
