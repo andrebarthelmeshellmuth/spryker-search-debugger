@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Rector\CodeQuality\Rector\Class_\ConvertStaticToSelfRector;
 use Rector\CodeQuality\Rector\Identical\FlipTypeControlToUseExclusiveTypeRector;
 use Rector\Config\RectorConfig;
 use Rector\DeadCode\Rector\ClassMethod\RemoveMixedDocblockOverruledByNativeTypeRector;
@@ -43,11 +44,15 @@ return RectorConfig::configure()
         // === null idiom used everywhere else, and writes an inline FQCN instead of a use import,
         // which trips Spryker.Namespaces.UseStatement.
         FlipTypeControlToUseExclusiveTypeRector::class,
+        // Direct contradiction of Spryker's own SprykerPreferStaticOverSelf sniff (active, not
+        // excluded): converts static:: to self::, confirmed empirically as "Please use static::
+        // instead of self::" on ExplanationParser.php.
+        ConvertStaticToSelfRector::class,
     ])
     // Picks up the PHP floor (>=8.3) from composer.json.
     ->withPhpSets()
     // Gradual levels (0 = safest rules only). Raising in batches; stop at the first hit that
     // conflicts with established Spryker style rather than applying it automatically.
-    ->withDeadCodeLevel(65)
-    ->withCodeQualityLevel(65)
+    ->withDeadCodeLevel(76)
+    ->withCodeQualityLevel(76)
     ->withoutParallel();
