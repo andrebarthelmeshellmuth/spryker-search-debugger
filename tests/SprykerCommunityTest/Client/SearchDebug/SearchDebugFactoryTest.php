@@ -128,6 +128,17 @@ class SearchDebugFactoryTest extends Unit
     }
 
     /**
+     * The one extension point a host shop actually plugs into (e.g. search-ranking's own
+     * `SearchRankingProductDebugDataExpanderPlugin`, registered via the project's own
+     * `SearchDebugDependencyProvider::getProductDebugDataExpanderPlugins()`) — asserts the container value
+     * passes through unchanged, the same DI-passthrough contract every other `getX()` method here has.
+     */
+    public function testGetProductDebugDataExpanderPluginsReturnsThePluginsProvidedByTheContainer(): void
+    {
+        $this->assertSame([], $this->createFactory()->getProductDebugDataExpanderPlugins());
+    }
+
+    /**
      * Builds a real factory wired to a container carrying only test-double leaf dependencies (store,
      * permission, synchronization clients/services) — everything this package composes itself (the
      * Elastica client, the vendor SearchElasticsearch pieces) is built for real, since those are plain,

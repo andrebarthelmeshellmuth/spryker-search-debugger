@@ -320,4 +320,29 @@ class SearchStringAnalyzerTest extends Unit
         // Assert
         $this->assertSame([], $stages);
     }
+
+    /**
+     * Fail-soft path: a real `index_not_found_exception` from Elasticsearch (not a mocked one) must be
+     * swallowed, not bubble up as an uncaught exception through to the storefront.
+     */
+    public function testGetSearchStringTokensReturnsAnEmptyArrayWhenTheIndexDoesNotExist(): void
+    {
+        // Act
+        $tokens = $this->createNonexistentIndexSearchStringAnalyzer()->getTokens('cable');
+
+        // Assert
+        $this->assertSame([], $tokens);
+    }
+
+    /**
+     * Same fail-soft path as above, for the offset-returning sibling method.
+     */
+    public function testGetTextTokenOffsetsReturnsAnEmptyArrayWhenTheIndexDoesNotExist(): void
+    {
+        // Act
+        $tokenOffsets = $this->createNonexistentIndexSearchStringAnalyzer()->getTokenOffsets('cable');
+
+        // Assert
+        $this->assertSame([], $tokenOffsets);
+    }
 }

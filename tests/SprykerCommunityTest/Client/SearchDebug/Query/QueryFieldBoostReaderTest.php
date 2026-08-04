@@ -10,6 +10,7 @@ declare(strict_types = 1);
 namespace SprykerCommunityTest\Client\SearchDebug\Query;
 
 use Codeception\Test\Unit;
+use Elastica\Exception\InvalidException;
 use Elastica\Query;
 use Elastica\Query\BoolQuery;
 use Elastica\Query\MatchAll;
@@ -148,6 +149,27 @@ class QueryFieldBoostReaderTest extends Unit
     }
 
     /**
+     * Fail-soft path: a `QueryInterface` implementation whose `getSearchQuery()` itself throws (e.g. a
+     * plugin building its Elastica query lazily on first access) must not bubble the exception up through
+     * `captureFromQuery()` — the SRP overlay's own score badges must still render even if the field-boost
+     * capture, a purely informational side channel, fails.
+     */
+    public function testCaptureFromQueryReturnsAnEmptyArrayAndResetsFieldBoostsWhenGetSearchQueryThrows(): void
+    {
+        // Arrange
+        $reader = new QueryFieldBoostReader();
+        $reader->captureFromQuery($this->createSearchQuery($this->createMultiMatchQuery(['full-text'])));
+        $searchQuery = $this->createThrowingSearchQuery();
+
+        // Act
+        $result = $reader->captureFromQuery($searchQuery);
+
+        // Assert — a prior successful capture's value must not leak through a later failed one.
+        $this->assertSame([], $result);
+        $this->assertSame([], $reader->getFieldBoosts());
+    }
+
+    /**
      * @param array<string> $fields
      */
     protected function createMultiMatchQuery(array $fields): Query
@@ -156,6 +178,21 @@ class QueryFieldBoostReaderTest extends Unit
         $boolQuery = (new BoolQuery())->addMust($multiMatch);
 
         return (new Query())->setQuery($boolQuery);
+    }
+
+    protected function createThrowingSearchQuery(): QueryInterface
+    {
+        return new class implements QueryInterface {
+            /**
+             * @throws \Elastica\Exception\InvalidException
+             *
+             * @return mixed
+             */
+            public function getSearchQuery()
+            {
+                throw new InvalidException('search query could not be built');
+            }
+        };
     }
 
     /**

@@ -140,6 +140,60 @@ class ExplanationParserTest extends Unit
     }
 
     /**
+     * `walkNode()`'s own final fallback (a node that isn't a `weight(...)` node, a `script score
+     * function`, a parent with children, an empty description, or a score-function leaf) is a DIFFERENT
+     * code path from {@see testParseKeepsAnUnrecognizedWeightNodeVerbatimInsteadOfDescendingIntoIt}'s
+     * "unrecognized weight(...) node" fallback above — that one is reached via `tryHandleWeightNode()`'s
+     * own else-branch, this one only when NONE of the `try*()` dispatchers even claim the node. Real
+     * engines occasionally emit exactly this: a leaf whose description doesn't start with `weight(` at
+     * all (e.g. `ConstantScore`/`MatchNoDocsQuery` leaves), and the parser must still surface it rather
+     * than silently dropping it.
+     */
+    public function testParseKeepsAGenuinelyUnclaimedLeafNodeAsAnOtherContribution(): void
+    {
+        // Arrange
+        $description = 'ConstantScore(*:*), product of:';
+        $explanation = [
+            'value' => 3.5,
+            'description' => $description,
+            'details' => [],
+        ];
+
+        // Act
+        $result = $this->createParser()->parse($explanation, ['cable']);
+
+        // Assert
+        $this->assertSame([], $result[ExplanationParser::KEY_MATCHED_TOKENS]);
+        $this->assertSame(
+            [['description' => $description, 'value' => 3.5]],
+            $result[ExplanationParser::KEY_OTHER_CONTRIBUTIONS],
+        );
+    }
+
+    /**
+     * A node with a genuinely empty description (no `weight(`/`script score function` prefix, no
+     * children) is dropped silently by {@see ExplanationParser::tryDropEmptyDescription()} — a DIFFERENT
+     * early-return from the final opaque-leaf fallback above, reached only when the description is
+     * exactly `''`, not merely unrecognized.
+     */
+    public function testParseDropsANodeWithAGenuinelyEmptyDescription(): void
+    {
+        // Arrange
+        $explanation = [
+            'value' => 3.5,
+            'description' => '',
+            'details' => [],
+        ];
+
+        // Act
+        $result = $this->createParser()->parse($explanation, ['cable']);
+
+        // Assert
+        $this->assertSame([], $result[ExplanationParser::KEY_MATCHED_TOKENS]);
+        $this->assertSame([], $result[ExplanationParser::KEY_OTHER_CONTRIBUTIONS]);
+    }
+
+    /**
      * `walkNode()`'s dispatch is FIRST-MATCH-WINS: a node shaped like more than one recognized case at
      * once is resolved by whichever `try*()` check runs first, not by some "most specific wins" logic.
      * This node is deliberately shaped like TWO things at once — a recognized `weight(field:term)` leaf

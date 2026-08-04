@@ -155,4 +155,19 @@ class IndexSchemaReaderTest extends Unit
         // Assert
         $this->assertNull($component);
     }
+
+    /**
+     * Fail-soft path: a real `index_not_found_exception` from Elasticsearch (not a mocked one) must be
+     * swallowed, returning an empty (but named) schema so callers degrade to the "standard" analyzer
+     * instead of throwing — the same posture `SearchStringAnalyzer`'s own `_analyze` calls take.
+     */
+    public function testGetPageIndexSchemaReturnsAnEmptyNamedSchemaWhenTheIndexDoesNotExist(): void
+    {
+        // Act
+        $schema = $this->createNonexistentIndexSchemaReader()->getPageIndexSchema();
+
+        // Assert
+        $this->assertSame(static::NONEXISTENT_INDEX_NAME, $schema->getIndexName());
+        $this->assertSame([], $schema->getFields()->getArrayCopy());
+    }
 }

@@ -15,6 +15,7 @@ use Elastica\Response;
 use Elastica\Result;
 use Elastica\ResultSet;
 use SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessCheckerInterface;
+use SprykerCommunity\Client\SearchDebug\Dependency\Plugin\ProductDebugDataExpanderPluginInterface;
 use SprykerCommunity\Client\SearchDebug\Explanation\Bm25BreakdownExtractor;
 use SprykerCommunity\Client\SearchDebug\Explanation\CrossFieldsSynonymMatcher;
 use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser;
@@ -44,6 +45,11 @@ class SearchDebugResultFormatterPluginTest extends Unit
      * @var int
      */
     protected const ID_PRODUCT_ABSTRACT = 42;
+
+    public function testGetNameReturnsTheClassConstant(): void
+    {
+        $this->assertSame(SearchDebugResultFormatterPlugin::NAME, (new SearchDebugResultFormatterPlugin())->getName());
+    }
 
     public function testFormatResultReturnsTheQueryTokensAndThePerProductDebugData(): void
     {
@@ -146,6 +152,35 @@ class SearchDebugResultFormatterPluginTest extends Unit
         );
     }
 
+    /**
+     * `getProductDebugData()`'s `foreach ($debugDataExpanderPlugins as ...)` loop is only ever exercised
+     * with an EMPTY plugin list by every other test here — this is the one place search-debug's own suite
+     * proves a REGISTERED expander plugin (e.g. search-ranking's `SearchRankingProductDebugDataExpanderPlugin`)
+     * actually gets called and its returned (expanded) data actually replaces what was there before, not
+     * just merged silently or ignored.
+     */
+    public function testFormatResultAppliesARegisteredProductDebugDataExpanderPlugin(): void
+    {
+        // Arrange
+        $expanderPluginMock = $this->createMock(ProductDebugDataExpanderPluginInterface::class);
+        $expanderPluginMock
+            ->method('expandProductDebugData')
+            ->willReturnCallback(function (array $productDebugData): array {
+                $productDebugData['scoreSections'] = [['title' => 'Business signals', 'lines' => []]];
+
+                return $productDebugData;
+            });
+        $resultFormatterPlugin = $this->createResultFormatterPlugin(true, ['cable'], [], [], [$expanderPluginMock]);
+        $resultSet = $this->createResultSet([$this->createHit(20.7051)]);
+
+        // Act
+        $result = $resultFormatterPlugin->formatResult($resultSet, $this->createRequestParameters());
+
+        // Assert
+        $productDebugData = $result[SearchDebugConfig::KEY_PRODUCTS][static::ID_PRODUCT_ABSTRACT];
+        $this->assertSame([['title' => 'Business signals', 'lines' => []]], $productDebugData['scoreSections']);
+    }
+
     public function testFormatResultReturnsNoDataWhenSearchDebugIsDisabled(): void
     {
         // Arrange
@@ -220,12 +255,14 @@ class SearchDebugResultFormatterPluginTest extends Unit
      * @param array<string> $queryTokens
      * @param array<string, int> $fieldBoosts
      * @param array<array{token: string, startOffset: int, endOffset: int}> $queryTokenOffsets
+     * @param array<\SprykerCommunity\Client\SearchDebug\Dependency\Plugin\ProductDebugDataExpanderPluginInterface> $productDebugDataExpanderPlugins
      */
     protected function createResultFormatterPlugin(
         bool $isSearchDebugEnabled,
         array $queryTokens,
         array $fieldBoosts = [],
         array $queryTokenOffsets = [],
+        array $productDebugDataExpanderPlugins = [],
     ): SearchDebugResultFormatterPlugin {
         $searchDebugAccessCheckerMock = $this->createMock(SearchDebugAccessCheckerInterface::class);
         $searchDebugAccessCheckerMock
@@ -262,7 +299,7 @@ class SearchDebugResultFormatterPluginTest extends Unit
             ->willReturn($queryFieldBoostReaderMock);
         $searchDebugFactoryMock
             ->method('getProductDebugDataExpanderPlugins')
-            ->willReturn([]);
+            ->willReturn($productDebugDataExpanderPlugins);
 
         $resultFormatterPlugin = new SearchDebugResultFormatterPlugin();
         $resultFormatterPlugin->setFactory($searchDebugFactoryMock);

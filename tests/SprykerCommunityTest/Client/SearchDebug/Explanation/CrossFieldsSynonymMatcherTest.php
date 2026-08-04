@@ -167,6 +167,39 @@ class CrossFieldsSynonymMatcherTest extends Unit
     }
 
     /**
+     * The mirror image of {@see testMatchFlattensNestedMaxOfMaxNodes()}: when the INNER "max of:" node
+     * itself fails to resolve (one of ITS children is neither a term-weight leaf nor a valid nested max
+     * node), that failure must propagate all the way back out through the OUTER call as null too, rather
+     * than the outer level silently treating the unresolved inner group as if it had produced zero leaves.
+     */
+    public function testMatchReturnsNullWhenANestedMaxOfNodeFailsToResolve(): void
+    {
+        // Arrange
+        $unresolvableInner = [
+            'value' => 3.5,
+            'description' => 'max of:',
+            'details' => [
+                $this->createWeightLeaf('full-text', 'switch', 2.0),
+                ['value' => 3.5, 'description' => 'some unrecognized node', 'details' => []],
+            ],
+        ];
+        $innerButton = [
+            'value' => 5.428672,
+            'description' => 'max of:',
+            'details' => [
+                $this->createWeightLeaf('full-text', 'button', 4.1),
+                $this->createWeightLeaf('full-text-boosted', 'button', 5.428672),
+            ],
+        ];
+
+        // Act
+        $result = (new CrossFieldsSynonymMatcher())->match('max of:', [$unresolvableInner, $innerButton], 5.428672);
+
+        // Assert
+        $this->assertNull($result);
+    }
+
+    /**
      * @param string $field
      * @param string $term
      * @param float $value

@@ -43,7 +43,7 @@ headline also has its own magnifying-glass link (traced through the search-time 
 "Analysis-path page" below), so how the shopper's own typed words became a search token is one click away
 too:
 
-![The SRP score overlay: the query-token headline with a magnifying-glass link on each token, and the per-product overlay pinned open showing matched tokens with their BM25 breakdown and the final score used for ranking](docs/screenshots/srp-overlay.png)
+![The SRP score overlay: the query-token headline with a magnifying-glass link on each token, and the per-product overlay pinned open showing the business-signal breakdown, matched tokens with their BM25 contribution, and the other per-field score contributions](docs/screenshots/srp-overlay.png)
 
 No more "because Elasticsearch said so" — every number on the page traces back to a real, inspectable part
 of the query.
@@ -55,7 +55,7 @@ analysis-path visualization. More tools are planned.
 
 Verified: dependency floors resolved and checked at their oldest allowed versions (`composer
 check-floors`), explanation parsing confirmed against three engines across two Lucene generations (see
-"Search engine compatibility"), 226 tests, phpcs and phpstan level 8 clean.
+"Search engine compatibility"), 265 tests, phpcs and phpstan level 8 clean.
 
 ## Search Debug — Spryker Community Extension
 
