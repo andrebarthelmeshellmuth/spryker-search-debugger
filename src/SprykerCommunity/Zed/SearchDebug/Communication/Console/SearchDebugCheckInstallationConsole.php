@@ -228,7 +228,7 @@ class SearchDebugCheckInstallationConsole extends Console
         $pageIndexes = [];
 
         foreach (array_keys($aliases) as $indexName) {
-            if (!str_starts_with((string)$indexName, (string)$indexPrefix) || !str_ends_with((string)$indexName, static::PAGE_SOURCE_IDENTIFIER)) {
+            if (!str_starts_with((string)$indexName, $indexPrefix) || !str_ends_with((string)$indexName, static::PAGE_SOURCE_IDENTIFIER)) {
                 continue;
             }
 
@@ -238,7 +238,7 @@ class SearchDebugCheckInstallationConsole extends Console
         if ($pageIndexes === []) {
             $this->failures[] = sprintf(
                 'No "%s*...%s" index found. The catalog has not been exported yet — run the publish/sync pipeline before expecting debug output.',
-                (string)$indexPrefix,
+                $indexPrefix,
                 static::PAGE_SOURCE_IDENTIFIER,
             );
 
