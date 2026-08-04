@@ -19,9 +19,6 @@ use Spryker\Client\SearchExtension\Dependency\Plugin\QueryInterface;
  */
 class BaseQueryPlugin implements QueryInterface
 {
-    /**
-     * @var \Elastica\Query
-     */
     protected Query $query;
 
     public function __construct()
