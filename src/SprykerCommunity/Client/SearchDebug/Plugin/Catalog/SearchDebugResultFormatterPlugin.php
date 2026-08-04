@@ -50,8 +50,6 @@ class SearchDebugResultFormatterPlugin extends AbstractElasticsearchResultFormat
      * {@inheritDoc}
      *
      * @api
-     *
-     * @return string
      */
     public function getName(): string
     {
@@ -167,8 +165,6 @@ class SearchDebugResultFormatterPlugin extends AbstractElasticsearchResultFormat
      * with `"_score": null` — as it does for every non-relevance-sorted search.
      *
      * @param \Elastica\Result $document
-     *
-     * @return float|null
      */
     protected function getScore(Result $document): ?float
     {

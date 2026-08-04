@@ -67,8 +67,6 @@ class PageDocumentReader implements PageDocumentReaderInterface
      * @param string $resourceName
      * @param string $identifier
      * @param string $localeName
-     *
-     * @return string
      */
     protected function generateDocumentId(string $resourceName, string $identifier, string $localeName): string
     {
@@ -82,9 +80,6 @@ class PageDocumentReader implements PageDocumentReaderInterface
             ->generateKey($synchronizationDataTransfer);
     }
 
-    /**
-     * @return \Generated\Shared\Transfer\SearchContextTransfer
-     */
     protected function createSearchContext(): SearchContextTransfer
     {
         $searchContextTransfer = (new SearchContextTransfer())

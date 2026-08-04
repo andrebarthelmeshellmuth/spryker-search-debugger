@@ -56,8 +56,6 @@ class CategoryAncestorNameCollector
      * @param \Generated\Shared\Transfer\CategoryNodeStorageTransfer $categoryNodeStorageTransfer
      * @param array<int, string> $namesByNodeId
      * @param int $depth
-     *
-     * @return void
      */
     protected function collectAncestorNames(
         CategoryNodeStorageTransfer $categoryNodeStorageTransfer,

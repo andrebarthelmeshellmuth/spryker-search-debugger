@@ -24,9 +24,6 @@ use SprykerCommunity\Shared\SearchDebug\Utf16\Utf16CodeUnitConverter;
  */
 class Utf16CodeUnitConverterTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testLengthOfCountsCodeUnitsNotBytes(): void
     {
         // Arrange
@@ -40,8 +37,6 @@ class Utf16CodeUnitConverterTest extends Unit
     /**
      * A basic-multilingual-plane character (e.g. "é") still occupies exactly one UTF-16 code unit, same
      * as any ASCII character — only supplementary-plane characters (emoji) need two.
-     *
-     * @return void
      */
     public function testLengthOfCountsABasicMultilingualPlaneCharacterAsOneCodeUnit(): void
     {
@@ -57,8 +52,6 @@ class Utf16CodeUnitConverterTest extends Unit
      * A supplementary-plane character (here: an emoji outside the BMP) is encoded as a UTF-16 surrogate
      * pair — two code units — which is the entire reason this converter exists instead of using
      * `mb_strlen()` directly against a byte offset supplied by Elasticsearch's highlighter.
-     *
-     * @return void
      */
     public function testLengthOfCountsASupplementaryPlaneCharacterAsTwoCodeUnits(): void
     {
@@ -70,9 +63,6 @@ class Utf16CodeUnitConverterTest extends Unit
         $this->assertSame(6, $converter->lengthOf($textUtf16));
     }
 
-    /**
-     * @return void
-     */
     public function testSliceExtractsAContiguousRangeOfCodeUnitsAndReturnsItAsUtf8(): void
     {
         // Arrange
@@ -89,8 +79,6 @@ class Utf16CodeUnitConverterTest extends Unit
     /**
      * Slicing around a supplementary-plane character must land on the surrogate-pair boundary, not split
      * it in half — the exact failure mode a naive byte-offset `substr()` would produce.
-     *
-     * @return void
      */
     public function testSliceHandlesASupplementaryPlaneCharacterWithoutSplittingItsSurrogatePair(): void
     {

@@ -34,9 +34,6 @@ use SprykerCommunity\Shared\SearchDebug\SearchDebugConfig;
  */
 class SearchDebugAccessCheckerTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testIsSearchDebugEnabledReturnsTrueWhenTheParameterIsSetAndThePermissionIsGranted(): void
     {
         // Arrange
@@ -59,8 +56,6 @@ class SearchDebugAccessCheckerTest extends Unit
      * @dataProvider spoofedParameterValueDataProvider
      *
      * @param mixed $parameterValue
-     *
-     * @return void
      */
     public function testIsSearchDebugEnabledReturnsFalseWhenThePermissionIsMissing($parameterValue): void
     {
@@ -91,8 +86,6 @@ class SearchDebugAccessCheckerTest extends Unit
     /**
      * The permission must not even be looked up when nothing asked for debug output — a permitted customer
      * browsing normally should not pay for it.
-     *
-     * @return void
      */
     public function testIsSearchDebugEnabledReturnsFalseAndSkipsThePermissionCheckWhenTheParameterIsAbsent(): void
     {
@@ -110,8 +103,6 @@ class SearchDebugAccessCheckerTest extends Unit
 
     /**
      * @param bool $can
-     *
-     * @return \PHPUnit\Framework\MockObject\MockObject|\Spryker\Client\Permission\PermissionClientInterface
      */
     protected function createPermissionClientMock(bool $can): PermissionClientInterface
     {

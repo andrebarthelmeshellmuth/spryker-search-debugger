@@ -17,8 +17,6 @@ interface TokenHighlighterInterface
      *
      * @param string $text
      * @param array<array{startOffset: int, endOffset: int}> $matches
-     *
-     * @return string
      */
     public function highlight(string $text, array $matches): string;
 

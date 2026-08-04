@@ -228,8 +228,6 @@ class ExplanationParser implements ExplanationParserInterface
      * @param array<int, array<string, mixed>> $scoreFunctions
      * @param float|null $queryScore
      * @param string|null $combineMode
-     *
-     * @return void
      */
     protected function walkNode(
         array $node,
@@ -286,8 +284,6 @@ class ExplanationParser implements ExplanationParserInterface
      * contribution.
      *
      * @param float $value
-     *
-     * @return bool
      */
     protected function tryDropZeroValue(float $value): bool
     {
@@ -296,8 +292,6 @@ class ExplanationParser implements ExplanationParserInterface
 
     /**
      * @param string $description
-     *
-     * @return bool
      */
     protected function tryDropMaxBoostSentinel(string $description): bool
     {
@@ -312,8 +306,6 @@ class ExplanationParser implements ExplanationParserInterface
      * @param array<int, array<string, mixed>> $otherContributions
      * @param array<int, array<string, mixed>> $scoreFunctions
      * @param float|null $queryScore
-     *
-     * @return bool
      */
     protected function tryHandleScriptScoreNode(
         array $node,
@@ -340,8 +332,6 @@ class ExplanationParser implements ExplanationParserInterface
      * @param \SprykerCommunity\Client\SearchDebug\Explanation\TermWeightAccumulator $termWeightAccumulator
      * @param array<int, array<string, mixed>> $otherContributions
      * @param string|null $combineMode
-     *
-     * @return bool
      */
     protected function tryHandleWeightNode(
         array $node,
@@ -384,8 +374,6 @@ class ExplanationParser implements ExplanationParserInterface
      * @param array<int, array<string, mixed>> $scoreFunctions
      * @param float|null $queryScore
      * @param string|null $combineMode
-     *
-     * @return bool
      */
     protected function tryHandleParentNode(
         array $node,
@@ -437,8 +425,6 @@ class ExplanationParser implements ExplanationParserInterface
 
     /**
      * @param string $description
-     *
-     * @return bool
      */
     protected function tryDropEmptyDescription(string $description): bool
     {
@@ -449,8 +435,6 @@ class ExplanationParser implements ExplanationParserInterface
      * @param string $description
      * @param float $value
      * @param array<int, array<string, mixed>> $scoreFunctions
-     *
-     * @return bool
      */
     protected function tryHandleScoreFunctionLeaf(string $description, float $value, array &$scoreFunctions): bool
     {
@@ -483,8 +467,6 @@ class ExplanationParser implements ExplanationParserInterface
      * @param array<int, array<string, mixed>> $otherContributions
      * @param array<int, array<string, mixed>> $scoreFunctions
      * @param float|null $queryScore
-     *
-     * @return void
      */
     protected function addScriptScoreNode(
         array $node,

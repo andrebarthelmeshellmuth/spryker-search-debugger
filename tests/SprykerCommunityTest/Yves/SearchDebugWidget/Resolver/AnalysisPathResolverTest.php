@@ -30,8 +30,6 @@ class AnalysisPathResolverTest extends Unit
      * The exact stage breakdown confirmed live against a real basic shop's index-time analyzer for
      * "Ölpapier" (tokenizer -> lowercase -> edge-ngram filter) — grounding this unit test in real data
      * rather than an invented fixture.
-     *
-     * @return void
      */
     public function testResolveWalksBackwardThroughEveryStageToBuildTheFullPath(): void
     {
@@ -93,8 +91,6 @@ class AnalysisPathResolverTest extends Unit
      * the starting token by offset ALONE picks whichever one happens to come first in the array, not
      * necessarily the one actually being asked about. Requesting the LONGEST sibling here (not the
      * first array entry) would return "öl"'s path if `resolve()` silently ignored $token.
-     *
-     * @return void
      */
     public function testResolveDisambiguatesBetweenSiblingsThatShareTheExactSameOffset(): void
     {
@@ -160,8 +156,6 @@ class AnalysisPathResolverTest extends Unit
      * "button" would silently walk back through "switch" at every pass-through stage after the
      * injection and only reveal "button" again at the very last stage, attributing the transformation to
      * the wrong filter entirely.
-     *
-     * @return void
      */
     public function testResolveFollowsTheInjectedSynonymNotTheOriginalWordItWasInjectedAlongside(): void
     {
@@ -252,8 +246,6 @@ class AnalysisPathResolverTest extends Unit
      * result into a tree: only the ONE sibling whose range contains the target token is followed — the
      * others are never even inspected for their own ancestry. Simulated here with a decompounding-style
      * filter splitting "haustuere" into two narrower tokens, tracing back to "tuere" only.
-     *
-     * @return void
      */
     public function testResolveFollowsOnlyTheOneLineageWhenAStageFansOutIntoMultipleTokens(): void
     {
@@ -306,8 +298,6 @@ class AnalysisPathResolverTest extends Unit
      * `truncated` flag), the resulting path entry must carry `componentKind`/`componentName` alongside
      * `definitionTruncated: true` — everything a "view full definition" link needs to re-fetch the
      * untruncated config via `SearchDebugClientInterface::getComponentConfig()`.
-     *
-     * @return void
      */
     public function testResolveCarriesComponentKindAndNameWhenTheDefinitionWasTruncated(): void
     {
@@ -366,8 +356,6 @@ class AnalysisPathResolverTest extends Unit
      * length (9 raw chars vs. 11 filtered chars), so the raw entry's highlight validation correctly fails
      * and falls back to no highlight, rather than marking the wrong span — see
      * {@see AnalysisPathResolver::addOriginHighlight()}'s own docblock for why that divergence is expected.
-     *
-     * @return void
      */
     public function testResolveLabelsTheCharFilterStageAndPrependsTheTrueRawInput(): void
     {
@@ -429,8 +417,6 @@ class AnalysisPathResolverTest extends Unit
      * single-stage fallback. `resolve()` must still label that sole stage's own operation and prepend the
      * true raw input, exactly as it does for the first stage of a multi-stage custom analyzer — this is
      * the `$lastStageIndex === 0` branch of `$tracedToFirstStage`, never exercised by the loop itself.
-     *
-     * @return void
      */
     public function testResolveLabelsTheSoleStageOfABuiltInAnalyzer(): void
     {
@@ -466,8 +452,6 @@ class AnalysisPathResolverTest extends Unit
      * `$useSearchAnalyzer` is forwarded verbatim to the client — this resolver has no analyzer choice of
      * its own to make, it only threads the caller's choice through to whichever `_analyze` call actually
      * produces the stages.
-     *
-     * @return void
      */
     public function testResolveForwardsTheSearchAnalyzerFlagToTheClient(): void
     {
@@ -493,9 +477,6 @@ class AnalysisPathResolverTest extends Unit
         $resolver->resolve('cable', 'cable', 0, 5, true);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveReturnsNullWhenTheClientHasNoStagesAtAll(): void
     {
         // Arrange
@@ -511,9 +492,6 @@ class AnalysisPathResolverTest extends Unit
         $this->assertNull($path);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveReturnsNullWhenTheTargetOffsetIsNotInTheLastStage(): void
     {
         // Arrange
@@ -542,8 +520,6 @@ class AnalysisPathResolverTest extends Unit
      * If an earlier stage genuinely has no token containing the current one (shouldn't happen — offsets
      * are a Lucene invariant across stages — but this is defensive code), the walk stops there instead
      * of crashing: a partial path is still useful diagnostic information.
-     *
-     * @return void
      */
     public function testResolveReturnsAPartialPathWhenAnEarlierStageHasNoContainingToken(): void
     {

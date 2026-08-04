@@ -38,8 +38,6 @@ class SearchDebugWidgetRouteProviderPlugin extends AbstractRouteProviderPlugin
 
     /**
      * @param \Spryker\Yves\Router\Route\RouteCollection $routeCollection
-     *
-     * @return \Spryker\Yves\Router\Route\RouteCollection
      */
     public function addRoutes(RouteCollection $routeCollection): RouteCollection
     {
@@ -64,8 +62,6 @@ class SearchDebugWidgetRouteProviderPlugin extends AbstractRouteProviderPlugin
      * existing-but-denied. See that constant for why a runtime permission check alone would not be enough.
      *
      * @param \Spryker\Yves\Router\Route\RouteCollection $routeCollection
-     *
-     * @return void
      */
     protected function addCheckInstallationRoute(RouteCollection $routeCollection): void
     {

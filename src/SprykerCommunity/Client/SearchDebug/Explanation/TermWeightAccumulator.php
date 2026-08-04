@@ -57,8 +57,6 @@ class TermWeightAccumulator
      *   `fieldWeights` — only the primary (winning) field's breakdown is ever surfaced downstream (see
      *   {@see ExplanationParser::splitByQueryTokens()}), matching `field`'s own existing "single largest
      *   individual field weight" contract; a losing field's breakdown is simply never looked at again.
-     *
-     * @return void
      */
     public function addTerm(string $term, string $field, float $value, string $combineMode, ?array $breakdown = null): void
     {
@@ -108,8 +106,6 @@ class TermWeightAccumulator
      *   {@see CrossFieldsSynonymMatcher}, instead), so null here is the expected common case, not
      *   a failure; {@see Bm25BreakdownExtractor::extract()} degrades to null on its own if the shape
      *   doesn't match.
-     *
-     * @return void
      */
     public function addSynonym(string $rawFieldTermPairs, float $value, string $combineMode, ?array $breakdown = null): void
     {

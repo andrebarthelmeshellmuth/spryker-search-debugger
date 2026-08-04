@@ -25,9 +25,6 @@ use SprykerCommunity\Shared\SearchDebug\Plugin\SeeSearchDebugInfoPermissionPlugi
  */
 class SeeSearchDebugInfoPermissionPluginTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testGetKeyReturnsTheClassConstant(): void
     {
         // Arrange
@@ -44,8 +41,6 @@ class SeeSearchDebugInfoPermissionPluginTest extends Unit
      * The permission key is registered on BOTH the Zed and Client `PermissionDependencyProvider` —
      * whichever registers it, the check that gates access to debug data compares against this exact
      * string, so a rename here silently breaks every already-granted permission in the database.
-     *
-     * @return void
      */
     public function testGetKeyIsTheStableStringSeeSearchDebugInfoPermissionPlugin(): void
     {
@@ -59,9 +54,6 @@ class SeeSearchDebugInfoPermissionPluginTest extends Unit
         $this->assertSame('SeeSearchDebugInfoPermissionPlugin', $key);
     }
 
-    /**
-     * @return void
-     */
     public function testImplementsThePermissionPluginInterface(): void
     {
         // Arrange

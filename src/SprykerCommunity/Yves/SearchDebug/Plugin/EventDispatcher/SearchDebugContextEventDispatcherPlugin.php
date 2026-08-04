@@ -65,8 +65,6 @@ class SearchDebugContextEventDispatcherPlugin extends AbstractPlugin implements 
      *
      * @param \Spryker\Shared\EventDispatcher\EventDispatcherInterface $eventDispatcher
      * @param \Spryker\Service\Container\ContainerInterface $container
-     *
-     * @return \Spryker\Shared\EventDispatcher\EventDispatcherInterface
      */
     public function extend(EventDispatcherInterface $eventDispatcher, ContainerInterface $container): EventDispatcherInterface
     {
@@ -79,8 +77,6 @@ class SearchDebugContextEventDispatcherPlugin extends AbstractPlugin implements 
 
     /**
      * @param \Symfony\Component\HttpKernel\Event\RequestEvent $event
-     *
-     * @return void
      */
     protected function handleRequest(RequestEvent $event): void
     {
@@ -113,8 +109,6 @@ class SearchDebugContextEventDispatcherPlugin extends AbstractPlugin implements 
      * Override this method to widen the scope (e.g. to include category pages).
      *
      * @param \Symfony\Component\HttpFoundation\Request $request
-     *
-     * @return bool
      */
     protected function isSearchResultsPage(Request $request): bool
     {

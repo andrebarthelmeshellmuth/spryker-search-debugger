@@ -32,9 +32,6 @@ use Symfony\Component\HttpFoundation\Request;
  */
 class AnalysisPathControllerTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testAssignStepColorsGivesTheFirstStepTheFirstPaletteColor(): void
     {
         // Arrange
@@ -49,9 +46,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertSame(sprintf(SearchDebugConfig::TOKEN_COLOR_CLASS_PATTERN, 1), $coloredPath[0]['colorClass']);
     }
 
-    /**
-     * @return void
-     */
     public function testAssignStepColorsReusesTheSameColorForByteIdenticalText(): void
     {
         // Arrange — a filter that passes the text through unchanged (e.g. lowercase on an
@@ -68,9 +62,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertSame($coloredPath[0]['colorClass'], $coloredPath[1]['colorClass']);
     }
 
-    /**
-     * @return void
-     */
     public function testAssignStepColorsGivesADifferentTextADifferentColor(): void
     {
         // Arrange
@@ -86,9 +77,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertNotSame($coloredPath[0]['colorClass'], $coloredPath[1]['colorClass']);
     }
 
-    /**
-     * @return void
-     */
     public function testAssignStepColorsReusesAnEarlierColorWhenTheTextReappearsLaterInThePath(): void
     {
         // Arrange — e.g. a filter chain that ends up back at an earlier intermediate string.
@@ -106,9 +94,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertNotSame($coloredPath[0]['colorClass'], $coloredPath[1]['colorClass']);
     }
 
-    /**
-     * @return void
-     */
     public function testAssignStepColorsWrapsAroundPastThePaletteSize(): void
     {
         // Arrange — one more distinct string than the palette has colors for.
@@ -124,9 +109,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertSame($coloredPath[0]['colorClass'], $coloredPath[SearchDebugConfig::TOKEN_COLOR_CLASS_COUNT]['colorClass']);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveUseSearchAnalyzerReturnsFalseWhenTheAnalyzerParameterIsAbsent(): void
     {
         // Arrange
@@ -139,9 +121,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertFalse($useSearchAnalyzer);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveUseSearchAnalyzerReturnsFalseForAnyUnrecognizedValue(): void
     {
         // Arrange
@@ -154,9 +133,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertFalse($useSearchAnalyzer);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveUseSearchAnalyzerReturnsTrueForTheRecognizedSearchValue(): void
     {
         // Arrange
@@ -169,9 +145,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertTrue($useSearchAnalyzer);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveExplicitOffsetReturnsNullWhenBothOffsetParametersAreMissing(): void
     {
         // Arrange
@@ -184,9 +157,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertNull($offset);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveExplicitOffsetReturnsNullWhenOnlyOneOffsetParameterIsPresent(): void
     {
         // Arrange
@@ -199,9 +169,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertNull($offset);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveExplicitOffsetReturnsNullWhenTheStartOffsetIsNegative(): void
     {
         // Arrange
@@ -214,9 +181,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertNull($offset);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveExplicitOffsetReturnsNullWhenTheEndOffsetDoesNotExceedTheStartOffset(): void
     {
         // Arrange
@@ -229,9 +193,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertNull($offset);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveExplicitOffsetReturnsTheOffsetsWhenBothAreValid(): void
     {
         // Arrange
@@ -244,9 +205,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertSame(['startOffset' => 4, 'endOffset' => 9], $offset);
     }
 
-    /**
-     * @return void
-     */
     public function testFindFirstMatchOffsetReturnsTheFirstMatchingTokenOffset(): void
     {
         // Arrange
@@ -263,9 +221,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertSame(['startOffset' => 4, 'endOffset' => 9], $offset);
     }
 
-    /**
-     * @return void
-     */
     public function testFindFirstMatchOffsetReturnsNullWhenTheTokenIsNotPresent(): void
     {
         // Arrange
@@ -280,9 +235,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertNull($offset);
     }
 
-    /**
-     * @return void
-     */
     public function testFindFirstMatchOffsetReturnsNullForAnEmptyTokenOffsetList(): void
     {
         // Act
@@ -306,8 +258,6 @@ class AnalysisPathControllerTest extends Unit
 
     /**
      * @param \Symfony\Component\HttpFoundation\Request $request
-     *
-     * @return bool
      */
     protected function invokeResolveUseSearchAnalyzer(Request $request): bool
     {

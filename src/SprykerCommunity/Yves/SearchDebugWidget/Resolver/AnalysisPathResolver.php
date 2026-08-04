@@ -136,8 +136,6 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
      *
      * @param array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, highlightedHtml: string|null}|array $originEntry
      * @param array{token: string, startOffset: int, endOffset: int}|array $childToken
-     *
-     * @return void
      */
     protected function addOriginHighlight(array &$originEntry, array $childToken): void
     {
@@ -160,8 +158,6 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
      * @param string $text
      * @param int $startCodeUnit
      * @param int $endCodeUnit
-     *
-     * @return string
      */
     protected function sliceCodeUnits(string $text, int $startCodeUnit, int $endCodeUnit): string
     {

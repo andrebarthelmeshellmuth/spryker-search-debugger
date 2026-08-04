@@ -52,8 +52,6 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
 
     /**
      * @param \Spryker\Yves\Kernel\Container $container
-     *
-     * @return \Spryker\Yves\Kernel\Container
      */
     #[\Override]
     public function provideDependencies(Container $container): Container
@@ -72,8 +70,6 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
 
     /**
      * @param \Spryker\Yves\Kernel\Container $container
-     *
-     * @return \Spryker\Yves\Kernel\Container
      */
     protected function addProductStorageClient(Container $container): Container
     {
@@ -84,8 +80,6 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
 
     /**
      * @param \Spryker\Yves\Kernel\Container $container
-     *
-     * @return \Spryker\Yves\Kernel\Container
      */
     protected function addProductCategoryStorageClient(Container $container): Container
     {
@@ -96,8 +90,6 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
 
     /**
      * @param \Spryker\Yves\Kernel\Container $container
-     *
-     * @return \Spryker\Yves\Kernel\Container
      */
     protected function addCategoryStorageClient(Container $container): Container
     {
@@ -119,8 +111,6 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
      * returning null — there is nothing to null-check without probing first.
      *
      * @param \Spryker\Yves\Kernel\Container $container
-     *
-     * @return \Spryker\Yves\Kernel\Container
      */
     protected function addMerchantStorageClient(Container $container): Container
     {
@@ -137,8 +127,6 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
 
     /**
      * @param \Spryker\Yves\Kernel\Container $container
-     *
-     * @return \Spryker\Yves\Kernel\Container
      */
     protected function addSearchDebugClient(Container $container): Container
     {
@@ -149,8 +137,6 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
 
     /**
      * @param \Spryker\Yves\Kernel\Container $container
-     *
-     * @return \Spryker\Yves\Kernel\Container
      */
     protected function addStoreClient(Container $container): Container
     {
@@ -161,8 +147,6 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
 
     /**
      * @param \Spryker\Yves\Kernel\Container $container
-     *
-     * @return \Spryker\Yves\Kernel\Container
      */
     protected function addTokenSourceProviderPlugins(Container $container): Container
     {

@@ -18,8 +18,6 @@ interface SearchDebugAccessCheckerInterface
      * - Returns `false` for any request that merely carries the parameter without the permission.
      *
      * @param array<string, mixed> $requestParameters
-     *
-     * @return bool
      */
     public function isSearchDebugEnabled(array $requestParameters): bool;
 }

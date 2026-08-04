@@ -45,9 +45,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
      */
     protected const ID_PRODUCT_ABSTRACT = 42;
 
-    /**
-     * @return void
-     */
     public function testFormatResultReturnsTheQueryTokensAndThePerProductDebugData(): void
     {
         // Arrange
@@ -70,8 +67,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
      * query by `SearchDebugQueryExpanderPlugin`/`QueryFieldBoostReader` earlier in the same request; this
      * plugin only has to read them back out via `QueryFieldBoostReader::getFieldBoosts()` and forward them
      * verbatim under {@see SearchDebugConfig::KEY_FIELD_BOOSTS}.
-     *
-     * @return void
      */
     public function testFormatResultReturnsTheFieldBoostsCapturedEarlierInTheRequest(): void
     {
@@ -91,8 +86,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
      * A search sorted by anything other than relevance makes Elasticsearch skip scoring entirely and send
      * `"_score": null`. Elastica's `Result::getScore()` turns that into an empty ARRAY (its `getParam()`
      * null-coalesces to `[]`), which the template would then try to print — so the plugin must normalize it.
-     *
-     * @return void
      */
     public function testFormatResultReturnsANullScoreForAnUnscoredHitRatherThanAnArray(): void
     {
@@ -107,9 +100,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
         $this->assertNull($result[SearchDebugConfig::KEY_PRODUCTS][static::ID_PRODUCT_ABSTRACT]['score']);
     }
 
-    /**
-     * @return void
-     */
     public function testFormatResultReturnsTheQueryTokenOffsetsResolvedThroughTheSearchAnalyzer(): void
     {
         // Arrange
@@ -136,8 +126,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
      * A query token searched more than once (e.g. "cable cable tie") must still produce exactly ONE
      * offsets entry for it — the FIRST occurrence — mirroring the same simplification the token-color
      * assignment already makes for a repeated token.
-     *
-     * @return void
      */
     public function testFormatResultKeepsOnlyTheFirstOffsetForARepeatedQueryToken(): void
     {
@@ -158,9 +146,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
         );
     }
 
-    /**
-     * @return void
-     */
     public function testFormatResultReturnsNoDataWhenSearchDebugIsDisabled(): void
     {
         // Arrange
@@ -188,8 +173,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
     /**
      * @param float|null $score
      * @param array<string, mixed>|null $explanation
-     *
-     * @return \Elastica\Result
      */
     protected function createHit(?float $score, ?array $explanation = null): Result
     {
@@ -226,8 +209,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
 
     /**
      * @param array<\Elastica\Result> $results
-     *
-     * @return \Elastica\ResultSet
      */
     protected function createResultSet(array $results): ResultSet
     {
@@ -239,8 +220,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
      * @param array<string> $queryTokens
      * @param array<string, int> $fieldBoosts
      * @param array<array{token: string, startOffset: int, endOffset: int}> $queryTokenOffsets
-     *
-     * @return \SprykerCommunity\Client\SearchDebug\Plugin\Catalog\SearchDebugResultFormatterPlugin
      */
     protected function createResultFormatterPlugin(
         bool $isSearchDebugEnabled,

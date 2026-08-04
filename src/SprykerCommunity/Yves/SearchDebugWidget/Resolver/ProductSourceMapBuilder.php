@@ -364,8 +364,6 @@ class ProductSourceMapBuilder
      * @param array<string, array<int, string>> $attributeKeysByValue
      * @param string $attributeKey
      * @param mixed $value
-     *
-     * @return void
      */
     protected function addAttributeLabel(array &$attributeKeysByValue, string $attributeKey, $value): void
     {
@@ -476,8 +474,6 @@ class ProductSourceMapBuilder
 
     /**
      * @param array<string, mixed> $productData
-     *
-     * @return string
      */
     protected function findMerchantName(array $productData): string
     {

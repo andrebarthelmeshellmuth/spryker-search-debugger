@@ -38,9 +38,6 @@ use SprykerCommunity\Yves\SearchDebugWidget\Resolver\ProductSourceMapBuilder;
  */
 class ProductSourceMapBuilderTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testBuildAttributesTitleSkuAndDescriptionToTheirDeclaredTiers(): void
     {
         // Arrange
@@ -64,8 +61,6 @@ class ProductSourceMapBuilderTest extends Unit
      * A value contributed by two DIFFERENT named sources (e.g. a merchant named the same as the product)
      * is genuinely ambiguous once merged — both source keys must be kept, in canonical definition order,
      * rather than silently picking one.
-     *
-     * @return void
      */
     public function testBuildKeepsEveryCollidingSourceKeyForAnIdenticalValue(): void
     {
@@ -90,8 +85,6 @@ class ProductSourceMapBuilderTest extends Unit
     /**
      * Concrete variant values (name/sku/description) all flatten into the shared full-text source keys,
      * one element per variant.
-     *
-     * @return void
      */
     public function testBuildCollectsConcreteVariantValues(): void
     {
@@ -127,8 +120,6 @@ class ProductSourceMapBuilderTest extends Unit
     /**
      * Direct categories go to the boosted tier, indirect (ancestor) categories to the plain tier — the
      * ancestor walk is delegated to a real {@see CategoryAncestorNameCollector}.
-     *
-     * @return void
      */
     public function testBuildCollectsDirectAndIndirectCategoryValues(): void
     {
@@ -153,9 +144,6 @@ class ProductSourceMapBuilderTest extends Unit
         $this->assertSame(['indirectCategories'], $result['sourceKeysByValue']['full-text']['Electrical']);
     }
 
-    /**
-     * @return void
-     */
     public function testBuildReturnsAnEmptyMerchantNameWhenNoMerchantStorageClientIsConfigured(): void
     {
         // Arrange — null merchantStorageClient, as on a non-Marketplace shop.
@@ -177,8 +165,6 @@ class ProductSourceMapBuilderTest extends Unit
     /**
      * Both abstract- and concrete-level `attributes` feed the label map used for elements no NAMED source
      * claims.
-     *
-     * @return void
      */
     public function testBuildCollectsAttributeLabelsFromAbstractAndConcreteLevels(): void
     {
@@ -208,8 +194,6 @@ class ProductSourceMapBuilderTest extends Unit
     /**
      * A registered {@see TokenSourceProviderPluginInterface} contributes additional labels, merged in
      * (not replacing) whatever the built-in attribute-label collection already found.
-     *
-     * @return void
      */
     public function testBuildMergesInLabelsFromRegisteredTokenSourceProviderPlugins(): void
     {
@@ -234,8 +218,6 @@ class ProductSourceMapBuilderTest extends Unit
      * @param \Spryker\Client\MerchantStorage\MerchantStorageClientInterface|null $merchantStorageClient
      * @param \Spryker\Client\ProductStorage\ProductStorageClientInterface|null $productStorageClient
      * @param array<\SprykerCommunity\Yves\SearchDebugWidget\Dependency\Plugin\TokenSourceProviderPluginInterface> $tokenSourceProviderPlugins
-     *
-     * @return \SprykerCommunity\Yves\SearchDebugWidget\Resolver\ProductSourceMapBuilder
      */
     protected function createBuilder(
         ?ProductCategoryStorageClientInterface $productCategoryStorageClient = null,

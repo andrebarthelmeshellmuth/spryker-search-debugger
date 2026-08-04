@@ -21,8 +21,6 @@ class ConfigValueScalarFormatter
 {
     /**
      * @param mixed $value
-     *
-     * @return string
      */
     public static function format(mixed $value): string
     {

@@ -74,9 +74,6 @@ class SearchDebugCheckInstallationConsole extends Console
      */
     protected array $warnings = [];
 
-    /**
-     * @return void
-     */
     protected function configure(): void
     {
         $this->setName(static::COMMAND_NAME);
@@ -90,8 +87,6 @@ class SearchDebugCheckInstallationConsole extends Console
      *
      * @param \Symfony\Component\Console\Input\InputInterface $input
      * @param \Symfony\Component\Console\Output\OutputInterface $output
-     *
-     * @return int
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
@@ -128,8 +123,6 @@ class SearchDebugCheckInstallationConsole extends Console
 
     /**
      * @param \Symfony\Component\Console\Output\OutputInterface $output
-     *
-     * @return void
      */
     protected function checkCoreNamespace(OutputInterface $output): void
     {
@@ -157,8 +150,6 @@ class SearchDebugCheckInstallationConsole extends Console
      * existence is already implied by the core-namespace check passing.
      *
      * @param \Symfony\Component\Console\Output\OutputInterface $output
-     *
-     * @return void
      */
     protected function checkPluginClasses(OutputInterface $output): void
     {
@@ -180,8 +171,6 @@ class SearchDebugCheckInstallationConsole extends Console
 
     /**
      * @param \Symfony\Component\Console\Output\OutputInterface $output
-     *
-     * @return void
      */
     protected function checkSearchEngine(OutputInterface $output): void
     {
@@ -210,8 +199,6 @@ class SearchDebugCheckInstallationConsole extends Console
      * @param \Elastica\Client $elasticaClient
      * @param \Spryker\Client\SearchElasticsearch\SearchElasticsearchConfig $searchElasticsearchConfig
      * @param \Symfony\Component\Console\Output\OutputInterface $output
-     *
-     * @return void
      */
     protected function checkPageIndex(Client $elasticaClient, SearchElasticsearchConfig $searchElasticsearchConfig, OutputInterface $output): void
     {
@@ -257,8 +244,6 @@ class SearchDebugCheckInstallationConsole extends Console
      * @param \Elastica\Client $elasticaClient
      * @param string $indexName
      * @param \Symfony\Component\Console\Output\OutputInterface $output
-     *
-     * @return void
      */
     protected function checkExplainSupport(Client $elasticaClient, string $indexName, OutputInterface $output): void
     {

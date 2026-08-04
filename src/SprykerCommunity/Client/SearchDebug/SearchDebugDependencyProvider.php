@@ -36,8 +36,6 @@ class SearchDebugDependencyProvider extends AbstractDependencyProvider
 
     /**
      * @param \Spryker\Client\Kernel\Container $container
-     *
-     * @return \Spryker\Client\Kernel\Container
      */
     #[\Override]
     public function provideServiceLayerDependencies(Container $container): Container
@@ -53,8 +51,6 @@ class SearchDebugDependencyProvider extends AbstractDependencyProvider
 
     /**
      * @param \Spryker\Client\Kernel\Container $container
-     *
-     * @return \Spryker\Client\Kernel\Container
      */
     protected function addProductDebugDataExpanderPlugins(Container $container): Container
     {
@@ -76,8 +72,6 @@ class SearchDebugDependencyProvider extends AbstractDependencyProvider
 
     /**
      * @param \Spryker\Client\Kernel\Container $container
-     *
-     * @return \Spryker\Client\Kernel\Container
      */
     protected function addStoreClient(Container $container): Container
     {
@@ -88,8 +82,6 @@ class SearchDebugDependencyProvider extends AbstractDependencyProvider
 
     /**
      * @param \Spryker\Client\Kernel\Container $container
-     *
-     * @return \Spryker\Client\Kernel\Container
      */
     protected function addPermissionClient(Container $container): Container
     {
@@ -103,8 +95,6 @@ class SearchDebugDependencyProvider extends AbstractDependencyProvider
      * search/storage backends — it is the authority on how an entity's search document id is built.
      *
      * @param \Spryker\Client\Kernel\Container $container
-     *
-     * @return \Spryker\Client\Kernel\Container
      */
     protected function addSynchronizationService(Container $container): Container
     {

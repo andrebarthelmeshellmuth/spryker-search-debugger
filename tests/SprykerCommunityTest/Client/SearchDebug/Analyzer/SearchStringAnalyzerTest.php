@@ -35,17 +35,11 @@ class SearchStringAnalyzerTest extends Unit
 {
     use TestPageIndexTrait;
 
-    /**
-     * @return void
-     */
     protected function _before(): void
     {
         $this->createTestPageIndex();
     }
 
-    /**
-     * @return void
-     */
     protected function _after(): void
     {
         $this->deleteTestPageIndex();
@@ -55,8 +49,6 @@ class SearchStringAnalyzerTest extends Unit
      * The query-time analyzer runs `lowercase`, the synonym/word-delimiter/stop-words/min-length filters,
      * but no edge-ngram (that one is index-time only) — a hyphenated compound therefore splits into whole
      * lowercased words, none of which are synonym sources, stopwords, or delimiter-worthy.
-     *
-     * @return void
      */
     public function testGetSearchStringTokensReturnsTheQueryTimeAnalyzerTokens(): void
     {
@@ -67,9 +59,6 @@ class SearchStringAnalyzerTest extends Unit
         $this->assertSame(['eisen', 'hammer'], $tokens);
     }
 
-    /**
-     * @return void
-     */
     public function testGetSearchStringTokensLowercasesASingleTerm(): void
     {
         // Act
@@ -81,8 +70,6 @@ class SearchStringAnalyzerTest extends Unit
 
     /**
      * An empty search string must not cause a request to Elasticsearch at all.
-     *
-     * @return void
      */
     public function testGetSearchStringTokensReturnsAnEmptyListForAnEmptySearchString(): void
     {
@@ -105,8 +92,6 @@ class SearchStringAnalyzerTest extends Unit
      * relied upon downstream (`TokenHighlighter`): highlighting a short query token like "öl" that only
      * matched via a prefix still highlights the whole word ("Ölpapier") it was found in, not an
      * out-of-context 2-character fragment.
-     *
-     * @return void
      */
     public function testGetTextTokenOffsetsReturnsTokensWithOffsetsIntoTheOriginalText(): void
     {
@@ -135,8 +120,6 @@ class SearchStringAnalyzerTest extends Unit
      * analyzer shares every filter with the index one EXCEPT the edge-ngram filter, so the same input
      * that explodes into 9 prefix tokens above must come back as exactly the 2 whole words here, each at
      * its own real offset (not the whole-word offset every ngram prefix above shares).
-     *
-     * @return void
      */
     public function testGetTokenOffsetsUsesTheSearchTimeAnalyzerWhenRequested(): void
     {
@@ -153,9 +136,6 @@ class SearchStringAnalyzerTest extends Unit
         );
     }
 
-    /**
-     * @return void
-     */
     public function testGetTextTokenOffsetsReturnsAnEmptyListForEmptyText(): void
     {
         // Act
@@ -172,8 +152,6 @@ class SearchStringAnalyzerTest extends Unit
      * about it. Includes "Ölpapier" deliberately — a multi-byte UTF-8 character early in one of the
      * batched texts, so a rebasing bug that only manifests once a text contains a non-ASCII character
      * would still be caught here.
-     *
-     * @return void
      */
     public function testGetTokenOffsetsForTextsReturnsTheSameOffsetsAsIndividualCallsForEachText(): void
     {
@@ -193,8 +171,6 @@ class SearchStringAnalyzerTest extends Unit
      * A text appearing more than once is analyzed once, not once per occurrence — the SAME text-keyed
      * result entry answers for every occurrence a caller had. An empty string is dropped entirely, same
      * as `getTokenOffsets('')` short-circuiting rather than issuing a request.
-     *
-     * @return void
      */
     public function testGetTokenOffsetsForTextsDeduplicatesRepeatedTextsAndDropsEmptyOnes(): void
     {
@@ -205,9 +181,6 @@ class SearchStringAnalyzerTest extends Unit
         $this->assertSame(['CABLE'], array_keys($batched));
     }
 
-    /**
-     * @return void
-     */
     public function testGetTokenOffsetsForTextsReturnsAnEmptyArrayForAnEmptyList(): void
     {
         // Act
@@ -221,8 +194,6 @@ class SearchStringAnalyzerTest extends Unit
      * A single-text call takes the same short-circuit `getTokenOffsets()` itself uses, rather than a
      * batched request of one — no behavioral difference, just confirming the shortcut still returns the
      * expected text-keyed shape.
-     *
-     * @return void
      */
     public function testGetTokenOffsetsForTextsWithASingleTextMatchesGetTokenOffsets(): void
     {
@@ -253,8 +224,6 @@ class SearchStringAnalyzerTest extends Unit
      * `ComponentDefinitionFormatter`'s explicit `is_bool()` handling is defensive-correctness for the
      * shape ES's settings API COULD return, not something this specific live round-trip exercises; either
      * code path produces the same `"true"`/`"false"` text here.
-     *
-     * @return void
      */
     public function testGetTextAnalysisStagesReturnsEveryPipelineStageInChainOrder(): void
     {
@@ -319,8 +288,6 @@ class SearchStringAnalyzerTest extends Unit
      * filter — same char filter, tokenizer, and first 5 filters, verified here by re-asserting the exact
      * same operations/tokens the index-analyzer test above does, then confirming the ngram stage the
      * index analyzer adds on top is genuinely absent, not just unasserted.
-     *
-     * @return void
      */
     public function testGetTextAnalysisStagesUsesTheSearchTimeAnalyzerWhenRequested(): void
     {
@@ -345,9 +312,6 @@ class SearchStringAnalyzerTest extends Unit
         }
     }
 
-    /**
-     * @return void
-     */
     public function testGetTextAnalysisStagesReturnsAnEmptyListForEmptyText(): void
     {
         // Act

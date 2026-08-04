@@ -48,9 +48,6 @@ class IndexSchemaReader implements IndexSchemaReaderInterface
     ) {
     }
 
-    /**
-     * @return \Generated\Shared\Transfer\SearchIndexSchemaTransfer
-     */
     public function getPageIndexSchema(): SearchIndexSchemaTransfer
     {
         $indexName = $this->indexNameResolver->resolve($this->config->getPageSourceIdentifier());
@@ -81,8 +78,6 @@ class IndexSchemaReader implements IndexSchemaReaderInterface
     /**
      * @param string $componentKind One of the `IndexSchemaMapper::COMPONENT_KIND_*` constants.
      * @param string $componentName
-     *
-     * @return \Generated\Shared\Transfer\SearchAnalysisComponentTransfer|null
      */
     public function findComponent(string $componentKind, string $componentName): ?SearchAnalysisComponentTransfer
     {

@@ -24,9 +24,6 @@ use SprykerCommunity\Yves\SearchDebugWidget\Resolver\ComponentConfigFormatter;
  */
 class ComponentConfigFormatterTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testFormatKeepsScalarValuesAsStrings(): void
     {
         // Act
@@ -39,8 +36,6 @@ class ComponentConfigFormatterTest extends Unit
     /**
      * PHP casts `true`/`false` to `"1"`/`""` on a naive `(string)` cast — the empty string would read as
      * a missing value, not `false`.
-     *
-     * @return void
      */
     public function testFormatSpellsOutBooleanValues(): void
     {
@@ -57,8 +52,6 @@ class ComponentConfigFormatterTest extends Unit
     /**
      * A list-valued config key (e.g. `stopwords`, `synonyms`) shows EVERY item, formatted safely — this
      * page exists specifically to show what the short inline preview truncated away.
-     *
-     * @return void
      */
     public function testFormatKeepsEveryListItemAndSpellsOutBooleansWithinIt(): void
     {
@@ -81,8 +74,6 @@ class ComponentConfigFormatterTest extends Unit
     /**
      * A nested array item (e.g. a `multiplexer` filter's own sub-filter chain) can't print directly in
      * Twig at all — JSON-encoded rather than crashing the page.
-     *
-     * @return void
      */
     public function testFormatJsonEncodesANestedArrayItem(): void
     {
@@ -95,9 +86,6 @@ class ComponentConfigFormatterTest extends Unit
         $this->assertSame(['filters' => ['{"type":"lowercase"}']], $formatted);
     }
 
-    /**
-     * @return void
-     */
     public function testFormatReturnsAnEmptyArrayForAnEmptyConfig(): void
     {
         // Act

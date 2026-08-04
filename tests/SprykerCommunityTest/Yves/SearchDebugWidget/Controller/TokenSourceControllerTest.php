@@ -30,9 +30,6 @@ use SprykerCommunity\Yves\SearchDebugWidget\Controller\TokenSourceController;
  */
 class TokenSourceControllerTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testSanitizeFieldBoostsKeepsWellFormedFieldNameToIntegerBoostPairs(): void
     {
         // Arrange
@@ -49,8 +46,6 @@ class TokenSourceControllerTest extends Unit
      * A numeric query-string key (e.g. `boosts[0]=5`) parses to an int array key in PHP, not a string one
      * — such an entry is dropped rather than coerced, since a boost is only ever meaningful keyed by a
      * real field name.
-     *
-     * @return void
      */
     public function testSanitizeFieldBoostsDropsEntriesWithANonStringFieldName(): void
     {
@@ -68,8 +63,6 @@ class TokenSourceControllerTest extends Unit
      * A malformed/hand-edited `boosts[field][]=x` query string produces a nested array value where a
      * scalar boost is expected — dropped defensively rather than letting the `(int)` cast throw or coerce
      * an array into a nonsensical number.
-     *
-     * @return void
      */
     public function testSanitizeFieldBoostsDropsEntriesWhoseBoostValueIsAnArray(): void
     {
@@ -83,9 +76,6 @@ class TokenSourceControllerTest extends Unit
         $this->assertSame(['full-text-boosted' => 5], $fieldBoosts);
     }
 
-    /**
-     * @return void
-     */
     public function testSanitizeFieldBoostsReturnsAnEmptyArrayForAnEmptyInput(): void
     {
         // Act
@@ -99,8 +89,6 @@ class TokenSourceControllerTest extends Unit
      * A non-numeric boost string casts to `0` via PHP's `(int)` cast rather than being dropped — the
      * method only guards against structurally wrong shapes (non-string keys, array values), not against
      * nonsensical-but-scalar boost values.
-     *
-     * @return void
      */
     public function testSanitizeFieldBoostsCastsANonNumericBoostStringToZero(): void
     {

@@ -40,8 +40,6 @@ class PageDocumentReaderTest extends Unit
      * this locks down that `generateDocumentId()` feeds it a `SynchronizationDataTransfer` assembled from
      * the current store, the given locale, and the given identifier, rather than re-implementing the key
      * format by hand.
-     *
-     * @return void
      */
     public function testFindPageDocumentDataBuildsTheDocumentIdFromTheCurrentStoreLocaleAndIdentifier(): void
     {
@@ -75,8 +73,6 @@ class PageDocumentReaderTest extends Unit
      * The search context is expanded through `SearchContextExpanderInterface` (which may add e.g. a store
      * or merchant-relation constraint) rather than passed through unexpanded — locking down that the
      * config's page source identifier reaches the expander untouched.
-     *
-     * @return void
      */
     public function testFindPageDocumentDataExpandsTheSearchContextWithThePageSourceIdentifier(): void
     {
@@ -107,8 +103,6 @@ class PageDocumentReaderTest extends Unit
      * A missing document (Elastica's `NotFoundException`, which implements `ExceptionInterface`) degrades
      * to "no document data" rather than propagating — the same fail-soft posture as `SearchStringAnalyzer`
      * elsewhere in this package.
-     *
-     * @return void
      */
     public function testFindPageDocumentDataReturnsNullWhenTheDocumentReaderThrowsAnElasticaException(): void
     {
@@ -125,9 +119,6 @@ class PageDocumentReaderTest extends Unit
         $this->assertNull($data);
     }
 
-    /**
-     * @return void
-     */
     public function testFindPageDocumentDataReturnsTheDocumentDataOnSuccess(): void
     {
         // Arrange
@@ -149,8 +140,6 @@ class PageDocumentReaderTest extends Unit
      * @param \Spryker\Client\SearchElasticsearch\Reader\DocumentReaderInterface $documentReaderMock
      * @param (\Spryker\Service\Synchronization\Dependency\Plugin\SynchronizationKeyGeneratorPluginInterface&\PHPUnit\Framework\MockObject\MockObject)|null $keyGeneratorPluginMock
      * @param (\Spryker\Client\SearchElasticsearch\SearchContextExpander\SearchContextExpanderInterface&\PHPUnit\Framework\MockObject\MockObject)|null $searchContextExpanderMock
-     *
-     * @return \SprykerCommunity\Client\SearchDebug\Document\PageDocumentReader
      */
     protected function createPageDocumentReader(
         DocumentReaderInterface $documentReaderMock,

@@ -30,9 +30,6 @@ class SearchDebugClientTester extends Actor
 {
     use _generated\SearchDebugClientTesterActions;
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface
-     */
     public function getSearchDebugClient(): SearchDebugClientInterface
     {
         return $this->getLocator()->searchDebug()->client();

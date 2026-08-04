@@ -29,9 +29,6 @@ class BaseQueryPlugin implements QueryInterface
         $this->query = (new Query())->setQuery(new BoolQuery());
     }
 
-    /**
-     * @return \Elastica\Query
-     */
     public function getSearchQuery(): Query
     {
         return $this->query;

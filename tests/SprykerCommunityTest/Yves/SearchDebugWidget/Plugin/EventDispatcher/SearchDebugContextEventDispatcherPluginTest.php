@@ -40,9 +40,6 @@ use Symfony\Component\HttpKernel\KernelEvents;
  */
 class SearchDebugContextEventDispatcherPluginTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testIsSearchResultsPageReturnsTrueForTheSearchRoute(): void
     {
         // Arrange
@@ -57,9 +54,6 @@ class SearchDebugContextEventDispatcherPluginTest extends Unit
         $this->assertTrue($result);
     }
 
-    /**
-     * @return void
-     */
     public function testIsSearchResultsPageReturnsFalseForAnyOtherRoute(): void
     {
         // Arrange
@@ -79,8 +73,6 @@ class SearchDebugContextEventDispatcherPluginTest extends Unit
      * be treated as the top-level page request — `handleRequest()` returns before it even reaches the
      * request's query bag, so whatever the query bag already held (here: a value this test placed on it)
      * must survive completely untouched.
-     *
-     * @return void
      */
     public function testHandleRequestDoesNothingForANonMainRequest(): void
     {
@@ -106,8 +98,6 @@ class SearchDebugContextEventDispatcherPluginTest extends Unit
     /**
      * A non-search-results route must end up with the debug parameter stripped and never re-set, even if
      * the client tried to smuggle it in on the query string.
-     *
-     * @return void
      */
     public function testHandleRequestStripsTheParameterAndReturnsEarlyForANonSearchRoute(): void
     {
@@ -132,8 +122,6 @@ class SearchDebugContextEventDispatcherPluginTest extends Unit
 
     /**
      * @param \SprykerCommunity\Yves\SearchDebug\Plugin\EventDispatcher\SearchDebugContextEventDispatcherPlugin $plugin
-     *
-     * @return \Spryker\Shared\EventDispatcher\EventDispatcherInterface
      */
     protected function extendDispatcher(SearchDebugContextEventDispatcherPlugin $plugin): EventDispatcherInterface
     {
@@ -143,8 +131,6 @@ class SearchDebugContextEventDispatcherPluginTest extends Unit
     /**
      * @param \SprykerCommunity\Yves\SearchDebug\Plugin\EventDispatcher\SearchDebugContextEventDispatcherPlugin $plugin
      * @param \Symfony\Component\HttpFoundation\Request $request
-     *
-     * @return bool
      */
     protected function invokeIsSearchResultsPage(SearchDebugContextEventDispatcherPlugin $plugin, Request $request): bool
     {

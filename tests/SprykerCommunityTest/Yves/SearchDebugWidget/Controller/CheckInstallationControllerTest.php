@@ -36,9 +36,6 @@ use Symfony\Component\HttpKernel\KernelEvents;
  */
 class CheckInstallationControllerTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testIsListenerBoundReturnsTrueWhenThePluginRegisteredAListenerForTheEvent(): void
     {
         // Arrange
@@ -53,9 +50,6 @@ class CheckInstallationControllerTest extends Unit
         $this->assertTrue($isBound);
     }
 
-    /**
-     * @return void
-     */
     public function testIsListenerBoundReturnsFalseWhenNoListenerIsRegisteredForTheEvent(): void
     {
         // Arrange
@@ -71,8 +65,6 @@ class CheckInstallationControllerTest extends Unit
     /**
      * A listener IS registered for the event, but bound to an unrelated object — confirms the check
      * identifies the specific plugin by its closure's bound `$this`, not merely "something listens".
-     *
-     * @return void
      */
     public function testIsListenerBoundReturnsFalseWhenTheRegisteredListenerBelongsToADifferentClass(): void
     {
@@ -95,8 +87,6 @@ class CheckInstallationControllerTest extends Unit
      * @param \Spryker\Shared\EventDispatcher\EventDispatcher $eventDispatcher
      * @param string $eventName
      * @param class-string $listenerClassName
-     *
-     * @return bool
      */
     protected function invokeIsListenerBound(EventDispatcher $eventDispatcher, string $eventName, string $listenerClassName): bool
     {

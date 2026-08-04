@@ -33,17 +33,11 @@ class IndexSchemaReaderTest extends Unit
 {
     use TestPageIndexTrait;
 
-    /**
-     * @return void
-     */
     protected function _before(): void
     {
         $this->createTestPageIndex();
     }
 
-    /**
-     * @return void
-     */
     protected function _after(): void
     {
         $this->deleteTestPageIndex();
@@ -55,8 +49,6 @@ class IndexSchemaReaderTest extends Unit
      * fixture's config declares them as PHP integers. Harmless for display (`ComponentDefinitionFormatter`
      * casts either shape to the same string), but this test's own real-data grounding is exactly why it
      * caught it — an invented fixture asserting native ints would have "confirmed" the wrong shape.
-     *
-     * @return void
      */
     public function testFindComponentReturnsTheFullUntruncatedConfigForANamedFilter(): void
     {
@@ -74,8 +66,6 @@ class IndexSchemaReaderTest extends Unit
      * Same live-confirmed string-normalization as above, this time for the `stop` filter's SHORT list —
      * exactly at `ComponentDefinitionFormatter`'s 5-item preview limit, so it's the boundary case for
      * "shown in full, not truncated".
-     *
-     * @return void
      */
     public function testFindComponentReturnsAShortListFilterInFull(): void
     {
@@ -91,8 +81,6 @@ class IndexSchemaReaderTest extends Unit
     /**
      * The `synonym` filter's list is deliberately past the 5-item preview limit — this is the config
      * that makes a real `token-analysis` page stage's `definitionTruncated` come back true.
-     *
-     * @return void
      */
     public function testFindComponentReturnsALongListFilterInFullEvenThoughItWouldBeTruncatedForDisplay(): void
     {
@@ -116,8 +104,6 @@ class IndexSchemaReaderTest extends Unit
      * order across a settings round-trip isn't semantically meaningful here, only the key => value pairs
      * are, so an order-sensitive `===` comparison would be asserting something this test has no actual
      * interest in.
-     *
-     * @return void
      */
     public function testFindComponentReturnsBooleanConfigValuesAsStrings(): void
     {
@@ -136,8 +122,6 @@ class IndexSchemaReaderTest extends Unit
     /**
      * The char filter path — real char filters run before tokenization, on the raw character stream, and
      * are looked up through a separate `analysisSettings['char_filter']` block from tokenizer/filter.
-     *
-     * @return void
      */
     public function testFindComponentReturnsACharFilterDefinition(): void
     {
@@ -153,8 +137,6 @@ class IndexSchemaReaderTest extends Unit
     /**
      * "lowercase" is used by name only in the fixture's filter chain, never customized — there is no
      * entry for it in the analysis settings' `filter` block at all.
-     *
-     * @return void
      */
     public function testFindComponentReturnsNullForABuiltInComponentUsedByNameOnly(): void
     {
@@ -165,9 +147,6 @@ class IndexSchemaReaderTest extends Unit
         $this->assertNull($component);
     }
 
-    /**
-     * @return void
-     */
     public function testFindComponentReturnsNullForAnUnrecognizedComponentKind(): void
     {
         // Act

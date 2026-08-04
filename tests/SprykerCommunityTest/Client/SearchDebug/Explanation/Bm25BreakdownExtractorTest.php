@@ -26,9 +26,6 @@ use SprykerCommunity\Client\SearchDebug\Explanation\Bm25BreakdownExtractor;
  */
 class Bm25BreakdownExtractorTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testExtractReturnsTheFullBreakdownForARealBm25Shape(): void
     {
         // Arrange
@@ -57,9 +54,6 @@ class Bm25BreakdownExtractorTest extends Unit
         $this->assertSame(4.2, $breakdown['tf']['avgdl']);
     }
 
-    /**
-     * @return void
-     */
     public function testExtractReturnsNullWhenTheWeightNodeHasNoChildren(): void
     {
         // Arrange
@@ -72,9 +66,6 @@ class Bm25BreakdownExtractorTest extends Unit
         $this->assertNull($breakdown);
     }
 
-    /**
-     * @return void
-     */
     public function testExtractReturnsNullWhenTheScoreChildIsNotABm25Shape(): void
     {
         // Arrange — a different Similarity module entirely (e.g. ConstantScore), same overall structure.
@@ -93,9 +84,6 @@ class Bm25BreakdownExtractorTest extends Unit
         $this->assertNull($breakdown);
     }
 
-    /**
-     * @return void
-     */
     public function testExtractReturnsNullWhenTheBoostChildIsMissing(): void
     {
         // Arrange
@@ -121,9 +109,6 @@ class Bm25BreakdownExtractorTest extends Unit
         $this->assertNull($breakdown);
     }
 
-    /**
-     * @return void
-     */
     public function testExtractReturnsNullWhenTheIdfChildIsMissingItsNChild(): void
     {
         // Arrange
@@ -157,9 +142,6 @@ class Bm25BreakdownExtractorTest extends Unit
         $this->assertNull($breakdown);
     }
 
-    /**
-     * @return void
-     */
     public function testExtractReturnsNullWhenTheTfChildIsMissingOneOfItsFiveChildren(): void
     {
         // Arrange

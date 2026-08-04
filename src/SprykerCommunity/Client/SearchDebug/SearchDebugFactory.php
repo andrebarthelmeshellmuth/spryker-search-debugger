@@ -48,9 +48,6 @@ use SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaReaderInterface;
  */
 class SearchDebugFactory extends AbstractFactory
 {
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Analyzer\SearchStringAnalyzerInterface
-     */
     public function createSearchStringAnalyzer(): SearchStringAnalyzerInterface
     {
         return new SearchStringAnalyzer(
@@ -62,17 +59,11 @@ class SearchDebugFactory extends AbstractFactory
         );
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatterInterface
-     */
     public function createComponentDefinitionFormatter(): ComponentDefinitionFormatterInterface
     {
         return new ComponentDefinitionFormatter();
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaReaderInterface
-     */
     public function createIndexSchemaReader(): IndexSchemaReaderInterface
     {
         return new IndexSchemaReader(
@@ -83,17 +74,11 @@ class SearchDebugFactory extends AbstractFactory
         );
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaMapperInterface
-     */
     public function createIndexSchemaMapper(): IndexSchemaMapperInterface
     {
         return new IndexSchemaMapper();
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Document\PageDocumentReaderInterface
-     */
     public function createPageDocumentReader(): PageDocumentReaderInterface
     {
         return new PageDocumentReader(
@@ -105,25 +90,16 @@ class SearchDebugFactory extends AbstractFactory
         );
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParserInterface
-     */
     public function createExplanationParser(): ExplanationParserInterface
     {
         return new ExplanationParser($this->createCrossFieldsSynonymMatcher(), $this->createBm25BreakdownExtractor());
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Explanation\CrossFieldsSynonymMatcher
-     */
     public function createCrossFieldsSynonymMatcher(): CrossFieldsSynonymMatcher
     {
         return new CrossFieldsSynonymMatcher();
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Explanation\Bm25BreakdownExtractor
-     */
     public function createBm25BreakdownExtractor(): Bm25BreakdownExtractor
     {
         return new Bm25BreakdownExtractor();
@@ -137,17 +113,11 @@ class SearchDebugFactory extends AbstractFactory
         return $this->getProvidedDependency(SearchDebugDependencyProvider::PLUGINS_PRODUCT_DEBUG_DATA_EXPANDER);
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReaderInterface
-     */
     public function createQueryFieldBoostReader(): QueryFieldBoostReaderInterface
     {
         return new QueryFieldBoostReader();
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessCheckerInterface
-     */
     public function createSearchDebugAccessChecker(): SearchDebugAccessCheckerInterface
     {
         return new SearchDebugAccessChecker($this->getPermissionClient());
@@ -162,8 +132,6 @@ class SearchDebugFactory extends AbstractFactory
      * `Spryker\Client\SearchElasticsearch\SearchElasticsearchFactory::getElasticaClient()`, which likewise
      * builds its `ElasticaClientFactory` via its own `createElasticaClientFactory()` method rather than
      * inline, a convention followed here too.
-     *
-     * @return \Elastica\Client
      */
     public function getElasticaClient(): Client
     {
@@ -172,9 +140,6 @@ class SearchDebugFactory extends AbstractFactory
         );
     }
 
-    /**
-     * @return \Spryker\Shared\SearchElasticsearch\ElasticaClient\ElasticaClientFactory
-     */
     public function createElasticaClientFactory(): ElasticaClientFactory
     {
         return new ElasticaClientFactory();
@@ -184,17 +149,12 @@ class SearchDebugFactory extends AbstractFactory
      * The vendor module's own config, instantiated for its connection/index settings — the one supported
      * way to obtain them outside that module, since no shared-constant surface exists for the assembled
      * client config array.
-     *
-     * @return \Spryker\Client\SearchElasticsearch\SearchElasticsearchConfig
      */
     public function createSearchElasticsearchConfig(): SearchElasticsearchConfig
     {
         return new SearchElasticsearchConfig();
     }
 
-    /**
-     * @return \Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolverInterface
-     */
     public function createIndexNameResolver(): IndexNameResolverInterface
     {
         return new IndexNameResolver(
@@ -203,49 +163,31 @@ class SearchDebugFactory extends AbstractFactory
         );
     }
 
-    /**
-     * @return \Spryker\Client\SearchElasticsearch\Dependency\Client\SearchElasticsearchToStoreClientInterface
-     */
     public function createSearchElasticsearchToStoreClientBridge(): SearchElasticsearchToStoreClientInterface
     {
         return new SearchElasticsearchToStoreClientBridge($this->getStoreClient());
     }
 
-    /**
-     * @return \Spryker\Client\SearchElasticsearch\Reader\DocumentReaderInterface
-     */
     public function createElasticsearchDocumentReader(): DocumentReaderInterface
     {
         return new DocumentReader($this->getElasticaClient());
     }
 
-    /**
-     * @return \Spryker\Client\SearchElasticsearch\SearchContextExpander\SearchContextExpanderInterface
-     */
     public function createSearchContextExpander(): SearchContextExpanderInterface
     {
         return new SearchContextExpander($this->createIndexNameResolver());
     }
 
-    /**
-     * @return \Spryker\Client\Permission\PermissionClientInterface
-     */
     public function getPermissionClient(): PermissionClientInterface
     {
         return $this->getProvidedDependency(SearchDebugDependencyProvider::CLIENT_PERMISSION);
     }
 
-    /**
-     * @return \Spryker\Service\Synchronization\SynchronizationServiceInterface
-     */
     public function getSynchronizationService(): SynchronizationServiceInterface
     {
         return $this->getProvidedDependency(SearchDebugDependencyProvider::SERVICE_SYNCHRONIZATION);
     }
 
-    /**
-     * @return \Spryker\Client\Store\StoreClientInterface
-     */
     public function getStoreClient(): StoreClientInterface
     {
         return $this->getProvidedDependency(SearchDebugDependencyProvider::CLIENT_STORE);

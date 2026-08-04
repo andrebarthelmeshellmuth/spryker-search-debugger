@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
+use Rector\DeadCode\Rector\ClassMethod\RemoveMixedDocblockOverruledByNativeTypeRector;
 use Rector\DeadCode\Rector\ClassMethod\RemoveUselessParamTagRector;
 use Rector\DeadCode\Rector\Concat\RemoveConcatAutocastRector;
 use Rector\Php83\Rector\ClassConst\AddTypeToConstRector;
@@ -32,11 +33,14 @@ return RectorConfig::configure()
         // typed params, which produced 140 "Doc Block params do not match method signature" errors
         // across 58 files when tried — a direct, systemic contradiction of that convention.
         RemoveUselessParamTagRector::class,
+        // Same DocBlockParam contradiction as above, narrower trigger: strips a single @param mixed
+        // when the parameter is natively typed mixed, still breaking the required 1:1 count.
+        RemoveMixedDocblockOverruledByNativeTypeRector::class,
     ])
     // Picks up the PHP floor (>=8.3) from composer.json.
     ->withPhpSets()
     // Gradual levels (0 = safest rules only). Raising in batches; stop at the first hit that
     // conflicts with established Spryker style rather than applying it automatically.
-    ->withDeadCodeLevel(25)
-    ->withCodeQualityLevel(25)
+    ->withDeadCodeLevel(30)
+    ->withCodeQualityLevel(30)
     ->withoutParallel();

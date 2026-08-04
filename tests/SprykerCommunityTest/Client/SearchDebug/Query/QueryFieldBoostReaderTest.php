@@ -36,8 +36,6 @@ class QueryFieldBoostReaderTest extends Unit
      * survives across test methods within the same process. Every test method below therefore calls
      * `captureFromQuery()` itself before asserting on `getFieldBoosts()`, so no method depends on
      * execution order or on a previous method's leftover state.
-     *
-     * @return void
      */
     public function testCaptureFromQueryReturnsTheRealFieldBoostPairsForATwoFieldMultiMatchQuery(): void
     {
@@ -55,8 +53,6 @@ class QueryFieldBoostReaderTest extends Unit
 
     /**
      * A field without a `^boost` suffix uses Elasticsearch's implicit boost of 1.
-     *
-     * @return void
      */
     public function testCaptureFromQueryDefaultsAFieldWithNoCaretToBoostOne(): void
     {
@@ -75,8 +71,6 @@ class QueryFieldBoostReaderTest extends Unit
     /**
      * An empty search string produces a `MatchAll` top-level query — no `BoolQuery`, no `MultiMatch` — a
      * shape this reader must degrade to an empty array for rather than throw.
-     *
-     * @return void
      */
     public function testCaptureFromQueryReturnsAnEmptyArrayForAMatchAllQuery(): void
     {
@@ -96,8 +90,6 @@ class QueryFieldBoostReaderTest extends Unit
     /**
      * A `BoolQuery` with a "must" clause that is something other than a `MultiMatch` (e.g. a plain `Term`
      * query) must also degrade to an empty array rather than throw.
-     *
-     * @return void
      */
     public function testCaptureFromQueryReturnsAnEmptyArrayWhenTheMustClauseIsNotAMultiMatch(): void
     {
@@ -119,8 +111,6 @@ class QueryFieldBoostReaderTest extends Unit
      * A query object that is not an `Elastica\Query` at all (some other project's `QueryInterface`
      * implementation) must also degrade to an empty array — `QueryInterface::getSearchQuery()` is typed
      * `mixed`, so this reader cannot assume its shape.
-     *
-     * @return void
      */
     public function testCaptureFromQueryReturnsAnEmptyArrayWhenTheSearchQueryIsNotAnElasticaQuery(): void
     {
@@ -142,8 +132,6 @@ class QueryFieldBoostReaderTest extends Unit
      * underlying storage is a static property shared with other test methods (see this class's own
      * docblock above): capturing an empty result and reading it back is behaviorally identical to reading
      * it before any capture happened at all, and does not depend on test execution order.
-     *
-     * @return void
      */
     public function testGetFieldBoostsReturnsAnEmptyArrayWhenNothingUsefulHasBeenCapturedYet(): void
     {
@@ -161,8 +149,6 @@ class QueryFieldBoostReaderTest extends Unit
 
     /**
      * @param array<string> $fields
-     *
-     * @return \Elastica\Query
      */
     protected function createMultiMatchQuery(array $fields): Query
     {
@@ -178,8 +164,6 @@ class QueryFieldBoostReaderTest extends Unit
      * each test can drive `captureFromQuery()` with a different query shape.
      *
      * @param mixed $query
-     *
-     * @return \Spryker\Client\SearchExtension\Dependency\Plugin\QueryInterface
      */
     protected function createSearchQuery($query): QueryInterface
     {

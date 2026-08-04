@@ -46,9 +46,6 @@ trait TestPageIndexTrait
      */
     protected const TEST_INDEX_NAME = 'search_debug_test_page';
 
-    /**
-     * @return void
-     */
     protected function createTestPageIndex(): void
     {
         $this->getTestPageIndex()->create(
@@ -73,9 +70,6 @@ trait TestPageIndexTrait
         );
     }
 
-    /**
-     * @return void
-     */
     protected function deleteTestPageIndex(): void
     {
         $index = $this->getTestPageIndex();
@@ -87,9 +81,6 @@ trait TestPageIndexTrait
         $index->delete();
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Analyzer\SearchStringAnalyzerInterface
-     */
     protected function createTestSearchStringAnalyzer(): SearchStringAnalyzerInterface
     {
         return new SearchStringAnalyzer(
@@ -101,9 +92,6 @@ trait TestPageIndexTrait
         );
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaReaderInterface
-     */
     protected function createTestIndexSchemaReader(): IndexSchemaReaderInterface
     {
         return new IndexSchemaReader(
@@ -114,9 +102,6 @@ trait TestPageIndexTrait
         );
     }
 
-    /**
-     * @return \Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolverInterface
-     */
     protected function createTestIndexNameResolver(): IndexNameResolverInterface
     {
         return new class (static::TEST_INDEX_NAME) implements IndexNameResolverInterface {
@@ -135,8 +120,6 @@ trait TestPageIndexTrait
              *
              * @param string $sourceIdentifier
              * @param string|null $storeName
-             *
-             * @return string
              */
             public function resolve(string $sourceIdentifier, ?string $storeName = null): string
             {
@@ -145,9 +128,6 @@ trait TestPageIndexTrait
         };
     }
 
-    /**
-     * @return \Elastica\Index
-     */
     protected function getTestPageIndex(): Index
     {
         return $this->getTestElasticaClient()->getIndex(static::TEST_INDEX_NAME);
@@ -156,8 +136,6 @@ trait TestPageIndexTrait
     /**
      * Same composition `SprykerCommunity\Client\SearchDebug\SearchDebugFactory::getElasticaClient()` uses
      * — both directly-instantiable value objects, no Locator/container needed.
-     *
-     * @return \Elastica\Client
      */
     protected function getTestElasticaClient(): Client
     {

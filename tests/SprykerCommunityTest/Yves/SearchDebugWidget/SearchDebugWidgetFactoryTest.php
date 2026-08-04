@@ -40,41 +40,26 @@ use SprykerCommunity\Yves\SearchDebugWidget\SearchDebugWidgetFactory;
  */
 class SearchDebugWidgetFactoryTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testCreateTokenSourceResolverReturnsATokenSourceResolver(): void
     {
         $this->assertInstanceOf(TokenSourceResolverInterface::class, $this->createFactory()->createTokenSourceResolver());
     }
 
-    /**
-     * @return void
-     */
     public function testCreateAnalysisPathResolverReturnsAnAnalysisPathResolver(): void
     {
         $this->assertInstanceOf(AnalysisPathResolverInterface::class, $this->createFactory()->createAnalysisPathResolver());
     }
 
-    /**
-     * @return void
-     */
     public function testCreateComponentConfigFormatterReturnsAComponentConfigFormatter(): void
     {
         $this->assertInstanceOf(ComponentConfigFormatterInterface::class, $this->createFactory()->createComponentConfigFormatter());
     }
 
-    /**
-     * @return void
-     */
     public function testCreateTokenHighlighterReturnsATokenHighlighter(): void
     {
         $this->assertInstanceOf(TokenHighlighterInterface::class, $this->createFactory()->createTokenHighlighter());
     }
 
-    /**
-     * @return \SprykerCommunity\Yves\SearchDebugWidget\SearchDebugWidgetFactory
-     */
     protected function createFactory(): SearchDebugWidgetFactory
     {
         $container = new Container();

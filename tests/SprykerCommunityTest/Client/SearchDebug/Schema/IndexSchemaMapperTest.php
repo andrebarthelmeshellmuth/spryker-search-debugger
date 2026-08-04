@@ -28,8 +28,6 @@ class IndexSchemaMapperTest extends Unit
 {
     /**
      * The resolution rules are Elasticsearch's own: explicitly configured analyzers are taken verbatim.
-     *
-     * @return void
      */
     public function testMapResolvesExplicitlyConfiguredAnalyzers(): void
     {
@@ -58,8 +56,6 @@ class IndexSchemaMapperTest extends Unit
 
     /**
      * No `search_analyzer` configured → Elasticsearch queries with the field's index analyzer.
-     *
-     * @return void
      */
     public function testMapFallsBackToTheIndexAnalyzerAsSearchAnalyzer(): void
     {
@@ -83,8 +79,6 @@ class IndexSchemaMapperTest extends Unit
     /**
      * A text field with no analyzer configuration at all is analyzed with "standard" — the vanilla core
      * `page.json` case, where `full-text` is a plain text field.
-     *
-     * @return void
      */
     public function testMapFallsBackToTheStandardAnalyzerForPlainTextFields(): void
     {
@@ -107,8 +101,6 @@ class IndexSchemaMapperTest extends Unit
 
     /**
      * Non-text fields are not analyzed — they must not report analyzer names, "standard" would be a lie.
-     *
-     * @return void
      */
     public function testMapLeavesNonTextFieldsWithoutAnalyzerNames(): void
     {
@@ -133,8 +125,6 @@ class IndexSchemaMapperTest extends Unit
     /**
      * Custom analyzer definitions from the settings come along verbatim — tokenizer and filter chain in
      * configured order, the raw material for the upcoming analysis-pipeline display.
-     *
-     * @return void
      */
     public function testMapCarriesAnalyzerDefinitionsFromTheAnalysisSettings(): void
     {
@@ -163,8 +153,6 @@ class IndexSchemaMapperTest extends Unit
     /**
      * The real `page.json` shape for this shop's one custom filter — `type` plus type-specific config
      * keys, verbatim.
-     *
-     * @return void
      */
     public function testMapCarriesFilterDefinitionsFromTheAnalysisSettings(): void
     {
@@ -194,8 +182,6 @@ class IndexSchemaMapperTest extends Unit
      * Same shape, different settings key — tokenizer and char_filter definitions map identically to
      * filter definitions (all three are `{"type": "...", ...}` blocks in Elasticsearch's analysis
      * settings), so one assertion per key is enough to cover the shared mapping code.
-     *
-     * @return void
      */
     public function testMapCarriesTokenizerAndCharFilterDefinitionsFromTheAnalysisSettings(): void
     {
