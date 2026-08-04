@@ -26,10 +26,10 @@ interface ProductDebugDataExpanderPluginInterface
      *   ({@see \SprykerCommunity\Shared\SearchDebug\SearchDebugConfig::KEY_SCORE_SECTIONS}); each section
      *   is rendered generically: `title` (string), `lines` (list of `label`, optional `calculation`,
      *   `value` (float)), optional `summaryLabel`/`summaryValue` and an optional free-text
-     *   `formulaCalculation` line. A section may also set `isEntropySection: true` to opt out of the
+     *   `formulaCalculation` line. A section may also set `isSpecificitySection: true` to opt out of the
      *   overlay's default top-of-page placement and render instead directly above the relevance-weight
-     *   line — spryker-community/search-ranking's own "Entropy weighting" section is the one plugin using
-     *   this today; a section without the flag always renders in the default position.
+     *   line — spryker-community/search-ranking's own "Specificity weighting" section is the one plugin
+     *   using this today; a section without the flag always renders in the default position.
      * - Returns the (expanded) debug data.
      *
      * @api
