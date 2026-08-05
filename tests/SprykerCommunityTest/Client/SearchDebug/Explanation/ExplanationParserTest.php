@@ -761,10 +761,16 @@ class ExplanationParserTest extends Unit
     }
 
     /**
-     * Without a function_score wrapper there is no separate query score — the key must still exist
-     * (null), so consumers can distinguish "no wrapper" from "wrapper with score 0".
+     * Regression test: without a function_score wrapper, `queryScore` must fall back to the tree's own
+     * top-level value rather than staying null — that top-level value already IS the final `_score` for
+     * a plain query, so it's also the pure text relevance. Before this fix, a store/locale with every
+     * business-signal metric weighted at 0 (so `FunctionScoreBuilder` never wraps the query at all, see
+     * that class's own "no active metric has a non-zero weight" guard) made this stay null, which in turn
+     * made search-ranking's "Text Signal total" overlay line disappear — even though the pure text score
+     * was known and meaningful the whole time. Text relevance must never be hostage to whether business
+     * signals happen to be configured/active.
      */
-    public function testParseReturnsNullQueryScoreWithoutAScriptScoreWrapper(): void
+    public function testParseFallsBackToTheTopLevelValueForQueryScoreWithoutAScriptScoreWrapper(): void
     {
         // Arrange
         $explanation = $this->createWeightNode('full-text', 'cable', 6.9244);
@@ -772,8 +778,26 @@ class ExplanationParserTest extends Unit
         // Act
         $result = $this->createParser()->parse($explanation, ['cable']);
 
+        // Assert — the fixture's own top-level 'value' (6.9244), not null.
+        $this->assertSame(6.9244, $result[ExplanationParser::KEY_QUERY_SCORE]);
+    }
+
+    /**
+     * The script-score wrapper's own `_score:` child still wins over the top-level fallback — the
+     * fallback in {@see testParseFallsBackToTheTopLevelValueForQueryScoreWithoutAScriptScoreWrapper} only
+     * applies when nothing more specific was found; it must not override a real function_score's own,
+     * more precise, wrapped-query score with the (different, post-blend) top-level final score.
+     */
+    public function testParseKeepsTheScriptScoreNodesQueryScoreOverTheTopLevelFallback(): void
+    {
+        // Arrange — final score (2.7416) deliberately differs from the wrapped query's own score (6.9244).
+        $explanation = $this->createScriptScoreExplanationTree(2.7416, 6.9244);
+
+        // Act
+        $result = $this->createParser()->parse($explanation, ['cable']);
+
         // Assert
-        $this->assertNull($result[ExplanationParser::KEY_QUERY_SCORE]);
+        $this->assertSame(6.9244, $result[ExplanationParser::KEY_QUERY_SCORE]);
     }
 
     /**

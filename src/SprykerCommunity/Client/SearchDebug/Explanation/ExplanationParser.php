@@ -154,9 +154,21 @@ class ExplanationParser implements ExplanationParserInterface
     public const KEY_SCORE_FUNCTIONS = 'scoreFunctions';
 
     /**
-     * The wrapped query's own relevance score (float) when a function_score script wrapped the query,
-     * null otherwise — i.e. the pure text-match subtotal BEFORE any score function was applied. The
-     * matched-token contributions always add up against THIS number, not the final `_score`.
+     * The query's own pure text-relevance score (float) — the matched-token contributions always add up
+     * against THIS number, not necessarily the final `_score`. Two sources, depending on the tree shape:
+     * - When a function_score script wrapped the query (see {@see tryHandleScriptScoreNode()}), this is
+     *   the wrapped query's own relevance BEFORE the score function ran — the `_score:` child's value.
+     * - Otherwise, {@see parse()} falls back to the tree's own top-level `value` — for a plain (non-
+     *   function_score) query, Lucene's `_explanation.value` for the whole tree already IS the final
+     *   `_score`, and since nothing else touched it, that final score is by definition the pure text
+     *   relevance too. This fallback is what lets a caller (e.g. search-ranking's overlay section for the
+     *   normalized text signal) show a meaningful text-relevance number REGARDLESS of whether business
+     *   signals happen to be active for this query — the two are logically independent (one query token
+     *   can legitimately have a text score with zero configured/active business metrics), so this key
+     *   must never be held hostage to "did a function_score wrapper happen to run".
+     *
+     * In practice this is only ever null if {@see parse()} itself is never called — Elasticsearch always
+     * reports SOME numeric `value` for an explain tree that exists at all.
      *
      * @var string
      */
@@ -193,6 +205,13 @@ class ExplanationParser implements ExplanationParserInterface
         $queryScore = null;
 
         $this->walkNode($explanation, $termWeightAccumulator, $otherContributions, $scoreFunctions, $queryScore);
+
+        // No script-score node means no function_score wrapper ran — but the tree's own top-level value
+        // is still the query's final `_score`, and with nothing else touching it, that IS the pure text
+        // relevance. See KEY_QUERY_SCORE's own docblock for why this must not depend on business signals.
+        if ($queryScore === null) {
+            $queryScore = (float)($explanation['value'] ?? 0.0);
+        }
 
         $result = $this->splitByQueryTokens($termWeightAccumulator->getTerms(), $otherContributions, $queryTokens);
         $result[static::KEY_SCORE_FUNCTIONS] = $scoreFunctions;
