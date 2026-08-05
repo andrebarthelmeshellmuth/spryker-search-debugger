@@ -12,6 +12,7 @@ namespace SprykerCommunityTest\Yves\SearchDebugWidgetPresentation;
 use Codeception\Actor;
 use Exception;
 use SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\PageObject\LoginPage;
+use SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\PageObject\SearchResultsPage;
 
 /**
  * Inherited Methods
@@ -84,5 +85,21 @@ class SearchDebugWidgetPresentationTester extends Actor
         } catch (Exception $exception) {
             return false;
         }
+    }
+
+    /**
+     * The matched-token breakdown, its BM25 detail, and the token-source link all live inside two
+     * nested, collapsed-by-default <details> ("Text signals" > "Matched tokens") - both have to be
+     * clicked open before any of that content is visible/interactable. Call this right after opening
+     * the score popup (clicking .search-debug-trigger).
+     *
+     * @return void
+     */
+    public function expandMatchedTokens(): void
+    {
+        $this->waitForElementVisible(SearchResultsPage::SELECTOR_TEXT_SIGNALS_SUMMARY, 5);
+        $this->click(SearchResultsPage::SELECTOR_TEXT_SIGNALS_SUMMARY);
+        $this->waitForElementVisible(SearchResultsPage::SELECTOR_MATCHED_TOKENS_SUMMARY, 5);
+        $this->click(SearchResultsPage::SELECTOR_MATCHED_TOKENS_SUMMARY);
     }
 }

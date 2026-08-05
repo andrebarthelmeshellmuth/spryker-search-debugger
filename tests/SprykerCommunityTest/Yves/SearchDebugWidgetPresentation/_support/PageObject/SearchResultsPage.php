@@ -67,14 +67,40 @@ class SearchResultsPage
     public const SELECTOR_PIN_TOGGLE = '.search-debug-pin-toggle';
 
     /**
+     * Scoped to the overlay - the bare `.search-debug-token` class is reused by the always-visible
+     * query-token headline above the grid, so an unscoped wait would pass trivially before the overlay
+     * even opens.
+     *
      * @var string
      */
-    public const SELECTOR_MATCHED_TOKEN = '.search-debug-token';
+    public const SELECTOR_MATCHED_TOKEN = '.search-debug-overlay .search-debug-token';
 
     /**
      * @var string
      */
     public const SELECTOR_TOKEN_SOURCE_LINK = '.search-debug-token-source-link';
+
+    /**
+     * The matched-token breakdown (and its BM25 detail, and the token-source link) lives inside TWO
+     * nested, collapsed-by-default <details> — "Text signals" wrapping "Matched tokens" - both need
+     * their <summary> clicked open before any of that content is visible/interactable.
+     *
+     * @var string
+     */
+    public const SELECTOR_TEXT_SIGNALS_SUMMARY = "//summary[contains(@class, 'search-debug-collapsible__summary') and contains(., 'Text signals')]";
+
+    /**
+     * @var string
+     */
+    public const SELECTOR_MATCHED_TOKENS_SUMMARY = "//summary[contains(@class, 'search-debug-collapsible__summary') and contains(., 'Matched tokens')]";
+
+    /**
+     * A THIRD nesting level: each matched token's own BM25 boost/idf/tf breakdown is its own
+     * per-token collapsed <details> inside "Matched tokens".
+     *
+     * @var string
+     */
+    public const SELECTOR_BM25_TOGGLE_SUMMARY = '.search-debug-bm25-toggle > summary';
 
     /**
      * @var string

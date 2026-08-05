@@ -49,6 +49,7 @@ class TokenSourcePageCest
         $i->amOnPage(SearchResultsPage::URL_CHAIR);
         $i->waitForElementVisible(SearchResultsPage::SELECTOR_SCORE_TRIGGER, 10);
         $i->click(SearchResultsPage::SELECTOR_SCORE_TRIGGER);
+        $i->expandMatchedTokens();
         $i->waitForElementVisible(SearchResultsPage::SELECTOR_TOKEN_SOURCE_LINK, 5);
 
         $href = $i->grabAttributeFrom(SearchResultsPage::SELECTOR_TOKEN_SOURCE_LINK, 'href');

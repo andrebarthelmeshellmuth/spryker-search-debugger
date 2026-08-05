@@ -55,6 +55,7 @@ class ComponentConfigPageCest
         $i->amOnPage(SearchResultsPage::URL_HANDCART);
         $i->waitForElementVisible(SearchResultsPage::SELECTOR_SCORE_TRIGGER, 10);
         $i->click(SearchResultsPage::SELECTOR_SCORE_TRIGGER);
+        $i->expandMatchedTokens();
         $i->waitForElementVisible(SearchResultsPage::SELECTOR_TOKEN_SOURCE_LINK, 5);
 
         $tokenSourceHref = $i->grabAttributeFrom(SearchResultsPage::SELECTOR_TOKEN_SOURCE_LINK, 'href');

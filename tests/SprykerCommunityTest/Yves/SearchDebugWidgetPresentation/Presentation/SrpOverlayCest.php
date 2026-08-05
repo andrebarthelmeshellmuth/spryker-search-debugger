@@ -79,8 +79,15 @@ class SrpOverlayCest
         $i->amOnPage(SearchResultsPage::URL_CHAIR);
         $i->waitForElementVisible(SearchResultsPage::SELECTOR_SCORE_TRIGGER, 10);
         $i->click(SearchResultsPage::SELECTOR_SCORE_TRIGGER);
+        $i->expandMatchedTokens();
         $i->waitForElementVisible(SearchResultsPage::SELECTOR_MATCHED_TOKEN, 5);
         $i->see('Matched tokens');
+
+        // A third nesting level: each token's own BM25 boost/idf/tf breakdown is its own collapsed
+        // <details>, only visible once its own summary is clicked too.
+        $i->waitForElementVisible(SearchResultsPage::SELECTOR_BM25_TOGGLE_SUMMARY, 5);
+        $i->click(SearchResultsPage::SELECTOR_BM25_TOGGLE_SUMMARY);
+
         $i->see('Boost');
         $i->see('Inverse document frequency');
         $i->see('Term frequency');

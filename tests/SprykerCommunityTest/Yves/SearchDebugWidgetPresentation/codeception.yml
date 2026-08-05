@@ -32,6 +32,23 @@ suites:
                     url: ''
                     browser: chrome
                     window_size: 1920x1080
-                    host: 0.0.0.0
+                    # Deliberately the real docker-compose service name, not the demoshop's usual
+                    # `0.0.0.0` literal: WebDriver's OWN _before() hook opens the session eagerly,
+                    # before YvesHelper::amYves()'s runtime _reconfigure() (called from this suite's own
+                    # Cest _before()) ever gets a chance to run — so the static host here has to be
+                    # correct from the start. Matches SPRYKER_TEST_WEB_DRIVER_HOST from
+                    # docker/deployment/default/env/cli/testing.env (only injected under
+                    # `docker/sdk testing`, not plain `docker/sdk cli`).
+                    host: webdriver
                     restart: false
+                    # Without these, Chrome crashes on launch ("DevToolsActivePort file doesn't exist")
+                    # in this container: --headless because there's no display to render a real window
+                    # on (this was the one that actually mattered — confirmed live via a raw /wd/hub/session
+                    # POST); --disable-dev-shm-usage because /dev/shm here is Docker's 64MB default, too
+                    # small for Chrome, so this makes it use /tmp instead; --no-sandbox because this
+                    # container runs Chrome as root without the extra capabilities a sandbox needs;
+                    # --disable-gpu is the standard headless-on-Linux companion flag.
+                    capabilities:
+                        goog:chromeOptions:
+                            args: ['--headless', '--disable-gpu', '--disable-dev-shm-usage', '--no-sandbox']
                 - \SprykerTest\Shared\Application\Helper\YvesHelper
