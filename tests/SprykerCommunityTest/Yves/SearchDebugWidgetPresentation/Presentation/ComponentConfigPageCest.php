@@ -32,8 +32,6 @@ class ComponentConfigPageCest
 {
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function _before(SearchDebugWidgetPresentationTester $i): void
     {
@@ -47,8 +45,6 @@ class ComponentConfigPageCest
      * match), then checks the definition preview + full-definition link on that stage specifically.
      *
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function truncatedPreviewOnTheAnalysisPathPage(SearchDebugWidgetPresentationTester $i): void
     {

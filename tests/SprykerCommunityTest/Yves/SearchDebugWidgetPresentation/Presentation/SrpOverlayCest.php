@@ -28,8 +28,6 @@ class SrpOverlayCest
 {
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function _before(SearchDebugWidgetPresentationTester $i): void
     {
@@ -39,8 +37,6 @@ class SrpOverlayCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function scoreBadgeAppearsPerProduct(SearchDebugWidgetPresentationTester $i): void
     {
@@ -51,8 +47,6 @@ class SrpOverlayCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function pinToggleKeepsThePopupOpen(SearchDebugWidgetPresentationTester $i): void
     {
@@ -71,8 +65,6 @@ class SrpOverlayCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function matchedTokenBm25BreakdownExpands(SearchDebugWidgetPresentationTester $i): void
     {
@@ -95,8 +87,6 @@ class SrpOverlayCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function otherContributionsAndFinalScoreReconcile(SearchDebugWidgetPresentationTester $i): void
     {
@@ -116,8 +106,6 @@ class SrpOverlayCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function businessSignalsSectionRendersWhenSearchRankingIsInstalled(SearchDebugWidgetPresentationTester $i): void
     {
@@ -133,8 +121,6 @@ class SrpOverlayCest
 
     /**
      * @param string $text
-     *
-     * @return string|null
      */
     protected static function extractScoreNumber(string $text): ?string
     {

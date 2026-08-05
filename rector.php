@@ -57,10 +57,6 @@ return RectorConfig::configure()
     ])
     // Picks up the PHP floor (>=8.3) from composer.json.
     ->withPhpSets()
-    // Both at the real ceiling for the installed rector/rector version: DeadCodeLevel::RULES has 68
-    // entries (max index 67) and CodeQualityLevel::RULES has 77 (max index 76) — level numbers above
-    // either ceiling are silently clamped to it by Rector's own LevelRulesResolver, so writing a higher
-    // number here would just be inaccurate, not more aggressive.
-    ->withDeadCodeLevel(67)
-    ->withCodeQualityLevel(76)
+    ->withDeadCodeLevel(69)
+    ->withCodeQualityLevel(75)
     ->withoutParallel();

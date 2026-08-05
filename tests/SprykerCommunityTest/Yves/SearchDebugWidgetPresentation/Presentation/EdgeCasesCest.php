@@ -29,8 +29,6 @@ class EdgeCasesCest
 {
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function _before(SearchDebugWidgetPresentationTester $i): void
     {
@@ -40,8 +38,6 @@ class EdgeCasesCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function zeroResultQueryDoesNotBreakThePage(SearchDebugWidgetPresentationTester $i): void
     {
@@ -54,8 +50,6 @@ class EdgeCasesCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function ampersandCharFilterNormalizesBeforeTokenizing(SearchDebugWidgetPresentationTester $i): void
     {

@@ -29,8 +29,6 @@ class PermissionGateCest
 {
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function _before(SearchDebugWidgetPresentationTester $i): void
     {
@@ -39,8 +37,6 @@ class PermissionGateCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function anonymousShopperSeesNothing(SearchDebugWidgetPresentationTester $i): void
     {
@@ -51,8 +47,6 @@ class PermissionGateCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function loggedInCustomerWithoutTheRoleSeesNothing(SearchDebugWidgetPresentationTester $i): void
     {
@@ -66,8 +60,6 @@ class PermissionGateCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function spoofingTheQueryParamDoesNotHelp(SearchDebugWidgetPresentationTester $i): void
     {
@@ -81,8 +73,6 @@ class PermissionGateCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function permittedCustomerDoesSeeIt(SearchDebugWidgetPresentationTester $i): void
     {
