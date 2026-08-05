@@ -695,6 +695,31 @@ cluster, and standing both up per build would cost far more than it returns. CI 
 static guarantees; the test suite is run against a real shop before a release. A standalone bootstrap
 that would let CI run them too is on the roadmap.
 
+### Browser (Presentation) suite
+
+> **This suite is a development tool for this package's own reference demoshop — it is not something
+> to install or run against YOUR shop.** Every test is written against one specific demoshop's seeded
+> fixture data: exact customer accounts, exact catalog contents (e.g. the query `chair` is asserted to
+> return results), exact configured synonym pairs, and a specific Company Role/permission grant. Point it
+> at a different shop and most of it will simply fail on missing data, not on a real defect. It exists to
+> catch UI regressions while developing this package, not as something adopters are expected to run.
+
+`tests/SprykerCommunityTest/Yves/SearchDebugWidgetPresentation/` is a real WebDriver click-through suite
+covering every checklist item from the package's own manual QA pass: the SRP score overlay (badge, pin,
+matched-token/BM25 breakdown, business-signals section), the query-token analyzer, the token-source and
+analysis-path pages, the component-config page, the permission gate (including the two negative-test
+accounts), and a couple of edge cases (zero results, the `&` char filter). It is kept as its own module
+directory rather than nested under `Yves/SearchDebugWidget/` because that module's `Unit` suite scans its
+whole directory tree recursively — a nested WebDriver suite there would break it.
+
+```bash
+vendor/bin/codecept build -c vendor/spryker-community/search-debug/tests/SprykerCommunityTest/Yves/SearchDebugWidgetPresentation
+vendor/bin/codecept run -c vendor/spryker-community/search-debug/tests/SprykerCommunityTest/Yves/SearchDebugWidgetPresentation
+```
+
+Like the rest of the test suite, this is not part of CI — it needs a real running shop plus the Selenium/
+chromedriver service already provisioned in this demoshop's `docker-compose.yml`.
+
 One branch is deliberately left untested: `SearchDebugContextEventDispatcherPlugin::handleRequest()`'s
 permission-granted path (the one that actually turns debug mode on) calls `PermissionAwareTrait::can()`,
 which reaches through Spryker's global `Locator` singleton rather than an injected dependency — there is

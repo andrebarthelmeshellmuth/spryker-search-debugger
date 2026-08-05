@@ -1,0 +1,37 @@
+namespace: SprykerCommunityTest\Yves\SearchDebugWidgetPresentation
+
+paths:
+    tests: .
+    data: _data
+    support: _support
+    output: _output
+
+coverage:
+    enabled: true
+    remote: false
+    include:
+        - 'packages/spryker-community/search-debug/src/*'
+
+# Kept as its own module directory, sibling to Yves/SearchDebugWidget, rather than a Presentation/
+# subfolder of it: that module's existing `Unit` suite has `path: .`, which recursively picks up every
+# file under it regardless of suite boundaries in codeception.yml — nesting a WebDriver suite in there
+# would make the Unit suite try (and fail) to load these Cests too. A sibling directory has its own
+# scan root and never overlaps.
+suites:
+    Presentation:
+        path: Presentation
+        actor: SearchDebugWidgetPresentationTester
+        modules:
+            enabled:
+                - Asserts
+                - \PyzTest\Shared\Testify\Helper\Environment
+                - \SprykerTest\Shared\Config\Helper\ConfigInit
+                - \SprykerTest\Shared\Testify\Helper\LocatorHelper:
+                    projectNamespaces: ['Pyz']
+                - WebDriver:
+                    url: ''
+                    browser: chrome
+                    window_size: 1920x1080
+                    host: 0.0.0.0
+                    restart: false
+                - \SprykerTest\Shared\Application\Helper\YvesHelper
