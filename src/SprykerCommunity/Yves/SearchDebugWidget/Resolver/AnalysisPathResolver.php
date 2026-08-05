@@ -233,9 +233,21 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
      * of nowhere at the final one, attributing the transformation to the wrong filter entirely. Confirmed
      * live against a real product description matching the synonym pair "switch, button".
      *
-     * Falls back to the tightest-span match when no exact-text candidate exists — still correct for
-     * genuine transformations (lowercasing, edge-ngram truncation, decompounding) where the child's text
-     * legitimately differs from its parent's.
+     * When no exact-text candidate exists either, prefers a candidate whose text the child is a genuine
+     * PREFIX of over the plain tightest-span tie-break — this is the edge-ngram case: an ngram filter's
+     * generated tokens all carry their ORIGINAL (pre-truncation) token's offsets, so a truncated child
+     * (e.g. "handcar", 7 of "handcart"'s 8 characters) has the exact same span as every one of its
+     * same-offset synonym siblings (e.g. "trolley", also span 7 — spans reflect the ORIGINAL query
+     * text's word length, not either candidate's own text length). Without this tier, the tightest-span
+     * fallback ties and arbitrarily keeps whichever sibling the synonym filter emitted first — reproduced
+     * live against the real synonym pair "trolley, handcart": walking back from ngram-truncated
+     * "handcar" landed on "trolley" at every earlier stage, making the path show the synonym swap
+     * happening at the ngram filter instead of at the actual `fulltext_synonyms` stage, and losing the
+     * final two characters of the real synonym term in the process.
+     *
+     * Falls back to the plain tightest-span match when neither an exact nor a prefix candidate exists —
+     * still correct for genuine transformations (lowercasing, decompounding) where the child's text
+     * legitimately differs from its parent's without one containing the other.
      *
      * @param array<array{token: string, startOffset: int, endOffset: int}> $tokens
      * @param string $childText
@@ -248,6 +260,8 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
     {
         $bestMatch = null;
         $bestSpan = null;
+        $bestPrefixMatch = null;
+        $bestPrefixSpan = null;
 
         foreach ($tokens as $token) {
             if ($token['startOffset'] > $childStartOffset || $token['endOffset'] < $childEndOffset) {
@@ -259,6 +273,16 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
             }
 
             $span = $token['endOffset'] - $token['startOffset'];
+
+            if (str_starts_with($token['token'], $childText)) {
+                if ($bestPrefixSpan === null || $span < $bestPrefixSpan) {
+                    $bestPrefixMatch = $token;
+                    $bestPrefixSpan = $span;
+                }
+
+                continue;
+            }
+
             if ($bestSpan !== null && $span >= $bestSpan) {
                 continue;
             }
@@ -267,6 +291,6 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
             $bestSpan = $span;
         }
 
-        return $bestMatch;
+        return $bestPrefixMatch ?? $bestMatch;
     }
 }

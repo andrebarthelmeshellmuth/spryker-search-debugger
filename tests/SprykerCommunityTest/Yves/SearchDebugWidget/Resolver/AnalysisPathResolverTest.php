@@ -242,6 +242,115 @@ class AnalysisPathResolverTest extends Unit
     }
 
     /**
+     * Regression test: confirmed live against this shop's real "trolley, handcart" synonym rule. Unlike
+     * the "switch"/"button" case above, the two same-offset siblings here have UNEQUAL text lengths, and
+     * the token actually being resolved is an edge-ngram-truncated PREFIX of the longer one ("handcar",
+     * 7 of "handcart"'s 8 characters) — so neither candidate is an exact-text match at the first backward
+     * step, and both report the SAME span (edge-ngram tokens keep their ORIGINAL token's offsets, not
+     * offsets scaled to their own truncated length). Without preferring the candidate the child is a
+     * genuine prefix of, the tightest-span tie-break arbitrarily keeps "trolley" (whichever the synonym
+     * filter happened to emit first) at every earlier stage, making the path show the synonym swap
+     * happening at the ngram filter instead of at `fulltext_synonyms`, and truncating the real synonym
+     * term to "handcar" throughout.
+     */
+    public function testResolveFollowsTheNgramTruncatedSynonymNotItsEqualSpanSibling(): void
+    {
+        // Arrange
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->method('getTextAnalysisStages')->willReturn([
+            [
+                'operation' => 'tokenizer: standard',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
+                'tokens' => [['token' => 'trolley', 'startOffset' => 10, 'endOffset' => 17]],
+            ],
+            [
+                'operation' => 'filter: fulltext_synonyms',
+                'definition' => 'synonym (synonyms: trolley, handcart => trolley, handcart)',
+                'componentKind' => 'filter',
+                'componentName' => 'fulltext_synonyms',
+                'definitionTruncated' => false,
+                // Both siblings span the SAME [10,17) range — "handcart" is injected, not derived by
+                // transforming "trolley"'s text, and keeps "trolley"'s own original-word offsets.
+                'tokens' => [
+                    ['token' => 'trolley', 'startOffset' => 10, 'endOffset' => 17],
+                    ['token' => 'handcart', 'startOffset' => 10, 'endOffset' => 17],
+                ],
+            ],
+            [
+                // A pure pass-through stage — both siblings survive unchanged, still tied on span.
+                'operation' => 'filter: fulltext_min_length',
+                'definition' => 'length (min: 2)',
+                'componentKind' => 'filter',
+                'componentName' => 'fulltext_min_length',
+                'definitionTruncated' => false,
+                'tokens' => [
+                    ['token' => 'trolley', 'startOffset' => 10, 'endOffset' => 17],
+                    ['token' => 'handcart', 'startOffset' => 10, 'endOffset' => 17],
+                ],
+            ],
+            [
+                'operation' => 'filter: fulltext_index_ngram_filter',
+                'definition' => 'edge_ngram (min_gram: 2, max_gram: 20)',
+                'componentKind' => 'filter',
+                'componentName' => 'fulltext_index_ngram_filter',
+                'definitionTruncated' => false,
+                // Only "handcart"'s prefixes are relevant here; ngram-expanding "trolley" too would add
+                // unrelated same-span siblings that must never be picked for an unrelated child token.
+                'tokens' => [
+                    ['token' => 'ha', 'startOffset' => 10, 'endOffset' => 17],
+                    ['token' => 'handcar', 'startOffset' => 10, 'endOffset' => 17],
+                    ['token' => 'handcart', 'startOffset' => 10, 'endOffset' => 17],
+                ],
+            ],
+        ]);
+
+        $resolver = new AnalysisPathResolver($searchDebugClientMock, new TokenHighlighter());
+
+        // Act — asking about "handcar", the ngram-truncated prefix of the injected synonym.
+        $path = $resolver->resolve('EUROKRAFT trolley - Load capacity 100 kg', 'handcar', 10, 17);
+
+        // Assert — "handcar"/"handcart" (never "trolley") all the way back to the synonym stage, which is
+        // the ONLY stage transitioning FROM "trolley" TO the synonym's own full text.
+        $this->assertSame(
+            [
+                ['text' => 'EUROKRAFT trolley - Load capacity 100 kg', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => 'EUROKRAFT <mark class="search-debug-highlight">trolley</mark> - Load capacity 100 kg'],
+                ['text' => 'trolley', 'operation' => 'tokenizer: standard', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
+                [
+                    'text' => 'handcart',
+                    'operation' => 'filter: fulltext_synonyms',
+                    'definition' => 'synonym (synonyms: trolley, handcart => trolley, handcart)',
+                    'componentKind' => 'filter',
+                    'componentName' => 'fulltext_synonyms',
+                    'definitionTruncated' => false,
+                    'highlightedHtml' => null,
+                ],
+                [
+                    'text' => 'handcart',
+                    'operation' => 'filter: fulltext_min_length',
+                    'definition' => 'length (min: 2)',
+                    'componentKind' => 'filter',
+                    'componentName' => 'fulltext_min_length',
+                    'definitionTruncated' => false,
+                    'highlightedHtml' => null,
+                ],
+                [
+                    'text' => 'handcar',
+                    'operation' => 'filter: fulltext_index_ngram_filter',
+                    'definition' => 'edge_ngram (min_gram: 2, max_gram: 20)',
+                    'componentKind' => 'filter',
+                    'componentName' => 'fulltext_index_ngram_filter',
+                    'definitionTruncated' => false,
+                    'highlightedHtml' => null,
+                ],
+            ],
+            $path,
+        );
+    }
+
+    /**
      * A filter fanning ONE token into several (ngram, decompounding, synonyms, ...) must never turn the
      * result into a tree: only the ONE sibling whose range contains the target token is followed — the
      * others are never even inspected for their own ancestry. Simulated here with a decompounding-style
