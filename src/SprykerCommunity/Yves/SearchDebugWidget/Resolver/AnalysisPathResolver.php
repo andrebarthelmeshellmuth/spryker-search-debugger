@@ -264,7 +264,7 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
         $bestPrefixSpan = null;
 
         foreach ($tokens as $token) {
-            if ($token['startOffset'] > $childStartOffset || $token['endOffset'] < $childEndOffset) {
+            if (!$this->containsChildSpan($token, $childStartOffset, $childEndOffset)) {
                 continue;
             }
 
@@ -275,7 +275,7 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
             $span = $token['endOffset'] - $token['startOffset'];
 
             if (str_starts_with($token['token'], $childText)) {
-                if ($bestPrefixSpan === null || $span < $bestPrefixSpan) {
+                if ($this->isTighterSpan($bestPrefixSpan, $span)) {
                     $bestPrefixMatch = $token;
                     $bestPrefixSpan = $span;
                 }
@@ -283,7 +283,7 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
                 continue;
             }
 
-            if ($bestSpan !== null && $span >= $bestSpan) {
+            if (!$this->isTighterSpan($bestSpan, $span)) {
                 continue;
             }
 
@@ -292,5 +292,35 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
         }
 
         return $bestPrefixMatch ?? $bestMatch;
+    }
+
+    /**
+     * Whether $token's own span fully covers [$childStartOffset, $childEndOffset) — the offset-containment
+     * precondition {@see findContainingToken()} requires of ANY candidate before text is even considered.
+     *
+     * @phpstan-param array{token: string, startOffset: int, endOffset: int} $token
+     *
+     * @param array{token: string, startOffset: int, endOffset: int}|array $token
+     * @param int $childStartOffset
+     * @param int $childEndOffset
+     */
+    protected function containsChildSpan(array $token, int $childStartOffset, int $childEndOffset): bool
+    {
+        return $token['startOffset'] <= $childStartOffset && $token['endOffset'] >= $childEndOffset;
+    }
+
+    /**
+     * Whether $candidateSpan should replace the best span tracked so far for one of
+     * {@see findContainingToken()}'s two candidate tiers (exact-prefix or plain tightest-span) — null
+     * means nothing has been tracked yet, so anything qualifies. Shared by both tiers: they differ only in
+     * WHICH candidates are eligible (prefix-of-child-text vs. everything else), not in how "tighter" is
+     * decided once a candidate reaches the comparison.
+     *
+     * @param int|null $currentBestSpan
+     * @param int $candidateSpan
+     */
+    protected function isTighterSpan(?int $currentBestSpan, int $candidateSpan): bool
+    {
+        return $currentBestSpan === null || $candidateSpan < $currentBestSpan;
     }
 }
