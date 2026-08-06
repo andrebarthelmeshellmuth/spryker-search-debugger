@@ -15,6 +15,7 @@ use Elastica\Response;
 use Elastica\Result;
 use Elastica\ResultSet;
 use SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessCheckerInterface;
+use SprykerCommunity\Client\SearchDebug\Dependency\Plugin\ProductDebugDataExpanderPluginInterface;
 use SprykerCommunity\Client\SearchDebug\Explanation\Bm25BreakdownExtractor;
 use SprykerCommunity\Client\SearchDebug\Explanation\CrossFieldsSynonymMatcher;
 use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser;
@@ -45,9 +46,11 @@ class SearchDebugResultFormatterPluginTest extends Unit
      */
     protected const ID_PRODUCT_ABSTRACT = 42;
 
-    /**
-     * @return void
-     */
+    public function testGetNameReturnsTheClassConstant(): void
+    {
+        $this->assertSame(SearchDebugResultFormatterPlugin::NAME, (new SearchDebugResultFormatterPlugin())->getName());
+    }
+
     public function testFormatResultReturnsTheQueryTokensAndThePerProductDebugData(): void
     {
         // Arrange
@@ -70,8 +73,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
      * query by `SearchDebugQueryExpanderPlugin`/`QueryFieldBoostReader` earlier in the same request; this
      * plugin only has to read them back out via `QueryFieldBoostReader::getFieldBoosts()` and forward them
      * verbatim under {@see SearchDebugConfig::KEY_FIELD_BOOSTS}.
-     *
-     * @return void
      */
     public function testFormatResultReturnsTheFieldBoostsCapturedEarlierInTheRequest(): void
     {
@@ -91,8 +92,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
      * A search sorted by anything other than relevance makes Elasticsearch skip scoring entirely and send
      * `"_score": null`. Elastica's `Result::getScore()` turns that into an empty ARRAY (its `getParam()`
      * null-coalesces to `[]`), which the template would then try to print — so the plugin must normalize it.
-     *
-     * @return void
      */
     public function testFormatResultReturnsANullScoreForAnUnscoredHitRatherThanAnArray(): void
     {
@@ -107,9 +106,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
         $this->assertNull($result[SearchDebugConfig::KEY_PRODUCTS][static::ID_PRODUCT_ABSTRACT]['score']);
     }
 
-    /**
-     * @return void
-     */
     public function testFormatResultReturnsTheQueryTokenOffsetsResolvedThroughTheSearchAnalyzer(): void
     {
         // Arrange
@@ -136,8 +132,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
      * A query token searched more than once (e.g. "cable cable tie") must still produce exactly ONE
      * offsets entry for it — the FIRST occurrence — mirroring the same simplification the token-color
      * assignment already makes for a repeated token.
-     *
-     * @return void
      */
     public function testFormatResultKeepsOnlyTheFirstOffsetForARepeatedQueryToken(): void
     {
@@ -159,8 +153,34 @@ class SearchDebugResultFormatterPluginTest extends Unit
     }
 
     /**
-     * @return void
+     * `getProductDebugData()`'s `foreach ($debugDataExpanderPlugins as ...)` loop is only ever exercised
+     * with an EMPTY plugin list by every other test here — this is the one place search-debug's own suite
+     * proves a REGISTERED expander plugin (e.g. search-ranking's `SearchRankingProductDebugDataExpanderPlugin`)
+     * actually gets called and its returned (expanded) data actually replaces what was there before, not
+     * just merged silently or ignored.
      */
+    public function testFormatResultAppliesARegisteredProductDebugDataExpanderPlugin(): void
+    {
+        // Arrange
+        $expanderPluginMock = $this->createMock(ProductDebugDataExpanderPluginInterface::class);
+        $expanderPluginMock
+            ->method('expandProductDebugData')
+            ->willReturnCallback(function (array $productDebugData): array {
+                $productDebugData['scoreSections'] = [['title' => 'Business signals', 'lines' => []]];
+
+                return $productDebugData;
+            });
+        $resultFormatterPlugin = $this->createResultFormatterPlugin(true, ['cable'], [], [], [$expanderPluginMock]);
+        $resultSet = $this->createResultSet([$this->createHit(20.7051)]);
+
+        // Act
+        $result = $resultFormatterPlugin->formatResult($resultSet, $this->createRequestParameters());
+
+        // Assert
+        $productDebugData = $result[SearchDebugConfig::KEY_PRODUCTS][static::ID_PRODUCT_ABSTRACT];
+        $this->assertSame([['title' => 'Business signals', 'lines' => []]], $productDebugData['scoreSections']);
+    }
+
     public function testFormatResultReturnsNoDataWhenSearchDebugIsDisabled(): void
     {
         // Arrange
@@ -188,8 +208,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
     /**
      * @param float|null $score
      * @param array<string, mixed>|null $explanation
-     *
-     * @return \Elastica\Result
      */
     protected function createHit(?float $score, ?array $explanation = null): Result
     {
@@ -226,8 +244,6 @@ class SearchDebugResultFormatterPluginTest extends Unit
 
     /**
      * @param array<\Elastica\Result> $results
-     *
-     * @return \Elastica\ResultSet
      */
     protected function createResultSet(array $results): ResultSet
     {
@@ -239,14 +255,14 @@ class SearchDebugResultFormatterPluginTest extends Unit
      * @param array<string> $queryTokens
      * @param array<string, int> $fieldBoosts
      * @param array<array{token: string, startOffset: int, endOffset: int}> $queryTokenOffsets
-     *
-     * @return \SprykerCommunity\Client\SearchDebug\Plugin\Catalog\SearchDebugResultFormatterPlugin
+     * @param array<\SprykerCommunity\Client\SearchDebug\Dependency\Plugin\ProductDebugDataExpanderPluginInterface> $productDebugDataExpanderPlugins
      */
     protected function createResultFormatterPlugin(
         bool $isSearchDebugEnabled,
         array $queryTokens,
         array $fieldBoosts = [],
         array $queryTokenOffsets = [],
+        array $productDebugDataExpanderPlugins = [],
     ): SearchDebugResultFormatterPlugin {
         $searchDebugAccessCheckerMock = $this->createMock(SearchDebugAccessCheckerInterface::class);
         $searchDebugAccessCheckerMock
@@ -283,7 +299,7 @@ class SearchDebugResultFormatterPluginTest extends Unit
             ->willReturn($queryFieldBoostReaderMock);
         $searchDebugFactoryMock
             ->method('getProductDebugDataExpanderPlugins')
-            ->willReturn([]);
+            ->willReturn($productDebugDataExpanderPlugins);
 
         $resultFormatterPlugin = new SearchDebugResultFormatterPlugin();
         $resultFormatterPlugin->setFactory($searchDebugFactoryMock);

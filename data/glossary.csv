@@ -3,6 +3,8 @@ search_debug.query_tokens,Query tokens:,en_US
 search_debug.query_tokens,Suchbegriff-Tokens:,de_DE
 search_debug.score,Score:,en_US
 search_debug.score,Score:,de_DE
+search_debug.text_signals,Text signals,en_US
+search_debug.text_signals,Textsignale,de_DE
 search_debug.matched_tokens,Matched tokens:,en_US
 search_debug.matched_tokens,Getroffene Tokens:,de_DE
 search_debug.other_contributions,Other score contributions:,en_US
@@ -67,8 +69,8 @@ search_debug.component_config.empty_list,(empty list),en_US
 search_debug.component_config.empty_list,(leere Liste),de_DE
 search_debug.component_config.no_config,This component has no further configuration.,en_US
 search_debug.component_config.no_config,Diese Komponente hat keine weitere Konfiguration.,de_DE
-search_debug.text_relevance,Text match total score:,en_US
-search_debug.text_relevance,Text-Match-Gesamtscore:,de_DE
+search_debug.text_relevance,Text match raw score:,en_US
+search_debug.text_relevance,Text-Match-Rohscore:,de_DE
 search_debug.final_score,Final score:,en_US
 search_debug.final_score,Finaler Score:,de_DE
 search_debug.final_score_note,(used for ranking),en_US
@@ -111,3 +113,5 @@ search_debug.check_installation.permission_denied_heading,Search Debug: permissi
 search_debug.check_installation.permission_denied_heading,Search Debug: Berechtigung erforderlich,de_DE
 search_debug.check_installation.permission_denied_body,"This installation-check page is only shown to a customer holding the SeeSearchDebugInfoPermissionPlugin permission. Grant it to a Company Role in Zed → Customer → Company Roles, assign that role to your account, then reload this page.",en_US
 search_debug.check_installation.permission_denied_body,"Diese Installationsprüfung wird nur einem Kunden mit der Berechtigung SeeSearchDebugInfoPermissionPlugin angezeigt. Vergib sie in Zed → Kunde → Unternehmensrollen an eine Rolle, weise sie deinem Konto zu und lade die Seite neu.",de_DE
+permission.name.SeeSearchDebugInfoPermissionPlugin,See search debug info,en_US
+permission.name.SeeSearchDebugInfoPermissionPlugin,Suchdebug-Informationen einsehen,de_DE

@@ -26,9 +26,6 @@ use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighter;
  */
 class TokenHighlighterTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testHighlightWrapsASingleMatchInAMarkTag(): void
     {
         // Arrange
@@ -43,9 +40,6 @@ class TokenHighlighterTest extends Unit
         $this->assertSame('a <mark class="search-debug-highlight">cable</mark> is here', $html);
     }
 
-    /**
-     * @return void
-     */
     public function testHighlightWrapsMultipleNonOverlappingMatches(): void
     {
         // Arrange
@@ -64,9 +58,6 @@ class TokenHighlighterTest extends Unit
         );
     }
 
-    /**
-     * @return void
-     */
     public function testHighlightEscapesHtmlSpecialCharactersInBothMatchedAndUnmatchedText(): void
     {
         // Arrange
@@ -84,9 +75,6 @@ class TokenHighlighterTest extends Unit
         );
     }
 
-    /**
-     * @return void
-     */
     public function testHighlightReturnsEscapedTextUnchangedWhenThereAreNoMatches(): void
     {
         // Arrange
@@ -101,8 +89,6 @@ class TokenHighlighterTest extends Unit
 
     /**
      * A match spanning the very start and end of the text must not lose any characters at the boundary.
-     *
-     * @return void
      */
     public function testHighlightHandlesAMatchAtTheTextBoundaries(): void
     {
@@ -122,8 +108,6 @@ class TokenHighlighterTest extends Unit
      * Elasticsearch offsets are UTF-16 code units (Java string indexing): the emoji below counts as TWO
      * units, so "cable" spans units 3-8 — while a code-point-based slicer would place it at 2-7 and shift
      * the highlight one character left. German umlauts (single code unit each) must stay exact too.
-     *
-     * @return void
      */
     public function testHighlightTreatsOffsetsAsUtf16CodeUnits(): void
     {
@@ -143,8 +127,6 @@ class TokenHighlighterTest extends Unit
      * A plain (non-edge) `ngram` filter with min_gram=max_gram=2 on repeated-character text, e.g. "aaaa",
      * yields pairwise-overlapping tokens at offsets [0,2), [1,3), [2,4) — the overlapping ones (here, the
      * second and third) must be dropped rather than producing malformed/nested `<mark>` tags.
-     *
-     * @return void
      */
     public function testHighlightSkipsAMatchThatOverlapsAnEarlierOne(): void
     {
@@ -165,9 +147,6 @@ class TokenHighlighterTest extends Unit
         );
     }
 
-    /**
-     * @return void
-     */
     public function testFilterRenderableKeepsNonOverlappingMatchesInStartOffsetOrder(): void
     {
         // Arrange
@@ -194,8 +173,6 @@ class TokenHighlighterTest extends Unit
      * `highlight()` — asserted directly here so a caller keeping its OWN separate list of matches (e.g.
      * one link built per rendered mark) can rely on `filterRenderable()` alone to know which matches
      * `highlight()` will actually render, without rendering any HTML at all.
-     *
-     * @return void
      */
     public function testFilterRenderableDropsAMatchThatOverlapsAnEarlierOne(): void
     {
@@ -219,9 +196,6 @@ class TokenHighlighterTest extends Unit
         );
     }
 
-    /**
-     * @return void
-     */
     public function testFilterRenderableReturnsAnEmptyArrayForNoMatches(): void
     {
         // Arrange

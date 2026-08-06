@@ -30,8 +30,6 @@ class AnalysisPathResolverTest extends Unit
      * The exact stage breakdown confirmed live against a real basic shop's index-time analyzer for
      * "Ölpapier" (tokenizer -> lowercase -> edge-ngram filter) — grounding this unit test in real data
      * rather than an invented fixture.
-     *
-     * @return void
      */
     public function testResolveWalksBackwardThroughEveryStageToBuildTheFullPath(): void
     {
@@ -73,10 +71,13 @@ class AnalysisPathResolverTest extends Unit
         // Act
         $path = $resolver->resolve('Ölpapier', 'öl', 0, 8);
 
-        // Assert
+        // Assert — the raw pre-pipeline input ($text, "Ölpapier") is now its own leading, unlabeled entry,
+        // and the tokenizer's own operation (previously silently dropped) labels what used to be the
+        // origin box.
         $this->assertSame(
             [
-                ['text' => 'Ölpapier', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
+                ['text' => 'Ölpapier', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => '<mark class="search-debug-highlight">Ölpapier</mark>'],
+                ['text' => 'Ölpapier', 'operation' => 'tokenizer: standard', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
                 ['text' => 'ölpapier', 'operation' => 'filter: lowercase', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
                 ['text' => 'öl', 'operation' => 'filter: fulltext_index_ngram_filter', 'definition' => 'edge_ngram (min_gram: 2, max_gram: 20)', 'componentKind' => 'filter', 'componentName' => 'fulltext_index_ngram_filter', 'definitionTruncated' => false, 'highlightedHtml' => null],
             ],
@@ -90,8 +91,6 @@ class AnalysisPathResolverTest extends Unit
      * the starting token by offset ALONE picks whichever one happens to come first in the array, not
      * necessarily the one actually being asked about. Requesting the LONGEST sibling here (not the
      * first array entry) would return "öl"'s path if `resolve()` silently ignored $token.
-     *
-     * @return void
      */
     public function testResolveDisambiguatesBetweenSiblingsThatShareTheExactSameOffset(): void
     {
@@ -133,10 +132,13 @@ class AnalysisPathResolverTest extends Unit
         // Act — same text and offsets as the test above, but asking about the LAST (longest) sibling.
         $path = $resolver->resolve('Ölpapier', 'ölpapier', 0, 8);
 
-        // Assert
+        // Assert — the stage-0 ("Ölpapier") to stage-1 ("ölpapier") highlight fails validation here (case
+        // differs, so the slice-equality check in addOriginHighlight() doesn't hold) — same as before this
+        // change, just now on the newly-labeled tokenizer entry instead of the origin.
         $this->assertSame(
             [
-                ['text' => 'Ölpapier', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
+                ['text' => 'Ölpapier', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => '<mark class="search-debug-highlight">Ölpapier</mark>'],
+                ['text' => 'Ölpapier', 'operation' => 'tokenizer: standard', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
                 ['text' => 'ölpapier', 'operation' => 'filter: lowercase', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
                 ['text' => 'ölpapier', 'operation' => 'filter: fulltext_index_ngram_filter', 'definition' => 'edge_ngram (min_gram: 2, max_gram: 20)', 'componentKind' => 'filter', 'componentName' => 'fulltext_index_ngram_filter', 'definitionTruncated' => false, 'highlightedHtml' => null],
             ],
@@ -154,8 +156,6 @@ class AnalysisPathResolverTest extends Unit
      * "button" would silently walk back through "switch" at every pass-through stage after the
      * injection and only reveal "button" again at the very last stage, attributing the transformation to
      * the wrong filter entirely.
-     *
-     * @return void
      */
     public function testResolveFollowsTheInjectedSynonymNotTheOriginalWordItWasInjectedAlongside(): void
     {
@@ -211,10 +211,12 @@ class AnalysisPathResolverTest extends Unit
         $path = $resolver->resolve('Switch', 'button', 0, 6);
 
         // Assert — "button" stays "button" through the pass-through stage; only the synonym stage
-        // itself shows the transformation from "switch".
+        // itself shows the transformation from "switch". The raw input ("Switch") is now its own leading
+        // entry; the tokenizer's own operation labels what used to be the (silently unlabeled) origin.
         $this->assertSame(
             [
-                ['text' => 'Switch', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
+                ['text' => 'Switch', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => '<mark class="search-debug-highlight">Switch</mark>'],
+                ['text' => 'Switch', 'operation' => 'tokenizer: standard', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
                 ['text' => 'switch', 'operation' => 'filter: lowercase', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
                 [
                     'text' => 'button',
@@ -240,12 +242,119 @@ class AnalysisPathResolverTest extends Unit
     }
 
     /**
+     * Regression test: confirmed live against this shop's real "trolley, handcart" synonym rule. Unlike
+     * the "switch"/"button" case above, the two same-offset siblings here have UNEQUAL text lengths, and
+     * the token actually being resolved is an edge-ngram-truncated PREFIX of the longer one ("handcar",
+     * 7 of "handcart"'s 8 characters) — so neither candidate is an exact-text match at the first backward
+     * step, and both report the SAME span (edge-ngram tokens keep their ORIGINAL token's offsets, not
+     * offsets scaled to their own truncated length). Without preferring the candidate the child is a
+     * genuine prefix of, the tightest-span tie-break arbitrarily keeps "trolley" (whichever the synonym
+     * filter happened to emit first) at every earlier stage, making the path show the synonym swap
+     * happening at the ngram filter instead of at `fulltext_synonyms`, and truncating the real synonym
+     * term to "handcar" throughout.
+     */
+    public function testResolveFollowsTheNgramTruncatedSynonymNotItsEqualSpanSibling(): void
+    {
+        // Arrange
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->method('getTextAnalysisStages')->willReturn([
+            [
+                'operation' => 'tokenizer: standard',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
+                'tokens' => [['token' => 'trolley', 'startOffset' => 10, 'endOffset' => 17]],
+            ],
+            [
+                'operation' => 'filter: fulltext_synonyms',
+                'definition' => 'synonym (synonyms: trolley, handcart => trolley, handcart)',
+                'componentKind' => 'filter',
+                'componentName' => 'fulltext_synonyms',
+                'definitionTruncated' => false,
+                // Both siblings span the SAME [10,17) range — "handcart" is injected, not derived by
+                // transforming "trolley"'s text, and keeps "trolley"'s own original-word offsets.
+                'tokens' => [
+                    ['token' => 'trolley', 'startOffset' => 10, 'endOffset' => 17],
+                    ['token' => 'handcart', 'startOffset' => 10, 'endOffset' => 17],
+                ],
+            ],
+            [
+                // A pure pass-through stage — both siblings survive unchanged, still tied on span.
+                'operation' => 'filter: fulltext_min_length',
+                'definition' => 'length (min: 2)',
+                'componentKind' => 'filter',
+                'componentName' => 'fulltext_min_length',
+                'definitionTruncated' => false,
+                'tokens' => [
+                    ['token' => 'trolley', 'startOffset' => 10, 'endOffset' => 17],
+                    ['token' => 'handcart', 'startOffset' => 10, 'endOffset' => 17],
+                ],
+            ],
+            [
+                'operation' => 'filter: fulltext_index_ngram_filter',
+                'definition' => 'edge_ngram (min_gram: 2, max_gram: 20)',
+                'componentKind' => 'filter',
+                'componentName' => 'fulltext_index_ngram_filter',
+                'definitionTruncated' => false,
+                // Only "handcart"'s prefixes are relevant here; ngram-expanding "trolley" too would add
+                // unrelated same-span siblings that must never be picked for an unrelated child token.
+                'tokens' => [
+                    ['token' => 'ha', 'startOffset' => 10, 'endOffset' => 17],
+                    ['token' => 'handcar', 'startOffset' => 10, 'endOffset' => 17],
+                    ['token' => 'handcart', 'startOffset' => 10, 'endOffset' => 17],
+                ],
+            ],
+        ]);
+
+        $resolver = new AnalysisPathResolver($searchDebugClientMock, new TokenHighlighter());
+
+        // Act — asking about "handcar", the ngram-truncated prefix of the injected synonym.
+        $path = $resolver->resolve('EUROKRAFT trolley - Load capacity 100 kg', 'handcar', 10, 17);
+
+        // Assert — "handcar"/"handcart" (never "trolley") all the way back to the synonym stage, which is
+        // the ONLY stage transitioning FROM "trolley" TO the synonym's own full text.
+        $this->assertSame(
+            [
+                ['text' => 'EUROKRAFT trolley - Load capacity 100 kg', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => 'EUROKRAFT <mark class="search-debug-highlight">trolley</mark> - Load capacity 100 kg'],
+                ['text' => 'trolley', 'operation' => 'tokenizer: standard', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
+                [
+                    'text' => 'handcart',
+                    'operation' => 'filter: fulltext_synonyms',
+                    'definition' => 'synonym (synonyms: trolley, handcart => trolley, handcart)',
+                    'componentKind' => 'filter',
+                    'componentName' => 'fulltext_synonyms',
+                    'definitionTruncated' => false,
+                    'highlightedHtml' => null,
+                ],
+                [
+                    'text' => 'handcart',
+                    'operation' => 'filter: fulltext_min_length',
+                    'definition' => 'length (min: 2)',
+                    'componentKind' => 'filter',
+                    'componentName' => 'fulltext_min_length',
+                    'definitionTruncated' => false,
+                    'highlightedHtml' => null,
+                ],
+                [
+                    'text' => 'handcar',
+                    'operation' => 'filter: fulltext_index_ngram_filter',
+                    'definition' => 'edge_ngram (min_gram: 2, max_gram: 20)',
+                    'componentKind' => 'filter',
+                    'componentName' => 'fulltext_index_ngram_filter',
+                    'definitionTruncated' => false,
+                    'highlightedHtml' => null,
+                ],
+            ],
+            $path,
+        );
+    }
+
+    /**
      * A filter fanning ONE token into several (ngram, decompounding, synonyms, ...) must never turn the
      * result into a tree: only the ONE sibling whose range contains the target token is followed — the
      * others are never even inspected for their own ancestry. Simulated here with a decompounding-style
      * filter splitting "haustuere" into two narrower tokens, tracing back to "tuere" only.
-     *
-     * @return void
      */
     public function testResolveFollowsOnlyTheOneLineageWhenAStageFansOutIntoMultipleTokens(): void
     {
@@ -278,12 +387,15 @@ class AnalysisPathResolverTest extends Unit
         // Act
         $path = $resolver->resolve('haustuere', 'tuere', 4, 9);
 
-        // Assert — only the "tuere" lineage appears; "haus" is never part of the result. The origin also
-        // carries a highlight: "tuere" is a genuine, offset-exact sub-span of "haustuere" itself, so
-        // addOriginHighlight()'s validation passes.
+        // Assert — only the "tuere" lineage appears; "haus" is never part of the result. Both the raw
+        // input and the tokenizer's own output happen to be identical text ("haustuere") here, but they
+        // highlight DIFFERENT sub-spans: the tokenizer entry still carries "tuere"'s exact sub-span (as
+        // before this change), while the new raw-input entry above it highlights the whole word, since
+        // its own "child" is the tokenizer's full "haustuere" token, not the narrower "tuere" one.
         $this->assertSame(
             [
-                ['text' => 'haustuere', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => 'haus<mark class="search-debug-highlight">tuere</mark>'],
+                ['text' => 'haustuere', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => '<mark class="search-debug-highlight">haustuere</mark>'],
+                ['text' => 'haustuere', 'operation' => 'tokenizer: standard', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => 'haus<mark class="search-debug-highlight">tuere</mark>'],
                 ['text' => 'tuere', 'operation' => 'filter: decompound', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
             ],
             $path,
@@ -295,8 +407,6 @@ class AnalysisPathResolverTest extends Unit
      * `truncated` flag), the resulting path entry must carry `componentKind`/`componentName` alongside
      * `definitionTruncated: true` — everything a "view full definition" link needs to re-fetch the
      * untruncated config via `SearchDebugClientInterface::getComponentConfig()`.
-     *
-     * @return void
      */
     public function testResolveCarriesComponentKindAndNameWhenTheDefinitionWasTruncated(): void
     {
@@ -330,6 +440,7 @@ class AnalysisPathResolverTest extends Unit
         $this->assertSame(
             [
                 ['text' => 'cables', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => '<mark class="search-debug-highlight">cables</mark>'],
+                ['text' => 'cables', 'operation' => 'tokenizer: standard', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => '<mark class="search-debug-highlight">cables</mark>'],
                 [
                     'text' => 'cables',
                     'operation' => 'filter: my_stop',
@@ -345,11 +456,111 @@ class AnalysisPathResolverTest extends Unit
     }
 
     /**
+     * Regression test for the exact scenario that motivated adding a leading raw-input entry: this shop's
+     * `unit_symbol_normalizer` char filter rewrites "&" to "and" BEFORE tokenization, so stage 0's output
+     * ("MandM chair") is not what was actually typed ("M&M chair") — without this, that rewritten text was
+     * silently shown as if it WERE the raw input, and the char filter step itself had no label at all.
+     *
+     * Also covers the origin-highlight coordinate-mismatch guard: the char filter changes the text's
+     * length (9 raw chars vs. 11 filtered chars), so the raw entry's highlight validation correctly fails
+     * and falls back to no highlight, rather than marking the wrong span — see
+     * {@see AnalysisPathResolver::addOriginHighlight()}'s own docblock for why that divergence is expected.
+     */
+    public function testResolveLabelsTheCharFilterStageAndPrependsTheTrueRawInput(): void
+    {
+        // Arrange
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->method('getTextAnalysisStages')->willReturn([
+            [
+                'operation' => 'char filter: unit_symbol_normalizer',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
+                'tokens' => [['token' => 'MandM chair', 'startOffset' => 0, 'endOffset' => 11]],
+            ],
+            [
+                'operation' => 'tokenizer: standard',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
+                'tokens' => [
+                    ['token' => 'MandM', 'startOffset' => 0, 'endOffset' => 5],
+                    ['token' => 'chair', 'startOffset' => 6, 'endOffset' => 11],
+                ],
+            ],
+            [
+                'operation' => 'filter: lowercase',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
+                'tokens' => [
+                    ['token' => 'mandm', 'startOffset' => 0, 'endOffset' => 5],
+                    ['token' => 'chair', 'startOffset' => 6, 'endOffset' => 11],
+                ],
+            ],
+        ]);
+
+        $resolver = new AnalysisPathResolver($searchDebugClientMock, new TokenHighlighter());
+
+        // Act
+        $path = $resolver->resolve('M&M chair', 'mandm', 0, 5);
+
+        // Assert
+        $this->assertSame(
+            [
+                ['text' => 'M&M chair', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
+                ['text' => 'MandM chair', 'operation' => 'char filter: unit_symbol_normalizer', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => '<mark class="search-debug-highlight">MandM</mark> chair'],
+                ['text' => 'MandM', 'operation' => 'tokenizer: standard', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
+                ['text' => 'mandm', 'operation' => 'filter: lowercase', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
+            ],
+            $path,
+        );
+    }
+
+    /**
+     * A BUILT-IN (non-custom) analyzer reports no char-filter/tokenizer/filter breakdown at all — see
+     * {@see \SprykerCommunity\Client\SearchDebug\Analyzer\SearchStringAnalyzer::mapAnalysisStages()}'s
+     * single-stage fallback. `resolve()` must still label that sole stage's own operation and prepend the
+     * true raw input, exactly as it does for the first stage of a multi-stage custom analyzer — this is
+     * the `$lastStageIndex === 0` branch of `$tracedToFirstStage`, never exercised by the loop itself.
+     */
+    public function testResolveLabelsTheSoleStageOfABuiltInAnalyzer(): void
+    {
+        // Arrange
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->method('getTextAnalysisStages')->willReturn([
+            [
+                'operation' => 'analyzer: standard',
+                'definition' => null,
+                'componentKind' => null,
+                'componentName' => null,
+                'definitionTruncated' => false,
+                'tokens' => [['token' => 'cable', 'startOffset' => 0, 'endOffset' => 5]],
+            ],
+        ]);
+
+        $resolver = new AnalysisPathResolver($searchDebugClientMock, new TokenHighlighter());
+
+        // Act
+        $path = $resolver->resolve('cable', 'cable', 0, 5);
+
+        // Assert
+        $this->assertSame(
+            [
+                ['text' => 'cable', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => '<mark class="search-debug-highlight">cable</mark>'],
+                ['text' => 'cable', 'operation' => 'analyzer: standard', 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null],
+            ],
+            $path,
+        );
+    }
+
+    /**
      * `$useSearchAnalyzer` is forwarded verbatim to the client — this resolver has no analyzer choice of
      * its own to make, it only threads the caller's choice through to whichever `_analyze` call actually
      * produces the stages.
-     *
-     * @return void
      */
     public function testResolveForwardsTheSearchAnalyzerFlagToTheClient(): void
     {
@@ -375,9 +586,6 @@ class AnalysisPathResolverTest extends Unit
         $resolver->resolve('cable', 'cable', 0, 5, true);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveReturnsNullWhenTheClientHasNoStagesAtAll(): void
     {
         // Arrange
@@ -393,9 +601,6 @@ class AnalysisPathResolverTest extends Unit
         $this->assertNull($path);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveReturnsNullWhenTheTargetOffsetIsNotInTheLastStage(): void
     {
         // Arrange
@@ -424,8 +629,6 @@ class AnalysisPathResolverTest extends Unit
      * If an earlier stage genuinely has no token containing the current one (shouldn't happen — offsets
      * are a Lucene invariant across stages — but this is defensive code), the walk stops there instead
      * of crashing: a partial path is still useful diagnostic information.
-     *
-     * @return void
      */
     public function testResolveReturnsAPartialPathWhenAnEarlierStageHasNoContainingToken(): void
     {

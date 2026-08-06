@@ -264,8 +264,6 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      * installation-specific), keyed off the `full-text` field. `full-text-boosted` is assumed to share
      * its analyzers — true for this schema, and a simplification the per-element analysis relies on
      * anyway, since document elements are not analyzed per-field.
-     *
-     * @return string
      */
     protected function resolveSearchAnalyzerName(): string
     {
@@ -274,9 +272,6 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
         );
     }
 
-    /**
-     * @return string
-     */
     protected function resolveIndexAnalyzerName(): string
     {
         return $this->resolveAnalyzerName(
@@ -289,8 +284,6 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      * two differ only in which analyzer-name getter they read off the matched `full-text` field.
      *
      * @param callable(\Generated\Shared\Transfer\SearchIndexFieldTransfer): (string|null) $getAnalyzerName
-     *
-     * @return string
      */
     protected function resolveAnalyzerName(callable $getAnalyzerName): string
     {

@@ -111,8 +111,6 @@ class CheckInstallationController extends AbstractController
      * unknown function at compile time (see its own `@throws` docblock), so no render is needed either.
      *
      * @param string $functionName
-     *
-     * @return bool
      */
     protected function isTwigFunctionCallable(string $functionName): bool
     {
@@ -186,8 +184,6 @@ class CheckInstallationController extends AbstractController
 
     /**
      * @param string $routeName
-     *
-     * @return bool
      */
     protected function isRouteRegistered(string $routeName): bool
     {
@@ -213,8 +209,6 @@ class CheckInstallationController extends AbstractController
      * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $eventDispatcher
      * @param string $eventName
      * @param class-string $listenerClassName
-     *
-     * @return bool
      */
     protected function isListenerBound(EventDispatcherInterface $eventDispatcher, string $eventName, string $listenerClassName): bool
     {

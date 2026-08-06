@@ -24,8 +24,6 @@ class SearchDebugConfig extends AbstractBundleConfig
 
     /**
      * @api
-     *
-     * @return string
      */
     public function getPageSourceIdentifier(): string
     {

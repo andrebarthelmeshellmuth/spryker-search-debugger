@@ -28,9 +28,6 @@ use SprykerCommunity\Client\SearchDebug\SearchDebugFactory;
  */
 class SearchDebugClientTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testGetSearchStringTokensDelegatesToTheSearchStringAnalyzer(): void
     {
         // Arrange
@@ -52,9 +49,6 @@ class SearchDebugClientTest extends Unit
         $this->assertSame(['cable'], $tokens);
     }
 
-    /**
-     * @return void
-     */
     public function testGetTextTokenOffsetsDelegatesToTheSearchStringAnalyzer(): void
     {
         // Arrange
@@ -78,9 +72,6 @@ class SearchDebugClientTest extends Unit
         $this->assertSame($offsets, $result);
     }
 
-    /**
-     * @return void
-     */
     public function testGetTextTokenOffsetsForwardsTheSearchAnalyzerFlagToTheSearchStringAnalyzer(): void
     {
         // Arrange
@@ -104,9 +95,6 @@ class SearchDebugClientTest extends Unit
         $this->assertSame($offsets, $result);
     }
 
-    /**
-     * @return void
-     */
     public function testGetTextTokenOffsetsForTextsDelegatesToTheSearchStringAnalyzer(): void
     {
         // Arrange
@@ -133,9 +121,6 @@ class SearchDebugClientTest extends Unit
         $this->assertSame($offsetsByText, $result);
     }
 
-    /**
-     * @return void
-     */
     public function testGetTextAnalysisStagesDelegatesToTheSearchStringAnalyzer(): void
     {
         // Arrange
@@ -168,9 +153,6 @@ class SearchDebugClientTest extends Unit
         $this->assertSame($stages, $result);
     }
 
-    /**
-     * @return void
-     */
     public function testGetTextAnalysisStagesForwardsTheSearchAnalyzerFlagToTheSearchStringAnalyzer(): void
     {
         // Arrange
@@ -203,9 +185,6 @@ class SearchDebugClientTest extends Unit
         $this->assertSame($stages, $result);
     }
 
-    /**
-     * @return void
-     */
     public function testGetComponentConfigMapsTheComponentTransferIntoAnArray(): void
     {
         // Arrange
@@ -243,8 +222,6 @@ class SearchDebugClientTest extends Unit
     /**
      * Unlike the other delegating methods here, this one has a real branch: it must translate the reader's
      * `null` ("no such component") into a `null` return, not into an array with null values.
-     *
-     * @return void
      */
     public function testGetComponentConfigReturnsNullWhenNoComponentIsFound(): void
     {
@@ -267,9 +244,6 @@ class SearchDebugClientTest extends Unit
         $this->assertNull($component);
     }
 
-    /**
-     * @return void
-     */
     public function testFindPageDocumentDataDelegatesToThePageDocumentReader(): void
     {
         // Arrange

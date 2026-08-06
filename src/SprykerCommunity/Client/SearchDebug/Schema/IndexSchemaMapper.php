@@ -58,8 +58,6 @@ class IndexSchemaMapper implements IndexSchemaMapperInterface
      * @param string $indexName
      * @param array<string, mixed> $mapping
      * @param array<string, mixed> $analysisSettings
-     *
-     * @return \Generated\Shared\Transfer\SearchIndexSchemaTransfer
      */
     public function mapToSearchIndexSchemaTransfer(string $indexName, array $mapping, array $analysisSettings): SearchIndexSchemaTransfer
     {
@@ -105,8 +103,6 @@ class IndexSchemaMapper implements IndexSchemaMapperInterface
      *
      * @param string $fieldName
      * @param array<string, mixed> $fieldDefinition
-     *
-     * @return \Generated\Shared\Transfer\SearchIndexFieldTransfer
      */
     protected function mapToSearchIndexFieldTransfer(string $fieldName, array $fieldDefinition): SearchIndexFieldTransfer
     {
@@ -130,8 +126,6 @@ class IndexSchemaMapper implements IndexSchemaMapperInterface
     /**
      * @param string $analyzerName
      * @param array<string, mixed> $analyzerDefinition
-     *
-     * @return \Generated\Shared\Transfer\SearchAnalyzerTransfer
      */
     protected function mapToSearchAnalyzerTransfer(string $analyzerName, array $analyzerDefinition): SearchAnalyzerTransfer
     {
@@ -148,8 +142,6 @@ class IndexSchemaMapper implements IndexSchemaMapperInterface
      *
      * @param string $name
      * @param array<string, mixed> $definition
-     *
-     * @return \Generated\Shared\Transfer\SearchAnalysisComponentTransfer
      */
     protected function mapToSearchAnalysisComponentTransfer(string $name, array $definition): SearchAnalysisComponentTransfer
     {

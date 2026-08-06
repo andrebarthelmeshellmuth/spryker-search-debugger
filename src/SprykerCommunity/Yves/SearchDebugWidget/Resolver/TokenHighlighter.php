@@ -31,8 +31,6 @@ class TokenHighlighter implements TokenHighlighterInterface
      *
      * @param string $text
      * @param array<array{startOffset: int, endOffset: int}> $matches
-     *
-     * @return string
      */
     public function highlight(string $text, array $matches): string
     {
@@ -62,9 +60,7 @@ class TokenHighlighter implements TokenHighlighterInterface
             $cursor = $endOffset;
         }
 
-        $html .= $this->escape(Utf16CodeUnitConverter::slice($textUtf16, $cursor, $lengthInCodeUnits));
-
-        return $html;
+        return $html . $this->escape(Utf16CodeUnitConverter::slice($textUtf16, $cursor, $lengthInCodeUnits));
     }
 
     /**
@@ -108,8 +104,6 @@ class TokenHighlighter implements TokenHighlighterInterface
 
     /**
      * @param string $text
-     *
-     * @return string
      */
     protected function escape(string $text): string
     {

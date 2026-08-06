@@ -17,8 +17,6 @@ interface IndexSchemaMapperInterface
      * @param string $indexName
      * @param array<string, mixed> $mapping
      * @param array<string, mixed> $analysisSettings
-     *
-     * @return \Generated\Shared\Transfer\SearchIndexSchemaTransfer
      */
     public function mapToSearchIndexSchemaTransfer(string $indexName, array $mapping, array $analysisSettings): SearchIndexSchemaTransfer;
 }

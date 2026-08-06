@@ -49,105 +49,66 @@ use SprykerCommunity\Client\SearchDebug\SearchDebugFactory;
  */
 class SearchDebugFactoryTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testCreateSearchStringAnalyzerReturnsASearchStringAnalyzer(): void
     {
         $this->assertInstanceOf(SearchStringAnalyzerInterface::class, $this->createFactory()->createSearchStringAnalyzer());
     }
 
-    /**
-     * @return void
-     */
     public function testCreateComponentDefinitionFormatterReturnsAComponentDefinitionFormatter(): void
     {
         $this->assertInstanceOf(ComponentDefinitionFormatterInterface::class, $this->createFactory()->createComponentDefinitionFormatter());
     }
 
-    /**
-     * @return void
-     */
     public function testCreateIndexSchemaReaderReturnsAnIndexSchemaReader(): void
     {
         $this->assertInstanceOf(IndexSchemaReaderInterface::class, $this->createFactory()->createIndexSchemaReader());
     }
 
-    /**
-     * @return void
-     */
     public function testCreateIndexSchemaMapperReturnsAnIndexSchemaMapper(): void
     {
         $this->assertInstanceOf(IndexSchemaMapperInterface::class, $this->createFactory()->createIndexSchemaMapper());
     }
 
-    /**
-     * @return void
-     */
     public function testCreatePageDocumentReaderReturnsAPageDocumentReader(): void
     {
         $this->assertInstanceOf(PageDocumentReaderInterface::class, $this->createFactory()->createPageDocumentReader());
     }
 
-    /**
-     * @return void
-     */
     public function testCreateExplanationParserReturnsAnExplanationParser(): void
     {
         $this->assertInstanceOf(ExplanationParserInterface::class, $this->createFactory()->createExplanationParser());
     }
 
-    /**
-     * @return void
-     */
     public function testCreateQueryFieldBoostReaderReturnsAQueryFieldBoostReader(): void
     {
         $this->assertInstanceOf(QueryFieldBoostReaderInterface::class, $this->createFactory()->createQueryFieldBoostReader());
     }
 
-    /**
-     * @return void
-     */
     public function testCreateSearchDebugAccessCheckerReturnsASearchDebugAccessChecker(): void
     {
         $this->assertInstanceOf(SearchDebugAccessCheckerInterface::class, $this->createFactory()->createSearchDebugAccessChecker());
     }
 
-    /**
-     * @return void
-     */
     public function testGetElasticaClientReturnsAnElasticaClient(): void
     {
         $this->assertInstanceOf(ElasticaClient::class, $this->createFactory()->getElasticaClient());
     }
 
-    /**
-     * @return void
-     */
     public function testCreateElasticaClientFactoryReturnsAnElasticaClientFactory(): void
     {
         $this->assertInstanceOf(ElasticaClientFactory::class, $this->createFactory()->createElasticaClientFactory());
     }
 
-    /**
-     * @return void
-     */
     public function testCreateSearchElasticsearchConfigReturnsASearchElasticsearchConfig(): void
     {
         $this->assertInstanceOf(SearchElasticsearchConfig::class, $this->createFactory()->createSearchElasticsearchConfig());
     }
 
-    /**
-     * @return void
-     */
     public function testCreateIndexNameResolverReturnsAnIndexNameResolver(): void
     {
         $this->assertInstanceOf(IndexNameResolverInterface::class, $this->createFactory()->createIndexNameResolver());
     }
 
-    /**
-     * @return void
-     */
     public function testCreateSearchElasticsearchToStoreClientBridgeReturnsABridge(): void
     {
         $this->assertInstanceOf(
@@ -156,20 +117,25 @@ class SearchDebugFactoryTest extends Unit
         );
     }
 
-    /**
-     * @return void
-     */
     public function testCreateElasticsearchDocumentReaderReturnsADocumentReader(): void
     {
         $this->assertInstanceOf(DocumentReaderInterface::class, $this->createFactory()->createElasticsearchDocumentReader());
     }
 
-    /**
-     * @return void
-     */
     public function testCreateSearchContextExpanderReturnsASearchContextExpander(): void
     {
         $this->assertInstanceOf(SearchContextExpanderInterface::class, $this->createFactory()->createSearchContextExpander());
+    }
+
+    /**
+     * The one extension point a host shop actually plugs into (e.g. search-ranking's own
+     * `SearchRankingProductDebugDataExpanderPlugin`, registered via the project's own
+     * `SearchDebugDependencyProvider::getProductDebugDataExpanderPlugins()`) — asserts the container value
+     * passes through unchanged, the same DI-passthrough contract every other `getX()` method here has.
+     */
+    public function testGetProductDebugDataExpanderPluginsReturnsThePluginsProvidedByTheContainer(): void
+    {
+        $this->assertSame([], $this->createFactory()->getProductDebugDataExpanderPlugins());
     }
 
     /**
@@ -177,8 +143,6 @@ class SearchDebugFactoryTest extends Unit
      * permission, synchronization clients/services) — everything this package composes itself (the
      * Elastica client, the vendor SearchElasticsearch pieces) is built for real, since those are plain,
      * side-effect-free value objects (see `SearchDebugFactory::getElasticaClient()`'s own docblock).
-     *
-     * @return \SprykerCommunity\Client\SearchDebug\SearchDebugFactory
      */
     protected function createFactory(): SearchDebugFactory
     {

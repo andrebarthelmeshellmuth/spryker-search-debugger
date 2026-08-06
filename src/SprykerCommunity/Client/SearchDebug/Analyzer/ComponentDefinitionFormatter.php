@@ -87,8 +87,6 @@ class ComponentDefinitionFormatter implements ComponentDefinitionFormatterInterf
      * multi-KB blob.
      *
      * @param mixed $value
-     *
-     * @return string
      */
     protected function formatConfigValue(mixed $value): string
     {
@@ -105,8 +103,6 @@ class ComponentDefinitionFormatter implements ComponentDefinitionFormatterInterf
      * are truncated away.
      *
      * @param array<mixed> $values
-     *
-     * @return string
      */
     protected function formatConfigListValue(array $values): string
     {

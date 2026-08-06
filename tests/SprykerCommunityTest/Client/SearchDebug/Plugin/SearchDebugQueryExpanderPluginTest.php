@@ -35,9 +35,6 @@ use SprykerCommunityTest\Client\SearchDebug\Plugin\Fixtures\BaseQueryPlugin;
  */
 class SearchDebugQueryExpanderPluginTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testExpandQueryEnablesExplainWhenSearchDebugIsEnabled(): void
     {
         // Arrange
@@ -62,8 +59,6 @@ class SearchDebugQueryExpanderPluginTest extends Unit
      * see SearchDebugAccessCheckerTest for the permission gate this delegates to. The same gate must keep
      * an unpermitted caller from triggering `QueryFieldBoostReader::captureFromQuery()` too: it is
      * harmless in itself, but there is no reason to do the extra work when the result will never be shown.
-     *
-     * @return void
      */
     public function testExpandQueryLeavesTheQueryUntouchedWhenSearchDebugIsDisabled(): void
     {
@@ -83,8 +78,6 @@ class SearchDebugQueryExpanderPluginTest extends Unit
      * @param bool $isSearchDebugEnabled
      * @param \SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReaderInterface|null $queryFieldBoostReaderMock
      * @param \PHPUnit\Framework\MockObject\Rule\InvocationOrder|null $createQueryFieldBoostReaderInvocationRule
-     *
-     * @return \SprykerCommunity\Client\SearchDebug\Plugin\Catalog\SearchDebugQueryExpanderPlugin
      */
     protected function createQueryExpanderPlugin(
         bool $isSearchDebugEnabled,

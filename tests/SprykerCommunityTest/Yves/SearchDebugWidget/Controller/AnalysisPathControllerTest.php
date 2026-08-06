@@ -11,15 +11,26 @@ namespace SprykerCommunityTest\Yves\SearchDebugWidget\Controller;
 
 use Codeception\Test\Unit;
 use ReflectionMethod;
+use SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface;
+use SprykerCommunity\Shared\SearchDebug\Plugin\SeeSearchDebugInfoPermissionPlugin;
 use SprykerCommunity\Shared\SearchDebug\SearchDebugConfig;
 use SprykerCommunity\Yves\SearchDebugWidget\Controller\AnalysisPathController;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\AnalysisPathResolverInterface;
+use SprykerCommunity\Yves\SearchDebugWidget\SearchDebugWidgetFactory;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
- * `indexAction()` itself needs a real Silex/Symfony container (`$this->can()`, `$this->getFactory()`,
- * `$this->view()`) and is left to integration coverage — but the three protected helpers it calls have no
- * framework dependency at all, so they are exercised directly here via reflection, `new`-instantiating the
- * controller (`AbstractController` has no required constructor arguments).
+ * `indexAction()`'s own branching (permission gate, required-param validation, the explicit-offset-vs-
+ * first-match-fallback choice, not-found handling) is exercised here via a partial mock of the controller
+ * itself, overriding exactly the 2 protected methods that reach the framework (`can()`, `getFactory()`) —
+ * `view()` is left real since it is pure (inherited from `AbstractController`, just `new View(...)`). The
+ * three helpers below (`assignStepColors`, `resolveUseSearchAnalyzer`, `resolveExplicitOffset`,
+ * `findFirstMatchOffset`) have no framework dependency at all, so they are exercised directly via
+ * reflection, `new`-instantiating the controller (`AbstractController` has no required constructor
+ * arguments).
  *
  * Auto-generated group annotations
  *
@@ -32,9 +43,149 @@ use Symfony\Component\HttpFoundation\Request;
  */
 class AnalysisPathControllerTest extends Unit
 {
+    public function testIndexActionThrowsAccessDeniedWhenThePermissionIsMissing(): void
+    {
+        // Arrange
+        $controller = $this->createController(false);
+
+        // Assert
+        $this->expectException(AccessDeniedHttpException::class);
+
+        // Act
+        $controller->indexAction(new Request(['text' => 'cable', 'token' => 'cable']));
+    }
+
+    public function testIndexActionThrowsBadRequestWhenTheTextIsMissing(): void
+    {
+        // Arrange
+        $controller = $this->createController(true);
+
+        // Assert
+        $this->expectException(BadRequestHttpException::class);
+
+        // Act
+        $controller->indexAction(new Request(['token' => 'cable']));
+    }
+
+    public function testIndexActionThrowsBadRequestWhenTheTokenIsMissing(): void
+    {
+        // Arrange
+        $controller = $this->createController(true);
+
+        // Assert
+        $this->expectException(BadRequestHttpException::class);
+
+        // Act
+        $controller->indexAction(new Request(['text' => 'cable']));
+    }
+
     /**
-     * @return void
+     * No explicit offset in the URL AND the token isn't found anywhere in the text via the
+     * first-match fallback — the `getTextTokenOffsets()` round trip never even reaches the path resolver.
      */
+    public function testIndexActionThrowsNotFoundWhenNoOffsetCanBeResolvedAtAll(): void
+    {
+        // Arrange
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->method('getTextTokenOffsets')->willReturn([]);
+        $controller = $this->createController(true, null, $searchDebugClientMock);
+
+        // Assert
+        $this->expectException(NotFoundHttpException::class);
+
+        // Act
+        $controller->indexAction(new Request(['text' => 'a cable', 'token' => 'cable']));
+    }
+
+    public function testIndexActionThrowsNotFoundWhenThePathResolverCannotReconstructAPath(): void
+    {
+        // Arrange
+        $pathResolverMock = $this->createMock(AnalysisPathResolverInterface::class);
+        $pathResolverMock->method('resolve')->willReturn(null);
+        $controller = $this->createController(true, $pathResolverMock);
+
+        // Assert
+        $this->expectException(NotFoundHttpException::class);
+
+        // Act
+        $controller->indexAction(new Request(['text' => 'cable', 'token' => 'cable', 'startOffset' => '0', 'endOffset' => '5']));
+    }
+
+    public function testIndexActionUsesTheExplicitOffsetWhenBothOffsetParametersArePresent(): void
+    {
+        // Arrange
+        $path = [['text' => 'cable', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null]];
+        $pathResolverMock = $this->createMock(AnalysisPathResolverInterface::class);
+        $pathResolverMock->expects($this->once())->method('resolve')->with('a cable cable', 'cable', 8, 13, false)->willReturn($path);
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        // The client must never be asked to resolve offsets at all — an explicit offset skips that
+        // round trip entirely, it does not merely take precedence over its result.
+        $searchDebugClientMock->expects($this->never())->method('getTextTokenOffsets');
+        $controller = $this->createController(true, $pathResolverMock, $searchDebugClientMock);
+
+        // Act — two occurrences of "cable" in the text; the explicit offset (8, 13) picks the SECOND one.
+        $result = $controller->indexAction(new Request(['text' => 'a cable cable', 'token' => 'cable', 'startOffset' => '8', 'endOffset' => '13']));
+
+        // Assert
+        $this->assertSame('a cable cable', $result->getData()['text']);
+        $this->assertSame('cable', $result->getData()['token']);
+        $this->assertArrayHasKey('colorClass', $result->getData()['path'][0]);
+    }
+
+    public function testIndexActionFallsBackToTheFirstMatchOffsetWhenNoExplicitOffsetIsGiven(): void
+    {
+        // Arrange
+        $path = [['text' => 'cable', 'operation' => null, 'definition' => null, 'componentKind' => null, 'componentName' => null, 'definitionTruncated' => false, 'highlightedHtml' => null]];
+        $pathResolverMock = $this->createMock(AnalysisPathResolverInterface::class);
+        $pathResolverMock->expects($this->once())->method('resolve')->with('a cable', 'cable', 2, 7, false)->willReturn($path);
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock
+            ->method('getTextTokenOffsets')
+            ->with('a cable', false)
+            ->willReturn([['token' => 'cable', 'startOffset' => 2, 'endOffset' => 7]]);
+        $controller = $this->createController(true, $pathResolverMock, $searchDebugClientMock);
+
+        // Act
+        $result = $controller->indexAction(new Request(['text' => 'a cable', 'token' => 'cable']));
+
+        // Assert
+        $this->assertSame(['text', 'token', 'path'], array_keys($result->getData()));
+        $this->assertSame('@SearchDebugWidget/views/token-analysis/token-analysis.twig', $result->getTemplate());
+    }
+
+    public function testIndexActionForwardsTheSearchAnalyzerFlagWhenTracingAQueryToken(): void
+    {
+        // Arrange
+        $pathResolverMock = $this->createMock(AnalysisPathResolverInterface::class);
+        $pathResolverMock->expects($this->once())->method('resolve')->with('cable', 'cable', 0, 5, true)->willReturn([]);
+        $searchDebugClientMock = $this->createMock(SearchDebugClientInterface::class);
+        $searchDebugClientMock->expects($this->once())->method('getTextTokenOffsets')->with('cable', true)->willReturn([['token' => 'cable', 'startOffset' => 0, 'endOffset' => 5]]);
+        $controller = $this->createController(true, $pathResolverMock, $searchDebugClientMock);
+
+        // Act
+        $controller->indexAction(new Request(['text' => 'cable', 'token' => 'cable', 'analyzer' => 'search']));
+    }
+
+    protected function createController(
+        bool $isPermitted,
+        ?AnalysisPathResolverInterface $pathResolver = null,
+        ?SearchDebugClientInterface $searchDebugClient = null,
+    ): AnalysisPathController {
+        $factoryMock = $this->getMockBuilder(SearchDebugWidgetFactory::class)
+            ->onlyMethods(['createAnalysisPathResolver', 'getSearchDebugClient'])
+            ->getMock();
+        $factoryMock->method('createAnalysisPathResolver')->willReturn($pathResolver ?? $this->createMock(AnalysisPathResolverInterface::class));
+        $factoryMock->method('getSearchDebugClient')->willReturn($searchDebugClient ?? $this->createMock(SearchDebugClientInterface::class));
+
+        $controller = $this->getMockBuilder(AnalysisPathController::class)
+            ->onlyMethods(['can', 'getFactory'])
+            ->getMock();
+        $controller->method('can')->with(SeeSearchDebugInfoPermissionPlugin::KEY)->willReturn($isPermitted);
+        $controller->method('getFactory')->willReturn($factoryMock);
+
+        return $controller;
+    }
+
     public function testAssignStepColorsGivesTheFirstStepTheFirstPaletteColor(): void
     {
         // Arrange
@@ -49,9 +200,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertSame(sprintf(SearchDebugConfig::TOKEN_COLOR_CLASS_PATTERN, 1), $coloredPath[0]['colorClass']);
     }
 
-    /**
-     * @return void
-     */
     public function testAssignStepColorsReusesTheSameColorForByteIdenticalText(): void
     {
         // Arrange — a filter that passes the text through unchanged (e.g. lowercase on an
@@ -68,9 +216,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertSame($coloredPath[0]['colorClass'], $coloredPath[1]['colorClass']);
     }
 
-    /**
-     * @return void
-     */
     public function testAssignStepColorsGivesADifferentTextADifferentColor(): void
     {
         // Arrange
@@ -86,9 +231,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertNotSame($coloredPath[0]['colorClass'], $coloredPath[1]['colorClass']);
     }
 
-    /**
-     * @return void
-     */
     public function testAssignStepColorsReusesAnEarlierColorWhenTheTextReappearsLaterInThePath(): void
     {
         // Arrange — e.g. a filter chain that ends up back at an earlier intermediate string.
@@ -106,9 +248,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertNotSame($coloredPath[0]['colorClass'], $coloredPath[1]['colorClass']);
     }
 
-    /**
-     * @return void
-     */
     public function testAssignStepColorsWrapsAroundPastThePaletteSize(): void
     {
         // Arrange — one more distinct string than the palette has colors for.
@@ -124,9 +263,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertSame($coloredPath[0]['colorClass'], $coloredPath[SearchDebugConfig::TOKEN_COLOR_CLASS_COUNT]['colorClass']);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveUseSearchAnalyzerReturnsFalseWhenTheAnalyzerParameterIsAbsent(): void
     {
         // Arrange
@@ -139,9 +275,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertFalse($useSearchAnalyzer);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveUseSearchAnalyzerReturnsFalseForAnyUnrecognizedValue(): void
     {
         // Arrange
@@ -154,9 +287,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertFalse($useSearchAnalyzer);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveUseSearchAnalyzerReturnsTrueForTheRecognizedSearchValue(): void
     {
         // Arrange
@@ -169,9 +299,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertTrue($useSearchAnalyzer);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveExplicitOffsetReturnsNullWhenBothOffsetParametersAreMissing(): void
     {
         // Arrange
@@ -184,9 +311,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertNull($offset);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveExplicitOffsetReturnsNullWhenOnlyOneOffsetParameterIsPresent(): void
     {
         // Arrange
@@ -199,9 +323,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertNull($offset);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveExplicitOffsetReturnsNullWhenTheStartOffsetIsNegative(): void
     {
         // Arrange
@@ -214,9 +335,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertNull($offset);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveExplicitOffsetReturnsNullWhenTheEndOffsetDoesNotExceedTheStartOffset(): void
     {
         // Arrange
@@ -229,9 +347,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertNull($offset);
     }
 
-    /**
-     * @return void
-     */
     public function testResolveExplicitOffsetReturnsTheOffsetsWhenBothAreValid(): void
     {
         // Arrange
@@ -244,9 +359,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertSame(['startOffset' => 4, 'endOffset' => 9], $offset);
     }
 
-    /**
-     * @return void
-     */
     public function testFindFirstMatchOffsetReturnsTheFirstMatchingTokenOffset(): void
     {
         // Arrange
@@ -263,9 +375,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertSame(['startOffset' => 4, 'endOffset' => 9], $offset);
     }
 
-    /**
-     * @return void
-     */
     public function testFindFirstMatchOffsetReturnsNullWhenTheTokenIsNotPresent(): void
     {
         // Arrange
@@ -280,9 +389,6 @@ class AnalysisPathControllerTest extends Unit
         $this->assertNull($offset);
     }
 
-    /**
-     * @return void
-     */
     public function testFindFirstMatchOffsetReturnsNullForAnEmptyTokenOffsetList(): void
     {
         // Act
@@ -306,8 +412,6 @@ class AnalysisPathControllerTest extends Unit
 
     /**
      * @param \Symfony\Component\HttpFoundation\Request $request
-     *
-     * @return bool
      */
     protected function invokeResolveUseSearchAnalyzer(Request $request): bool
     {

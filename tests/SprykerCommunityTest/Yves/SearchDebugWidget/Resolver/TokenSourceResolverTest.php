@@ -70,9 +70,6 @@ class TokenSourceResolverTest extends Unit
      */
     protected const FIELD_BOOSTS = ['full-text-boosted' => 7, 'full-text' => 1];
 
-    /**
-     * @return void
-     */
     public function testResolveReturnsNullWhenNoProductAbstractHasThatSku(): void
     {
         // Arrange
@@ -95,8 +92,6 @@ class TokenSourceResolverTest extends Unit
      * Rows come from the REAL indexed document: identified elements get their source label, the token
      * test runs per element, and matched elements are highlighted while unmatched identified ones show
      * as a compact "no match" (highlightedHtml = null).
-     *
-     * @return void
      */
     public function testResolveBuildsRowsFromTheRealDocumentElements(): void
     {
@@ -150,8 +145,6 @@ class TokenSourceResolverTest extends Unit
      * A document element no known source claims (e.g. a searchable product attribute mapped via
      * Zed > Search Preferences) must still surface — under the generic "other" label, and ALWAYS with
      * its text: for an unidentified value, the value itself is the diagnostic information.
-     *
-     * @return void
      */
     public function testResolveLabelsUnidentifiedElementsAsOtherAndAlwaysShowsTheirText(): void
     {
@@ -186,8 +179,6 @@ class TokenSourceResolverTest extends Unit
     /**
      * A source that contributed nothing to the document gets no row at all — that is more accurate than
      * a "no match" row, which would imply the value was indexed and merely didn't contain the token.
-     *
-     * @return void
      */
     public function testResolveOmitsSourcesAbsentFromTheDocument(): void
     {
@@ -220,8 +211,6 @@ class TokenSourceResolverTest extends Unit
      * named the same as the product), that text is genuinely indistinguishable once merged into one
      * document element — the row must list BOTH source labels (labelKeys has more than one entry, in
      * canonical order) rather than silently picking the first and dropping the other.
-     *
-     * @return void
      */
     public function testResolveShowsBothLabelsWhenTwoSourcesContributeIdenticalText(): void
     {
@@ -275,8 +264,6 @@ class TokenSourceResolverTest extends Unit
      * A source contributed by multiple document elements (e.g. concrete names — one per variant) shows
      * one row PER MATCHED element, each carrying its own raw `element` text, rather than combining them
      * into a single box — a matched fragment's magnifying-glass link needs its own exact source text.
-     *
-     * @return void
      */
     public function testResolveShowsOneRowPerMatchedElementWhenASourceHasMultipleMatchingElements(): void
     {
@@ -315,9 +302,6 @@ class TokenSourceResolverTest extends Unit
         );
     }
 
-    /**
-     * @return void
-     */
     public function testResolveReturnsEmptyRowsWhenTheDocumentIsMissing(): void
     {
         // Arrange
@@ -345,8 +329,6 @@ class TokenSourceResolverTest extends Unit
     /**
      * Identical element strings recur within one document (e.g. a concrete name equal to the abstract
      * name, indexed into both tiers) — each distinct string must be analyzed exactly once.
-     *
-     * @return void
      */
     public function testResolveAnalyzesEachDistinctElementOnlyOnce(): void
     {
@@ -393,8 +375,6 @@ class TokenSourceResolverTest extends Unit
      * the texts array, which crashed downstream with a `TypeError` — `string` expected, `int` given —
      * once it reached `Utf16CodeUnitConverter::toUtf16()`. `array_unique()` over a plain list (the actual
      * fix) never touches keys, so this must never regress.
-     *
-     * @return void
      */
     public function testResolveKeepsANumericLookingElementAsARealStringInTheBatchedCall(): void
     {
@@ -435,8 +415,6 @@ class TokenSourceResolverTest extends Unit
     /**
      * Concrete variants, categories (direct + recursive ancestors), and the merchant name feed the
      * per-tier value-to-source lookup, so their document elements resolve to the right labels.
-     *
-     * @return void
      */
     public function testResolveLabelsConcreteCategoryAndMerchantValues(): void
     {
@@ -513,8 +491,6 @@ class TokenSourceResolverTest extends Unit
      * boost-descending — not a hardcoded two-tier list. A field not covered by `TIER_LABEL_KEYS` (any
      * `PageIndexMap` field other than the two well-known ones) still gets its own tier, labeled with the
      * generic fallback rather than dropped.
-     *
-     * @return void
      */
     public function testResolveBuildsTiersFromFieldBoostsSortedDescendingWithGenericLabelForAnUnknownField(): void
     {
@@ -561,8 +537,6 @@ class TokenSourceResolverTest extends Unit
      * be captured, so `tiers` comes back empty rather than guessing at a field list or a boost value
      * that isn't real — and the document is never even probed for tier content, since there is nothing
      * to look for without knowing which fields to look at.
-     *
-     * @return void
      */
     public function testResolveReturnsNoTiersWhenFieldBoostsIsEmpty(): void
     {
@@ -593,8 +567,6 @@ class TokenSourceResolverTest extends Unit
      * A document element that no named `SOURCE_DEFINITIONS` source claims is checked against the
      * product's own attribute values next: if it matches one, the row is labeled with the raw attribute
      * key (e.g. "brand") instead of falling straight to the generic "other" label.
-     *
-     * @return void
      */
     public function testResolveLabelsAnUnidentifiedElementWithItsAttributeKeyWhenItMatchesAProductAttribute(): void
     {
@@ -630,8 +602,6 @@ class TokenSourceResolverTest extends Unit
      * A document element neither a named source NOR any product attribute value claims still falls back
      * to the generic "other indexed value" label — this existing behavior must keep working once
      * attribute-based labeling is checked first.
-     *
-     * @return void
      */
     public function testResolveStillLabelsAnElementAsOtherWhenNoAttributeValueMatchesEither(): void
     {
@@ -667,8 +637,6 @@ class TokenSourceResolverTest extends Unit
      * Concrete-level attribute values (from `getBulkProductConcreteStorageData()`) feed the same
      * value=>attributeKey map as the abstract-level `attributes`, so a value only present on a concrete
      * variant is still labeled with its real attribute key rather than falling to "other".
-     *
-     * @return void
      */
     public function testResolveLabelsAnUnidentifiedElementWithAConcreteLevelAttributeKey(): void
     {
@@ -703,8 +671,6 @@ class TokenSourceResolverTest extends Unit
 
     /**
      * @param array<string, mixed> $productData
-     *
-     * @return \PHPUnit\Framework\MockObject\MockObject|\Spryker\Client\ProductStorage\ProductStorageClientInterface
      */
     protected function createProductStorageClientMock(array $productData): ProductStorageClientInterface
     {
@@ -724,8 +690,6 @@ class TokenSourceResolverTest extends Unit
      * de-duplicates, mirroring what the real client would do.
      *
      * @param array<string, array<int, string>> $documentData
-     *
-     * @return \PHPUnit\Framework\MockObject\MockObject|\SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface
      */
     protected function createSearchElasticsearchClientMock(array $documentData): SearchDebugClientInterface
     {
@@ -757,8 +721,6 @@ class TokenSourceResolverTest extends Unit
      * @param \Spryker\Client\ProductCategoryStorage\ProductCategoryStorageClientInterface|null $productCategoryStorageClient
      * @param \Spryker\Client\CategoryStorage\CategoryStorageClientInterface|null $categoryStorageClient
      * @param \Spryker\Client\MerchantStorage\MerchantStorageClientInterface|null $merchantStorageClient
-     *
-     * @return \SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolver
      */
     protected function createResolver(
         ProductStorageClientInterface $productStorageClient,

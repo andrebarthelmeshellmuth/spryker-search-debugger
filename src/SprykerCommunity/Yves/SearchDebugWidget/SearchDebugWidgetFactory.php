@@ -29,9 +29,6 @@ use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolverInterfac
 
 class SearchDebugWidgetFactory extends AbstractFactory
 {
-    /**
-     * @return \SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolverInterface
-     */
     public function createTokenSourceResolver(): TokenSourceResolverInterface
     {
         return new TokenSourceResolver(
@@ -42,9 +39,6 @@ class SearchDebugWidgetFactory extends AbstractFactory
         );
     }
 
-    /**
-     * @return \SprykerCommunity\Yves\SearchDebugWidget\Resolver\ProductSourceMapBuilder
-     */
     public function createProductSourceMapBuilder(): ProductSourceMapBuilder
     {
         return new ProductSourceMapBuilder(
@@ -58,57 +52,36 @@ class SearchDebugWidgetFactory extends AbstractFactory
         );
     }
 
-    /**
-     * @return \SprykerCommunity\Yves\SearchDebugWidget\Resolver\CategoryAncestorNameCollector
-     */
     public function createCategoryAncestorNameCollector(): CategoryAncestorNameCollector
     {
         return new CategoryAncestorNameCollector();
     }
 
-    /**
-     * @return \SprykerCommunity\Yves\SearchDebugWidget\Resolver\AnalysisPathResolverInterface
-     */
     public function createAnalysisPathResolver(): AnalysisPathResolverInterface
     {
         return new AnalysisPathResolver($this->getSearchDebugClient(), $this->createTokenHighlighter());
     }
 
-    /**
-     * @return \SprykerCommunity\Yves\SearchDebugWidget\Resolver\ComponentConfigFormatterInterface
-     */
     public function createComponentConfigFormatter(): ComponentConfigFormatterInterface
     {
         return new ComponentConfigFormatter();
     }
 
-    /**
-     * @return \SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface
-     */
     public function createTokenHighlighter(): TokenHighlighterInterface
     {
         return new TokenHighlighter();
     }
 
-    /**
-     * @return \Spryker\Client\ProductStorage\ProductStorageClientInterface
-     */
     public function getProductStorageClient(): ProductStorageClientInterface
     {
         return $this->getProvidedDependency(SearchDebugWidgetDependencyProvider::CLIENT_PRODUCT_STORAGE);
     }
 
-    /**
-     * @return \Spryker\Client\ProductCategoryStorage\ProductCategoryStorageClientInterface
-     */
     public function getProductCategoryStorageClient(): ProductCategoryStorageClientInterface
     {
         return $this->getProvidedDependency(SearchDebugWidgetDependencyProvider::CLIENT_PRODUCT_CATEGORY_STORAGE);
     }
 
-    /**
-     * @return \Spryker\Client\CategoryStorage\CategoryStorageClientInterface
-     */
     public function getCategoryStorageClient(): CategoryStorageClientInterface
     {
         return $this->getProvidedDependency(SearchDebugWidgetDependencyProvider::CLIENT_CATEGORY_STORAGE);
@@ -117,17 +90,12 @@ class SearchDebugWidgetFactory extends AbstractFactory
     /**
      * Null on shops without `spryker/merchant-storage` (non-Marketplace) — see
      * {@see SearchDebugWidgetDependencyProvider::addMerchantStorageClient()}.
-     *
-     * @return \Spryker\Client\MerchantStorage\MerchantStorageClientInterface|null
      */
     public function getMerchantStorageClient(): ?MerchantStorageClientInterface
     {
         return $this->getProvidedDependency(SearchDebugWidgetDependencyProvider::CLIENT_MERCHANT_STORAGE);
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface
-     */
     public function getSearchDebugClient(): SearchDebugClientInterface
     {
         return $this->getProvidedDependency(SearchDebugWidgetDependencyProvider::CLIENT_SEARCH_DEBUG);
@@ -141,9 +109,6 @@ class SearchDebugWidgetFactory extends AbstractFactory
         return $this->getProvidedDependency(SearchDebugWidgetDependencyProvider::PLUGINS_TOKEN_SOURCE_PROVIDER);
     }
 
-    /**
-     * @return \Spryker\Client\Store\StoreClientInterface
-     */
     public function getStoreClient(): StoreClientInterface
     {
         return $this->getProvidedDependency(SearchDebugWidgetDependencyProvider::CLIENT_STORE);

@@ -21,9 +21,6 @@ class SeeSearchDebugInfoPermissionPlugin implements PermissionPluginInterface
      */
     public const KEY = 'SeeSearchDebugInfoPermissionPlugin';
 
-    /**
-     * @return string
-     */
     public function getKey(): string
     {
         return static::KEY;

@@ -29,8 +29,6 @@ class TermWeightAccumulatorTest extends Unit
 {
     /**
      * A single field weight becomes both the total and the "primary" field.
-     *
-     * @return void
      */
     public function testAddTermRecordsASingleFieldWeightAsTheTotal(): void
     {
@@ -49,8 +47,6 @@ class TermWeightAccumulatorTest extends Unit
     /**
      * MAX mode (dis_max): only the best-scoring field contributes to the total, and it becomes the
      * "primary" field.
-     *
-     * @return void
      */
     public function testAddTermTakesTheMaxAcrossFieldsUnderMaxMode(): void
     {
@@ -70,8 +66,6 @@ class TermWeightAccumulatorTest extends Unit
     /**
      * SUM mode (bool-should): every matching field genuinely adds to `_score`, so the total is the sum —
      * but "field" still names the single largest individual contributor, not a claim it is the only source.
-     *
-     * @return void
      */
     public function testAddTermSumsAcrossFieldsUnderSumMode(): void
     {
@@ -91,8 +85,6 @@ class TermWeightAccumulatorTest extends Unit
     /**
      * A repeated call for the SAME field (not a different one) still needs to combine correctly — MAX of
      * the same field across two calls, not double-counted as if it were sum.
-     *
-     * @return void
      */
     public function testAddTermCombinesRepeatedCallsForTheSameFieldUnderMaxMode(): void
     {
@@ -111,8 +103,6 @@ class TermWeightAccumulatorTest extends Unit
     /**
      * Only the winning field's BM25 breakdown is ever carried — a losing field's breakdown is stored
      * internally but never surfaces as "the" breakdown once a better field takes over.
-     *
-     * @return void
      */
     public function testAddTermOnlyExposesTheWinningFieldsBreakdown(): void
     {
@@ -134,9 +124,6 @@ class TermWeightAccumulatorTest extends Unit
         $this->assertSame('full-text-boosted', $terms['cable']['field']);
     }
 
-    /**
-     * @return void
-     */
     public function testAddSynonymCombinesAllPairsIntoASortedJoinedKey(): void
     {
         // Arrange
@@ -154,8 +141,6 @@ class TermWeightAccumulatorTest extends Unit
 
     /**
      * A synonym rule can list any number of equivalent words — must not assume exactly 2.
-     *
-     * @return void
      */
     public function testAddSynonymHandlesMoreThanTwoTerms(): void
     {
@@ -173,8 +158,6 @@ class TermWeightAccumulatorTest extends Unit
     /**
      * A malformed raw pair list (no colon at all) contributes nothing rather than crashing or storing a
      * garbage key.
-     *
-     * @return void
      */
     public function testAddSynonymDoesNothingWhenNoPairHasAColon(): void
     {

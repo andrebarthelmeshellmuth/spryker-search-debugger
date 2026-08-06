@@ -29,8 +29,6 @@ class CrossFieldsSynonymMatcherTest extends Unit
     /**
      * The real confirmed-live shape: two DIFFERENT terms ("switch"/"button"), each a directly
      * attributable weight leaf, combined under an ordinary "max of:" node.
-     *
-     * @return void
      */
     public function testMatchCombinesTwoDistinctTermLeavesIntoOneKey(): void
     {
@@ -52,8 +50,6 @@ class CrossFieldsSynonymMatcherTest extends Unit
     /**
      * The winning leaf is whichever child's OWN value equals the group's reported value — never just the
      * first one — since that is the leaf whose field/breakdown actually explains the group's number.
-     *
-     * @return void
      */
     public function testMatchIdentifiesTheWinningLeafByItsOwnValue(): void
     {
@@ -75,8 +71,6 @@ class CrossFieldsSynonymMatcherTest extends Unit
      * Every leaf sharing the SAME term (only the field differs) is an ordinary per-field dis_max, not a
      * synonym-alternatives position — must return null so the caller's normal recursion handles it
      * instead (each leaf calling addTerm() for the identical key already combines them correctly).
-     *
-     * @return void
      */
     public function testMatchReturnsNullWhenEveryLeafSharesTheSameTerm(): void
     {
@@ -93,9 +87,6 @@ class CrossFieldsSynonymMatcherTest extends Unit
         $this->assertNull($result);
     }
 
-    /**
-     * @return void
-     */
     public function testMatchReturnsNullWithFewerThanTwoChildren(): void
     {
         // Arrange
@@ -108,9 +99,6 @@ class CrossFieldsSynonymMatcherTest extends Unit
         $this->assertNull($result);
     }
 
-    /**
-     * @return void
-     */
     public function testMatchReturnsNullWhenTheDescriptionIsNotAMaxCombiner(): void
     {
         // Arrange
@@ -129,8 +117,6 @@ class CrossFieldsSynonymMatcherTest extends Unit
     /**
      * A single non-term-weight, non-"max of:" child means this isn't a pure disjunction-of-term-weights
      * tree at all — bail rather than guess at a partial flattening.
-     *
-     * @return void
      */
     public function testMatchReturnsNullWhenAChildIsNeitherATermWeightNorANestedMaxNode(): void
     {
@@ -151,8 +137,6 @@ class CrossFieldsSynonymMatcherTest extends Unit
      * A multi-field query with a synonym at one position produces an OUTER "max of:" choosing between an
      * INNER per-field "max of:" for each synonym alternative — max-of-maxes must flatten down to the real
      * leaves regardless of nesting depth.
-     *
-     * @return void
      */
     public function testMatchFlattensNestedMaxOfMaxNodes(): void
     {
@@ -180,6 +164,39 @@ class CrossFieldsSynonymMatcherTest extends Unit
         // Assert
         $this->assertSame('button, switch', $result['term']);
         $this->assertSame('full-text-boosted', $result['field']);
+    }
+
+    /**
+     * The mirror image of {@see testMatchFlattensNestedMaxOfMaxNodes()}: when the INNER "max of:" node
+     * itself fails to resolve (one of ITS children is neither a term-weight leaf nor a valid nested max
+     * node), that failure must propagate all the way back out through the OUTER call as null too, rather
+     * than the outer level silently treating the unresolved inner group as if it had produced zero leaves.
+     */
+    public function testMatchReturnsNullWhenANestedMaxOfNodeFailsToResolve(): void
+    {
+        // Arrange
+        $unresolvableInner = [
+            'value' => 3.5,
+            'description' => 'max of:',
+            'details' => [
+                $this->createWeightLeaf('full-text', 'switch', 2.0),
+                ['value' => 3.5, 'description' => 'some unrecognized node', 'details' => []],
+            ],
+        ];
+        $innerButton = [
+            'value' => 5.428672,
+            'description' => 'max of:',
+            'details' => [
+                $this->createWeightLeaf('full-text', 'button', 4.1),
+                $this->createWeightLeaf('full-text-boosted', 'button', 5.428672),
+            ],
+        ];
+
+        // Act
+        $result = (new CrossFieldsSynonymMatcher())->match('max of:', [$unresolvableInner, $innerButton], 5.428672);
+
+        // Assert
+        $this->assertNull($result);
     }
 
     /**

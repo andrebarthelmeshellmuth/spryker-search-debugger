@@ -47,8 +47,14 @@ trait TestPageIndexTrait
     protected const TEST_INDEX_NAME = 'search_debug_test_page';
 
     /**
-     * @return void
+     * Never created by {@see createTestPageIndex()} — used by the fail-soft tests that need a REAL
+     * "index does not exist" `Elastica\Exception\ResponseException` from a real cluster, not a mocked
+     * one, to prove the `catch (ExceptionInterface)` branches genuinely swallow it.
+     *
+     * @var string
      */
+    protected const NONEXISTENT_INDEX_NAME = 'search_debug_test_page_nonexistent';
+
     protected function createTestPageIndex(): void
     {
         $this->getTestPageIndex()->create(
@@ -73,9 +79,6 @@ trait TestPageIndexTrait
         );
     }
 
-    /**
-     * @return void
-     */
     protected function deleteTestPageIndex(): void
     {
         $index = $this->getTestPageIndex();
@@ -87,9 +90,6 @@ trait TestPageIndexTrait
         $index->delete();
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Analyzer\SearchStringAnalyzerInterface
-     */
     protected function createTestSearchStringAnalyzer(): SearchStringAnalyzerInterface
     {
         return new SearchStringAnalyzer(
@@ -101,9 +101,6 @@ trait TestPageIndexTrait
         );
     }
 
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaReaderInterface
-     */
     protected function createTestIndexSchemaReader(): IndexSchemaReaderInterface
     {
         return new IndexSchemaReader(
@@ -114,9 +111,6 @@ trait TestPageIndexTrait
         );
     }
 
-    /**
-     * @return \Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolverInterface
-     */
     protected function createTestIndexNameResolver(): IndexNameResolverInterface
     {
         return new class (static::TEST_INDEX_NAME) implements IndexNameResolverInterface {
@@ -135,8 +129,55 @@ trait TestPageIndexTrait
              *
              * @param string $sourceIdentifier
              * @param string|null $storeName
+             */
+            public function resolve(string $sourceIdentifier, ?string $storeName = null): string
+            {
+                return $this->indexName;
+            }
+        };
+    }
+
+    protected function getTestPageIndex(): Index
+    {
+        return $this->getTestElasticaClient()->getIndex(static::TEST_INDEX_NAME);
+    }
+
+    protected function createNonexistentIndexSearchStringAnalyzer(): SearchStringAnalyzerInterface
+    {
+        return new SearchStringAnalyzer(
+            $this->getTestElasticaClient(),
+            $this->createNonexistentIndexNameResolver(),
+            $this->createNonexistentIndexSchemaReader(),
+            new SearchDebugConfig(),
+            new ComponentDefinitionFormatter(),
+        );
+    }
+
+    protected function createNonexistentIndexSchemaReader(): IndexSchemaReaderInterface
+    {
+        return new IndexSchemaReader(
+            $this->getTestElasticaClient(),
+            $this->createNonexistentIndexNameResolver(),
+            new IndexSchemaMapper(),
+            new SearchDebugConfig(),
+        );
+    }
+
+    protected function createNonexistentIndexNameResolver(): IndexNameResolverInterface
+    {
+        return new class (static::NONEXISTENT_INDEX_NAME) implements IndexNameResolverInterface {
+            /**
+             * @param string $indexName
+             */
+            public function __construct(protected string $indexName)
+            {
+            }
+
+            /**
+             * @phpcsSuppress SlevomatCodingStandard.Functions.UnusedParameter
              *
-             * @return string
+             * @param string $sourceIdentifier
+             * @param string|null $storeName
              */
             public function resolve(string $sourceIdentifier, ?string $storeName = null): string
             {
@@ -146,18 +187,8 @@ trait TestPageIndexTrait
     }
 
     /**
-     * @return \Elastica\Index
-     */
-    protected function getTestPageIndex(): Index
-    {
-        return $this->getTestElasticaClient()->getIndex(static::TEST_INDEX_NAME);
-    }
-
-    /**
      * Same composition `SprykerCommunity\Client\SearchDebug\SearchDebugFactory::getElasticaClient()` uses
      * — both directly-instantiable value objects, no Locator/container needed.
-     *
-     * @return \Elastica\Client
      */
     protected function getTestElasticaClient(): Client
     {

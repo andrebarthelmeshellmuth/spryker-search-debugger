@@ -1,0 +1,54 @@
+namespace: SprykerCommunityTest\Yves\SearchDebugWidgetPresentation
+
+paths:
+    tests: .
+    data: _data
+    support: _support
+    output: _output
+
+coverage:
+    enabled: true
+    remote: false
+    include:
+        - 'packages/spryker-community/search-debug/src/*'
+
+# Kept as its own module directory, sibling to Yves/SearchDebugWidget, rather than a Presentation/
+# subfolder of it: that module's existing `Unit` suite has `path: .`, which recursively picks up every
+# file under it regardless of suite boundaries in codeception.yml — nesting a WebDriver suite in there
+# would make the Unit suite try (and fail) to load these Cests too. A sibling directory has its own
+# scan root and never overlaps.
+suites:
+    Presentation:
+        path: Presentation
+        actor: SearchDebugWidgetPresentationTester
+        modules:
+            enabled:
+                - Asserts
+                - \PyzTest\Shared\Testify\Helper\Environment
+                - \SprykerTest\Shared\Config\Helper\ConfigInit
+                - \SprykerTest\Shared\Testify\Helper\LocatorHelper:
+                    projectNamespaces: ['Pyz']
+                - WebDriver:
+                    url: ''
+                    browser: chrome
+                    window_size: 1920x1080
+                    # Deliberately the real docker-compose service name, not the demoshop's usual
+                    # `0.0.0.0` literal: WebDriver's OWN _before() hook opens the session eagerly,
+                    # before YvesHelper::amYves()'s runtime _reconfigure() (called from this suite's own
+                    # Cest _before()) ever gets a chance to run — so the static host here has to be
+                    # correct from the start. Matches SPRYKER_TEST_WEB_DRIVER_HOST from
+                    # docker/deployment/default/env/cli/testing.env (only injected under
+                    # `docker/sdk testing`, not plain `docker/sdk cli`).
+                    host: webdriver
+                    restart: false
+                    # Without these, Chrome crashes on launch ("DevToolsActivePort file doesn't exist")
+                    # in this container: --headless because there's no display to render a real window
+                    # on (this was the one that actually mattered — confirmed live via a raw /wd/hub/session
+                    # POST); --disable-dev-shm-usage because /dev/shm here is Docker's 64MB default, too
+                    # small for Chrome, so this makes it use /tmp instead; --no-sandbox because this
+                    # container runs Chrome as root without the extra capabilities a sandbox needs;
+                    # --disable-gpu is the standard headless-on-Linux companion flag.
+                    capabilities:
+                        goog:chromeOptions:
+                            args: ['--headless', '--disable-gpu', '--disable-dev-shm-usage', '--no-sandbox']
+                - \SprykerTest\Shared\Application\Helper\YvesHelper

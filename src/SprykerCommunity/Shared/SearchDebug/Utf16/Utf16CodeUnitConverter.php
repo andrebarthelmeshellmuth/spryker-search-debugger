@@ -28,8 +28,6 @@ class Utf16CodeUnitConverter
      * {@see slice()} call, rather than paying the UTF-8<->UTF-16 conversion cost again per slice.
      *
      * @param string $text
-     *
-     * @return string
      */
     public static function toUtf16(string $text): string
     {
@@ -38,8 +36,6 @@ class Utf16CodeUnitConverter
 
     /**
      * @param string $textUtf16 Already converted via {@see toUtf16()}.
-     *
-     * @return int
      */
     public static function lengthOf(string $textUtf16): int
     {
@@ -50,8 +46,6 @@ class Utf16CodeUnitConverter
      * @param string $textUtf16 Already converted via {@see toUtf16()}.
      * @param int $fromCodeUnit
      * @param int $toCodeUnit
-     *
-     * @return string
      */
     public static function slice(string $textUtf16, int $fromCodeUnit, int $toCodeUnit): string
     {

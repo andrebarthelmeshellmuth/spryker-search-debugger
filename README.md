@@ -3,6 +3,8 @@
 Developer tools for inspecting, debugging and understanding OpenSearch/Elasticsearch queries in Spryker.
 Search Debug helps Search Engineers explain ranking decisions—quickly enough that they can confidently answer the business question: "Why did this product rank above that one?"
 
+*Part of the [Search Relevance](https://search-relevance.dev/) project — explore the interactive ranking-formula walkthrough there.*
+
 ## Contents
 
 - [What does this do?](#what-does-this-do)
@@ -41,7 +43,7 @@ headline also has its own magnifying-glass link (traced through the search-time 
 "Analysis-path page" below), so how the shopper's own typed words became a search token is one click away
 too:
 
-![The SRP score overlay: the query-token headline with a magnifying-glass link on each token, and the per-product overlay pinned open showing matched tokens with their BM25 breakdown and the final score used for ranking](docs/screenshots/srp-overlay.png)
+![The SRP score overlay: the query-token headline with a magnifying-glass link on each token, and the per-product overlay pinned open showing the business-signal breakdown, matched tokens with their BM25 contribution, and the other per-field score contributions](docs/screenshots/srp-overlay.png)
 
 No more "because Elasticsearch said so" — every number on the page traces back to a real, inspectable part
 of the query.
@@ -53,7 +55,7 @@ analysis-path visualization. More tools are planned.
 
 Verified: dependency floors resolved and checked at their oldest allowed versions (`composer
 check-floors`), explanation parsing confirmed against three engines across two Lucene generations (see
-"Search engine compatibility"), 226 tests, phpcs and phpstan level 8 clean.
+"Search engine compatibility"), 265 tests, phpcs and phpstan level 8 clean.
 
 ## Search Debug — Spryker Community Extension
 
@@ -509,7 +511,7 @@ Spryker Community extension, developed alongside this one but not yet released �
 business-signal `function_score` in the same overlay.
 
 For a `function_score`-wrapped query the explain parser additionally exposes the WRAPPED query's own
-relevance as `queryScore` (shown as "Text match score", the number the matched-token breakdown adds
+relevance as `queryScore` (shown as "Text match raw score", the number the matched-token breakdown adds
 up against), suppresses Elasticsearch's float-max `maxBoost` sentinel from the output, and the
 overlay closes with the final `_score` actually used for ranking.
 
@@ -657,6 +659,7 @@ how the number is shown.
 | `composer validate` | the manifest stays well-formed |
 | `phpcs` (PHP 8.3, 8.4) | coding standard, via this package's own `phpcs.xml` |
 | `composer check-floors` (PHP 8.3, 8.4) | the declared dependency floors are real |
+| `rector` dry-run (PHP 8.3, 8.4) | no unapplied Rector rule set drifts in |
 | `phpmd` (`phpmd.xml` + `phpmd-public-methods.xml`) | cyclomatic/NPath complexity, method/class length stay reasonable — run as two separate invocations because PHPMD merges every loaded ruleset's `exclude-pattern` into one global file list per run, and only the public-method-count rule should skip Facades/Factories (Spryker's own DI convention gives each one method per capability/collaborator, not a design problem this package can fix) |
 
 `check-floors` is the one worth understanding. This package's `require` constraints are a promise about
@@ -692,6 +695,31 @@ For that reason the suites are **not** part of CI: a clean runner has neither a 
 cluster, and standing both up per build would cost far more than it returns. CI therefore covers the
 static guarantees; the test suite is run against a real shop before a release. A standalone bootstrap
 that would let CI run them too is on the roadmap.
+
+### Browser (Presentation) suite
+
+> **This suite is a development tool for this package's own reference demoshop — it is not something
+> to install or run against YOUR shop.** Every test is written against one specific demoshop's seeded
+> fixture data: exact customer accounts, exact catalog contents (e.g. the query `chair` is asserted to
+> return results), exact configured synonym pairs, and a specific Company Role/permission grant. Point it
+> at a different shop and most of it will simply fail on missing data, not on a real defect. It exists to
+> catch UI regressions while developing this package, not as something adopters are expected to run.
+
+`tests/SprykerCommunityTest/Yves/SearchDebugWidgetPresentation/` is a real WebDriver click-through suite
+covering every checklist item from the package's own manual QA pass: the SRP score overlay (badge, pin,
+matched-token/BM25 breakdown, business-signals section), the query-token analyzer, the token-source and
+analysis-path pages, the component-config page, the permission gate (including the two negative-test
+accounts), and a couple of edge cases (zero results, the `&` char filter). It is kept as its own module
+directory rather than nested under `Yves/SearchDebugWidget/` because that module's `Unit` suite scans its
+whole directory tree recursively — a nested WebDriver suite there would break it.
+
+```bash
+vendor/bin/codecept build -c vendor/spryker-community/search-debug/tests/SprykerCommunityTest/Yves/SearchDebugWidgetPresentation
+vendor/bin/codecept run -c vendor/spryker-community/search-debug/tests/SprykerCommunityTest/Yves/SearchDebugWidgetPresentation
+```
+
+Like the rest of the test suite, this is not part of CI — it needs a real running shop plus the Selenium/
+chromedriver service already provisioned in this demoshop's `docker-compose.yml`.
 
 One branch is deliberately left untested: `SearchDebugContextEventDispatcherPlugin::handleRequest()`'s
 permission-granted path (the one that actually turns debug mode on) calls `PermissionAwareTrait::can()`,

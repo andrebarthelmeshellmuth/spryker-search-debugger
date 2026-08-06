@@ -28,17 +28,11 @@ use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser;
  */
 class ExplanationParserTest extends Unit
 {
-    /**
-     * @return \SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser
-     */
     protected function createParser(): ExplanationParser
     {
         return new ExplanationParser(new CrossFieldsSynonymMatcher(), new Bm25BreakdownExtractor());
     }
 
-    /**
-     * @return void
-     */
     public function testParseAttributesAQueryTokenWeightToTheMatchedTokens(): void
     {
         // Arrange
@@ -58,8 +52,6 @@ class ExplanationParserTest extends Unit
     /**
      * A numeric term is stored as an int PHP array key. It must still be recognized as one of the
      * (string) query tokens, otherwise every numeric search term is demoted to an "other contribution".
-     *
-     * @return void
      */
     public function testParseAttributesANumericQueryTokenWeightToTheMatchedTokens(): void
     {
@@ -74,9 +66,6 @@ class ExplanationParserTest extends Unit
         $this->assertSame([], $result[ExplanationParser::KEY_OTHER_CONTRIBUTIONS]);
     }
 
-    /**
-     * @return void
-     */
     public function testParseMovesATermThatIsNotAQueryTokenToTheOtherContributions(): void
     {
         // Arrange
@@ -96,8 +85,6 @@ class ExplanationParserTest extends Unit
     /**
      * A `best_fields` multi_match combines its per-field scores under a dis_max ("max of"), so only the
      * best-scoring field contributes to `_score`. Summing them would not add up to the document's score.
-     *
-     * @return void
      */
     public function testParseTakesTheMaxOverFieldsAsATokenTotalRatherThanTheSum(): void
     {
@@ -127,8 +114,6 @@ class ExplanationParserTest extends Unit
      * A genuinely unattributable weight node (neither a plain term nor a recognized Synonym group) must
      * be kept verbatim: descending into it would surface its multiplicative TF/IDF internals as if they
      * were additive score parts.
-     *
-     * @return void
      */
     public function testParseKeepsAnUnrecognizedWeightNodeVerbatimInsteadOfDescendingIntoIt(): void
     {
@@ -155,6 +140,60 @@ class ExplanationParserTest extends Unit
     }
 
     /**
+     * `walkNode()`'s own final fallback (a node that isn't a `weight(...)` node, a `script score
+     * function`, a parent with children, an empty description, or a score-function leaf) is a DIFFERENT
+     * code path from {@see testParseKeepsAnUnrecognizedWeightNodeVerbatimInsteadOfDescendingIntoIt}'s
+     * "unrecognized weight(...) node" fallback above — that one is reached via `tryHandleWeightNode()`'s
+     * own else-branch, this one only when NONE of the `try*()` dispatchers even claim the node. Real
+     * engines occasionally emit exactly this: a leaf whose description doesn't start with `weight(` at
+     * all (e.g. `ConstantScore`/`MatchNoDocsQuery` leaves), and the parser must still surface it rather
+     * than silently dropping it.
+     */
+    public function testParseKeepsAGenuinelyUnclaimedLeafNodeAsAnOtherContribution(): void
+    {
+        // Arrange
+        $description = 'ConstantScore(*:*), product of:';
+        $explanation = [
+            'value' => 3.5,
+            'description' => $description,
+            'details' => [],
+        ];
+
+        // Act
+        $result = $this->createParser()->parse($explanation, ['cable']);
+
+        // Assert
+        $this->assertSame([], $result[ExplanationParser::KEY_MATCHED_TOKENS]);
+        $this->assertSame(
+            [['description' => $description, 'value' => 3.5]],
+            $result[ExplanationParser::KEY_OTHER_CONTRIBUTIONS],
+        );
+    }
+
+    /**
+     * A node with a genuinely empty description (no `weight(`/`script score function` prefix, no
+     * children) is dropped silently by {@see ExplanationParser::tryDropEmptyDescription()} — a DIFFERENT
+     * early-return from the final opaque-leaf fallback above, reached only when the description is
+     * exactly `''`, not merely unrecognized.
+     */
+    public function testParseDropsANodeWithAGenuinelyEmptyDescription(): void
+    {
+        // Arrange
+        $explanation = [
+            'value' => 3.5,
+            'description' => '',
+            'details' => [],
+        ];
+
+        // Act
+        $result = $this->createParser()->parse($explanation, ['cable']);
+
+        // Assert
+        $this->assertSame([], $result[ExplanationParser::KEY_MATCHED_TOKENS]);
+        $this->assertSame([], $result[ExplanationParser::KEY_OTHER_CONTRIBUTIONS]);
+    }
+
+    /**
      * `walkNode()`'s dispatch is FIRST-MATCH-WINS: a node shaped like more than one recognized case at
      * once is resolved by whichever `try*()` check runs first, not by some "most specific wins" logic.
      * This node is deliberately shaped like TWO things at once — a recognized `weight(field:term)` leaf
@@ -163,8 +202,6 @@ class ExplanationParserTest extends Unit
      * weight-node check runs before the has-children check, this node must be read ONLY as the term
      * weight — its children are TF/IDF internals (multiplicative factors of ITS value), never additive
      * score parts of their own, and must never leak into scoreFunctions or otherContributions.
-     *
-     * @return void
      */
     public function testParseTreatsAWeightNodeAsATermLeafEvenWhenItsChildrenLookLikeOtherShapes(): void
     {
@@ -203,8 +240,6 @@ class ExplanationParserTest extends Unit
      * entirely (the bug this test guards against: before this fix, the node fell through to
      * `otherContributions` UNLABELED, and the query's other matched-token totals visibly fell short of
      * the document's real `_score`).
-     *
-     * @return void
      */
     public function testParseAttributesASynonymGroupWeightToACombinedTermKey(): void
     {
@@ -231,8 +266,6 @@ class ExplanationParserTest extends Unit
 
     /**
      * A synonym rule can list any number of equivalent words — this parser must not assume exactly 2.
-     *
-     * @return void
      */
     public function testParseAttributesASynonymGroupWithMoreThanTwoTermsToOneCombinedKey(): void
     {
@@ -254,8 +287,6 @@ class ExplanationParserTest extends Unit
      * A synonym group whose terms are NOT among the user's actual query tokens (e.g. it matched via a
      * different query position, or the query itself changed) belongs under "other contributions", same
      * as any other non-query term — not silently dropped or force-matched.
-     *
-     * @return void
      */
     public function testParseMovesASynonymGroupThatIsNotAQueryTokenToTheOtherContributions(): void
     {
@@ -278,8 +309,6 @@ class ExplanationParserTest extends Unit
      * The SAME synonym group scored via two different fields (this shop's real "full-text" AND
      * "full-text-boosted") must combine through the identical MAX/SUM logic a single real term already
      * gets — reused, not reimplemented, for the combined key.
-     *
-     * @return void
      */
     public function testParseCombinesASynonymGroupsPerFieldWeightsTheSameWayAsARealTerm(): void
     {
@@ -321,8 +350,6 @@ class ExplanationParserTest extends Unit
      * inflating the displayed per-token sum past the document's real `_score`. This is the live search
      * page bug report this guards: query "brenne switch" on a real "Brennenstuhl socket strip" product,
      * displayed as "12, 5, 5" not adding up to the real total of ~18.27.
-     *
-     * @return void
      */
     public function testParseCollapsesACrossFieldsSynonymAlternativesNodeToOneCombinedKey(): void
     {
@@ -354,8 +381,6 @@ class ExplanationParserTest extends Unit
      * — must NOT be treated as a synonym-alternatives position, since all children share the identical
      * term text. This is what distinguishes the two cases: term-text diversity among the children, not
      * the node shape, which is otherwise identical to the synonym case above.
-     *
-     * @return void
      */
     public function testParseDoesNotCollapseAMaxOfNodeWhoseChildrenShareTheSameTerm(): void
     {
@@ -382,8 +407,6 @@ class ExplanationParserTest extends Unit
      * A "max of:" node with only ONE child is never a real dis_max between alternatives (there's nothing
      * to choose between) — must fall through to normal recursion rather than being (mis)treated as a
      * single-term "synonym group of one".
-     *
-     * @return void
      */
     public function testParseDoesNotCollapseAMaxOfNodeWithOnlyOneChild(): void
     {
@@ -410,8 +433,6 @@ class ExplanationParserTest extends Unit
      * A "max of:" node whose children are NOT directly-attributable term-weight leaves (e.g. a nested
      * wrapper, or an unrecognized shape) must fall through to normal recursion rather than being
      * incorrectly collapsed — this parser only special-cases the shape it can actually verify.
-     *
-     * @return void
      */
     public function testParseDoesNotCollapseAMaxOfNodeWithANonLeafChild(): void
     {
@@ -446,8 +467,6 @@ class ExplanationParserTest extends Unit
      * the two FIELDS combine (dis_max — only the winning field counts), causing the two per-field
      * weights to be SUMMED instead of MAX'd: 5.428672 + 45.650497 = 51.079169, inflating the matched
      * token's total past the document's real `_score` of 45.650497 — the exact bug report this guards.
-     *
-     * @return void
      */
     public function testParseTreatsASingleChildWrapperNodeAsCombineModeNeutral(): void
     {
@@ -509,8 +528,6 @@ class ExplanationParserTest extends Unit
      * The same single-child-wrapper neutrality applies to a plain (non-synonym) term too, even though a
      * real plain-term match doesn't happen to produce this shape today (confirmed live) — the fix is
      * general, not synonym-specific, and must not regress the ordinary per-field dis_max case either.
-     *
-     * @return void
      */
     public function testParseTreatsASingleChildWrapperNodeAsCombineModeNeutralForAPlainTermToo(): void
     {
@@ -544,8 +561,6 @@ class ExplanationParserTest extends Unit
     /**
      * Lucene explains filter-context clauses for transparency but excludes them from scoring: they report
      * 0 at every ancestor level despite non-zero literals deeper inside.
-     *
-     * @return void
      */
     public function testParseIgnoresAZeroValuedNodeAndItsChildren(): void
     {
@@ -570,8 +585,6 @@ class ExplanationParserTest extends Unit
     /**
      * `KEY_SCORE_FUNCTIONS` is always present in `parse()`'s return, even for an explain tree that
      * contains no `function_score` boost function at all — an empty array, not an absent key.
-     *
-     * @return void
      */
     public function testParseAlwaysReturnsAScoreFunctionsKeyEvenWhenNothingMatchesIt(): void
     {
@@ -590,8 +603,6 @@ class ExplanationParserTest extends Unit
      * A leaf node whose description matches one of the documented `function_score` boost-function
      * phrasings (here a `gauss` decay function), has no `details`, and a non-zero value is collected into
      * `scoreFunctions` rather than falling through to the generic `otherContributions` bucket.
-     *
-     * @return void
      */
     public function testParseCollectsAFunctionScoreLeafIntoScoreFunctions(): void
     {
@@ -619,8 +630,6 @@ class ExplanationParserTest extends Unit
      * recursed into like any other non-leaf node — NOT collected into `scoreFunctions` itself, even
      * though its own description also matches {@see ExplanationParser::SCORE_FUNCTION_PATTERN}. Only the
      * leaf function node underneath it ends up in `scoreFunctions`.
-     *
-     * @return void
      */
     public function testParseRecursesIntoAWrappingFunctionScoreNodeAndOnlyCollectsTheLeaf(): void
     {
@@ -649,8 +658,6 @@ class ExplanationParserTest extends Unit
      * bool "should" ("sum of:"), so EVERY matching field genuinely adds to `_score` — unlike the dis_max
      * "max of:" case. `field` still names only the single largest individual contributor, as a "primary
      * contributor" hint, not a claim that it is the sole source of `total`.
-     *
-     * @return void
      */
     public function testParseSumsFieldWeightsForTheSameTermUnderASumCombiner(): void
     {
@@ -682,8 +689,6 @@ class ExplanationParserTest extends Unit
      * when the tree can't be classified at all. This is distinct from
      * {@see testParseTakesTheMaxOverFieldsAsATokenTotalRatherThanTheSum}, which exercises an EXPLICIT
      * "max of:" ancestor; this fixture's ancestor description matches neither combiner pattern at all.
-     *
-     * @return void
      */
     public function testParseDefaultsToMaxCombineModeWhenNoAncestorIndicatesAMode(): void
     {
@@ -719,8 +724,6 @@ class ExplanationParserTest extends Unit
      * search-ranking business-signal query, ES 7, boost_mode "replace"): the script node's value is the
      * final score, its `_score:` child carries the wrapped query's own relevance, the term breakdown
      * lives underneath that, and a float-max `maxBoost` sentinel sits next to the script node.
-     *
-     * @return void
      */
     public function testParseExtractsQueryScoreAndTermBreakdownFromARealScriptScoreTree(): void
     {
@@ -744,8 +747,6 @@ class ExplanationParserTest extends Unit
     /**
      * The float-max `maxBoost` sentinel (3.4028235E38) every function_score explain contains must never
      * surface as a score contribution — it is a cap marker, not a score part.
-     *
-     * @return void
      */
     public function testParseSuppressesTheMaxBoostSentinel(): void
     {
@@ -760,12 +761,16 @@ class ExplanationParserTest extends Unit
     }
 
     /**
-     * Without a function_score wrapper there is no separate query score — the key must still exist
-     * (null), so consumers can distinguish "no wrapper" from "wrapper with score 0".
-     *
-     * @return void
+     * Regression test: without a function_score wrapper, `queryScore` must fall back to the tree's own
+     * top-level value rather than staying null — that top-level value already IS the final `_score` for
+     * a plain query, so it's also the pure text relevance. Before this fix, a store/locale with every
+     * business-signal metric weighted at 0 (so `FunctionScoreBuilder` never wraps the query at all, see
+     * that class's own "no active metric has a non-zero weight" guard) made this stay null, which in turn
+     * made search-ranking's "Text Signal total" overlay line disappear — even though the pure text score
+     * was known and meaningful the whole time. Text relevance must never be hostage to whether business
+     * signals happen to be configured/active.
      */
-    public function testParseReturnsNullQueryScoreWithoutAScriptScoreWrapper(): void
+    public function testParseFallsBackToTheTopLevelValueForQueryScoreWithoutAScriptScoreWrapper(): void
     {
         // Arrange
         $explanation = $this->createWeightNode('full-text', 'cable', 6.9244);
@@ -773,8 +778,26 @@ class ExplanationParserTest extends Unit
         // Act
         $result = $this->createParser()->parse($explanation, ['cable']);
 
+        // Assert — the fixture's own top-level 'value' (6.9244), not null.
+        $this->assertSame(6.9244, $result[ExplanationParser::KEY_QUERY_SCORE]);
+    }
+
+    /**
+     * The script-score wrapper's own `_score:` child still wins over the top-level fallback — the
+     * fallback in {@see testParseFallsBackToTheTopLevelValueForQueryScoreWithoutAScriptScoreWrapper} only
+     * applies when nothing more specific was found; it must not override a real function_score's own,
+     * more precise, wrapped-query score with the (different, post-blend) top-level final score.
+     */
+    public function testParseKeepsTheScriptScoreNodesQueryScoreOverTheTopLevelFallback(): void
+    {
+        // Arrange — final score (2.7416) deliberately differs from the wrapped query's own score (6.9244).
+        $explanation = $this->createScriptScoreExplanationTree(2.7416, 6.9244);
+
+        // Act
+        $result = $this->createParser()->parse($explanation, ['cable']);
+
         // Assert
-        $this->assertNull($result[ExplanationParser::KEY_QUERY_SCORE]);
+        $this->assertSame(6.9244, $result[ExplanationParser::KEY_QUERY_SCORE]);
     }
 
     /**
@@ -830,8 +853,6 @@ class ExplanationParserTest extends Unit
      * every test below this point that exercises {@see ExplanationParser::extractBm25Breakdown()}.
      * $value is deliberately NOT required to equal boost*idf*tf (Lucene's own arithmetic isn't this
      * class's concern to verify) — these tests only check that the right numbers land in the right places.
-     *
-     * @return void
      */
     public function testParseExtractsTheBm25BreakdownFromAPlainTermWeightNode(): void
     {
@@ -870,8 +891,6 @@ class ExplanationParserTest extends Unit
      * The plain, no-breakdown fixture every other test in this file uses (an empty-`details` "score(...)"
      * node) must not surface a `breakdown` key at all — not present-but-null — so every existing exact
      * `assertSame()` array comparison elsewhere in this file keeps working unchanged.
-     *
-     * @return void
      */
     public function testParseOmitsTheBreakdownKeyEntirelyWhenTheShapeIsNotRecognized(): void
     {
@@ -888,8 +907,6 @@ class ExplanationParserTest extends Unit
     /**
      * A dis_max between two fields must carry the WINNING field's own breakdown, not the losing field's —
      * mirrors {@see testParseTakesTheMaxOverFieldsAsATokenTotalRatherThanTheSum} but for `breakdown`.
-     *
-     * @return void
      */
     public function testParseCarriesTheWinningFieldsBreakdownUnderADisMax(): void
     {
@@ -924,8 +941,6 @@ class ExplanationParserTest extends Unit
      * {@see testParseCollapsesACrossFieldsSynonymAlternativesNodeToOneCombinedKey}) must also carry the
      * winning constituent's own breakdown — extracted from that SAME child Lucene already picked as the
      * max, not a different one and not guessed.
-     *
-     * @return void
      */
     public function testParseCarriesTheWinningConstituentsBreakdownForACrossFieldsSynonymGroup(): void
     {
@@ -958,8 +973,6 @@ class ExplanationParserTest extends Unit
     /**
      * A node whose child doesn't mention "computed as boost * idf * tf from:" at all (e.g. a different
      * Similarity module, or simply no further detail) must not produce a guessed or partial breakdown.
-     *
-     * @return void
      */
     public function testParseReturnsNoBreakdownWhenTheChildNodeIsNotABm25Shape(): void
     {
@@ -983,8 +996,6 @@ class ExplanationParserTest extends Unit
      * A BM25 marker node missing one of its expected grandchildren (here: no `avgdl`) must not produce a
      * partial breakdown — all-or-nothing, since a UI showing "boost × idf × tf" with a silently-missing
      * `avgdl` would misrepresent the real formula.
-     *
-     * @return void
      */
     public function testParseReturnsNoBreakdownWhenAGrandchildIsMissing(): void
     {

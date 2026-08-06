@@ -60,7 +60,7 @@ class CrossFieldsSynonymMatcher
             // The group's own reported $value is exactly one leaf's value (Lucene picked the max) —
             // that SAME leaf is the one whose own field AND boost/idf/tf breakdown actually explain
             // $value; a losing leaf's field must never be shown alongside the winner's numbers.
-            if ($winningNode !== null || !((float)($leaf['node']['value'] ?? 0.0) === $value)) {
+            if ($winningNode !== null || (float)($leaf['node']['value'] ?? 0.0) !== $value) {
                 continue;
             }
 

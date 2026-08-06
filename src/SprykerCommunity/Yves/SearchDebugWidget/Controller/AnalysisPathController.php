@@ -77,8 +77,6 @@ class AnalysisPathController extends AbstractController
      * @throws \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException
      * @throws \Symfony\Component\HttpKernel\Exception\BadRequestHttpException
      * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
-     *
-     * @return \Spryker\Yves\Kernel\View\View
      */
     public function indexAction(Request $request): View
     {
@@ -159,8 +157,6 @@ class AnalysisPathController extends AbstractController
 
     /**
      * @param \Symfony\Component\HttpFoundation\Request $request
-     *
-     * @return bool
      */
     protected function resolveUseSearchAnalyzer(Request $request): bool
     {

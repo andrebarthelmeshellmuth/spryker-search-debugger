@@ -54,6 +54,12 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
 
         $path = [$this->originPathEntry($currentToken['token'])];
 
+        // Whether $currentToken (by the time the loop below ends) is stages[0]'s own matched token — either
+        // because there was only ever one stage to begin with, or because every backward step found a
+        // containing parent all the way down. Only then is it safe to attribute stages[0]'s OWN operation
+        // (see below) and to prepend the true, pre-pipeline raw input as the path's real origin.
+        $tracedToFirstStage = $lastStageIndex === 0;
+
         for ($stageIndex = $lastStageIndex; $stageIndex > 0; $stageIndex--) {
             $parentToken = $this->findContainingToken(
                 $stages[$stageIndex - 1]['tokens'],
@@ -85,9 +91,28 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
                 // it in the origin box mirrors the token-source page's `<mark>` treatment: "this part of the
                 // text is what led here" — see addOriginHighlight() for why this is validated, not assumed.
                 $this->addOriginHighlight($path[0], $currentToken);
+                $tracedToFirstStage = true;
             }
 
             $currentToken = $parentToken;
+        }
+
+        // Without this, stages[0]'s own operation (a char filter, or the tokenizer itself when the
+        // analyzer has no char filters) is never attributed to anything — the loop above only ever labels
+        // an entry with the stage that comes AFTER it, so whatever produced $path[0] at this point has no
+        // label yet, and $text itself (the actual raw, pre-pipeline input) never appears on the page at
+        // all: $path[0]'s text is already stages[0]'s OUTPUT, which a char filter can have rewritten (e.g.
+        // this shop's own "& => and"), silently passing off transformed text as if it were the origin.
+        if ($tracedToFirstStage) {
+            $path[0]['operation'] = $stages[0]['operation'];
+            $path[0]['definition'] = $stages[0]['definition'];
+            $path[0]['componentKind'] = $stages[0]['componentKind'];
+            $path[0]['componentName'] = $stages[0]['componentName'];
+            $path[0]['definitionTruncated'] = $stages[0]['definitionTruncated'];
+
+            $rawOrigin = $this->originPathEntry($text);
+            $this->addOriginHighlight($rawOrigin, $currentToken);
+            array_unshift($path, $rawOrigin);
         }
 
         return $path;
@@ -111,8 +136,6 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
      *
      * @param array{text: string, operation: string|null, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, highlightedHtml: string|null}|array $originEntry
      * @param array{token: string, startOffset: int, endOffset: int}|array $childToken
-     *
-     * @return void
      */
     protected function addOriginHighlight(array &$originEntry, array $childToken): void
     {
@@ -135,8 +158,6 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
      * @param string $text
      * @param int $startCodeUnit
      * @param int $endCodeUnit
-     *
-     * @return string
      */
     protected function sliceCodeUnits(string $text, int $startCodeUnit, int $endCodeUnit): string
     {
@@ -151,12 +172,14 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
 
     /**
      * A freshly unshifted/seeded path entry — nothing has produced it FROM an earlier stage yet, so
-     * every "how did we get here" field starts null/false, to potentially be filled in one loop
-     * iteration later. `highlightedHtml` starts null too: it is only ever filled in by
-     * {@see addOriginHighlight()}, called exactly once, on the walk's LAST iteration — the one that
-     * confirms this entry is the true, final origin (index 0) and won't be shifted deeper by a further
-     * iteration. A path that `break`s early (an earlier stage's containing token wasn't found) never
-     * reaches that call, so its first entry correctly stays unhighlighted.
+     * every "how did we get here" field starts null/false, to potentially be filled in later (either by
+     * the loop's next iteration, or — for stages[0]'s own entry and the true raw-input entry prepended
+     * ahead of it — by the code directly after the loop in {@see resolve()}). `highlightedHtml` starts
+     * null too: it is only ever filled in by {@see addOriginHighlight()}, called once for the entry that
+     * traces stages[0]'s token within its OWN parent's text (inside the loop, when `$stageIndex === 1`),
+     * and once more for the true raw-input entry tracing stages[0]'s token within `$text` (after the
+     * loop). A path that `break`s early (an earlier stage's containing token wasn't found) never reaches
+     * either call, so its first entry correctly stays unhighlighted.
      *
      * @param string $text
      *
@@ -210,9 +233,21 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
      * of nowhere at the final one, attributing the transformation to the wrong filter entirely. Confirmed
      * live against a real product description matching the synonym pair "switch, button".
      *
-     * Falls back to the tightest-span match when no exact-text candidate exists — still correct for
-     * genuine transformations (lowercasing, edge-ngram truncation, decompounding) where the child's text
-     * legitimately differs from its parent's.
+     * When no exact-text candidate exists either, prefers a candidate whose text the child is a genuine
+     * PREFIX of over the plain tightest-span tie-break — this is the edge-ngram case: an ngram filter's
+     * generated tokens all carry their ORIGINAL (pre-truncation) token's offsets, so a truncated child
+     * (e.g. "handcar", 7 of "handcart"'s 8 characters) has the exact same span as every one of its
+     * same-offset synonym siblings (e.g. "trolley", also span 7 — spans reflect the ORIGINAL query
+     * text's word length, not either candidate's own text length). Without this tier, the tightest-span
+     * fallback ties and arbitrarily keeps whichever sibling the synonym filter emitted first — reproduced
+     * live against the real synonym pair "trolley, handcart": walking back from ngram-truncated
+     * "handcar" landed on "trolley" at every earlier stage, making the path show the synonym swap
+     * happening at the ngram filter instead of at the actual `fulltext_synonyms` stage, and losing the
+     * final two characters of the real synonym term in the process.
+     *
+     * Falls back to the plain tightest-span match when neither an exact nor a prefix candidate exists —
+     * still correct for genuine transformations (lowercasing, decompounding) where the child's text
+     * legitimately differs from its parent's without one containing the other.
      *
      * @param array<array{token: string, startOffset: int, endOffset: int}> $tokens
      * @param string $childText
@@ -225,9 +260,11 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
     {
         $bestMatch = null;
         $bestSpan = null;
+        $bestPrefixMatch = null;
+        $bestPrefixSpan = null;
 
         foreach ($tokens as $token) {
-            if ($token['startOffset'] > $childStartOffset || $token['endOffset'] < $childEndOffset) {
+            if (!$this->containsChildSpan($token, $childStartOffset, $childEndOffset)) {
                 continue;
             }
 
@@ -236,7 +273,17 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
             }
 
             $span = $token['endOffset'] - $token['startOffset'];
-            if ($bestSpan !== null && $span >= $bestSpan) {
+
+            if (str_starts_with($token['token'], $childText)) {
+                if ($this->isTighterSpan($bestPrefixSpan, $span)) {
+                    $bestPrefixMatch = $token;
+                    $bestPrefixSpan = $span;
+                }
+
+                continue;
+            }
+
+            if (!$this->isTighterSpan($bestSpan, $span)) {
                 continue;
             }
 
@@ -244,6 +291,36 @@ class AnalysisPathResolver implements AnalysisPathResolverInterface
             $bestSpan = $span;
         }
 
-        return $bestMatch;
+        return $bestPrefixMatch ?? $bestMatch;
+    }
+
+    /**
+     * Whether $token's own span fully covers [$childStartOffset, $childEndOffset) — the offset-containment
+     * precondition {@see findContainingToken()} requires of ANY candidate before text is even considered.
+     *
+     * @phpstan-param array{token: string, startOffset: int, endOffset: int} $token
+     *
+     * @param array{token: string, startOffset: int, endOffset: int}|array $token
+     * @param int $childStartOffset
+     * @param int $childEndOffset
+     */
+    protected function containsChildSpan(array $token, int $childStartOffset, int $childEndOffset): bool
+    {
+        return $token['startOffset'] <= $childStartOffset && $token['endOffset'] >= $childEndOffset;
+    }
+
+    /**
+     * Whether $candidateSpan should replace the best span tracked so far for one of
+     * {@see findContainingToken()}'s two candidate tiers (exact-prefix or plain tightest-span) — null
+     * means nothing has been tracked yet, so anything qualifies. Shared by both tiers: they differ only in
+     * WHICH candidates are eligible (prefix-of-child-text vs. everything else), not in how "tighter" is
+     * decided once a candidate reaches the comparison.
+     *
+     * @param int|null $currentBestSpan
+     * @param int $candidateSpan
+     */
+    protected function isTighterSpan(?int $currentBestSpan, int $candidateSpan): bool
+    {
+        return $currentBestSpan === null || $candidateSpan < $currentBestSpan;
     }
 }

@@ -226,8 +226,6 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      * silently retype anything.
      *
      * @param array<int, string> $elements
-     *
-     * @return void
      */
     protected function warmTokenOffsetsCache(array $elements): void
     {
@@ -314,8 +312,6 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      * @param array<string, array<int, string>> $attributeLabelByValue
      * @param string $element
      * @param array<int, array{token: string, startOffset: int, endOffset: int}> $matches
-     *
-     * @return void
      */
     protected function addOtherRow(
         array &$otherRows,
@@ -358,8 +354,6 @@ class TokenSourceResolver implements TokenSourceResolverInterface
      * @param array<int, string> $sourceKeys
      * @param string $element
      * @param array<int, array{token: string, startOffset: int, endOffset: int}> $matches
-     *
-     * @return void
      */
     protected function registerNamedSourceElement(
         array &$matchedRowsByGroupKey,

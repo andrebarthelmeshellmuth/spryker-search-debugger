@@ -10,6 +10,7 @@ declare(strict_types = 1);
 namespace SprykerCommunityTest\Client\SearchDebug\Query;
 
 use Codeception\Test\Unit;
+use Elastica\Exception\InvalidException;
 use Elastica\Query;
 use Elastica\Query\BoolQuery;
 use Elastica\Query\MatchAll;
@@ -36,8 +37,6 @@ class QueryFieldBoostReaderTest extends Unit
      * survives across test methods within the same process. Every test method below therefore calls
      * `captureFromQuery()` itself before asserting on `getFieldBoosts()`, so no method depends on
      * execution order or on a previous method's leftover state.
-     *
-     * @return void
      */
     public function testCaptureFromQueryReturnsTheRealFieldBoostPairsForATwoFieldMultiMatchQuery(): void
     {
@@ -55,8 +54,6 @@ class QueryFieldBoostReaderTest extends Unit
 
     /**
      * A field without a `^boost` suffix uses Elasticsearch's implicit boost of 1.
-     *
-     * @return void
      */
     public function testCaptureFromQueryDefaultsAFieldWithNoCaretToBoostOne(): void
     {
@@ -75,8 +72,6 @@ class QueryFieldBoostReaderTest extends Unit
     /**
      * An empty search string produces a `MatchAll` top-level query — no `BoolQuery`, no `MultiMatch` — a
      * shape this reader must degrade to an empty array for rather than throw.
-     *
-     * @return void
      */
     public function testCaptureFromQueryReturnsAnEmptyArrayForAMatchAllQuery(): void
     {
@@ -96,8 +91,6 @@ class QueryFieldBoostReaderTest extends Unit
     /**
      * A `BoolQuery` with a "must" clause that is something other than a `MultiMatch` (e.g. a plain `Term`
      * query) must also degrade to an empty array rather than throw.
-     *
-     * @return void
      */
     public function testCaptureFromQueryReturnsAnEmptyArrayWhenTheMustClauseIsNotAMultiMatch(): void
     {
@@ -119,8 +112,6 @@ class QueryFieldBoostReaderTest extends Unit
      * A query object that is not an `Elastica\Query` at all (some other project's `QueryInterface`
      * implementation) must also degrade to an empty array — `QueryInterface::getSearchQuery()` is typed
      * `mixed`, so this reader cannot assume its shape.
-     *
-     * @return void
      */
     public function testCaptureFromQueryReturnsAnEmptyArrayWhenTheSearchQueryIsNotAnElasticaQuery(): void
     {
@@ -142,8 +133,6 @@ class QueryFieldBoostReaderTest extends Unit
      * underlying storage is a static property shared with other test methods (see this class's own
      * docblock above): capturing an empty result and reading it back is behaviorally identical to reading
      * it before any capture happened at all, and does not depend on test execution order.
-     *
-     * @return void
      */
     public function testGetFieldBoostsReturnsAnEmptyArrayWhenNothingUsefulHasBeenCapturedYet(): void
     {
@@ -160,9 +149,28 @@ class QueryFieldBoostReaderTest extends Unit
     }
 
     /**
+     * Fail-soft path: a `QueryInterface` implementation whose `getSearchQuery()` itself throws (e.g. a
+     * plugin building its Elastica query lazily on first access) must not bubble the exception up through
+     * `captureFromQuery()` — the SRP overlay's own score badges must still render even if the field-boost
+     * capture, a purely informational side channel, fails.
+     */
+    public function testCaptureFromQueryReturnsAnEmptyArrayAndResetsFieldBoostsWhenGetSearchQueryThrows(): void
+    {
+        // Arrange
+        $reader = new QueryFieldBoostReader();
+        $reader->captureFromQuery($this->createSearchQuery($this->createMultiMatchQuery(['full-text'])));
+        $searchQuery = $this->createThrowingSearchQuery();
+
+        // Act
+        $result = $reader->captureFromQuery($searchQuery);
+
+        // Assert — a prior successful capture's value must not leak through a later failed one.
+        $this->assertSame([], $result);
+        $this->assertSame([], $reader->getFieldBoosts());
+    }
+
+    /**
      * @param array<string> $fields
-     *
-     * @return \Elastica\Query
      */
     protected function createMultiMatchQuery(array $fields): Query
     {
@@ -172,29 +180,33 @@ class QueryFieldBoostReaderTest extends Unit
         return (new Query())->setQuery($boolQuery);
     }
 
+    protected function createThrowingSearchQuery(): QueryInterface
+    {
+        return new class implements QueryInterface {
+            /**
+             * @throws \Elastica\Exception\InvalidException
+             *
+             * @return mixed
+             */
+            public function getSearchQuery()
+            {
+                throw new InvalidException('search query could not be built');
+            }
+        };
+    }
+
     /**
      * A minimal, inline `QueryInterface` implementation, mirroring the pattern
      * `SprykerCommunityTest\Client\SearchDebug\Plugin\Fixtures\BaseQueryPlugin` uses, but parameterized so
      * each test can drive `captureFromQuery()` with a different query shape.
      *
      * @param mixed $query
-     *
-     * @return \Spryker\Client\SearchExtension\Dependency\Plugin\QueryInterface
      */
     protected function createSearchQuery($query): QueryInterface
     {
         return new class ($query) implements QueryInterface {
-            /**
-             * @var mixed
-             */
-            protected $query;
-
-            /**
-             * @param mixed $query
-             */
-            public function __construct($query)
+            public function __construct(protected mixed $query)
             {
-                $this->query = $query;
             }
 
             /**

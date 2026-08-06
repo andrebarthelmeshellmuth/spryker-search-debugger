@@ -36,8 +36,6 @@ class SearchDebugAccessChecker implements SearchDebugAccessCheckerInterface
      * {@inheritDoc}
      *
      * @param array<string, mixed> $requestParameters
-     *
-     * @return bool
      */
     public function isSearchDebugEnabled(array $requestParameters): bool
     {

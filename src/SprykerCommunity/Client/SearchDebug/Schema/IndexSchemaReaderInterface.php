@@ -14,9 +14,6 @@ use Generated\Shared\Transfer\SearchIndexSchemaTransfer;
 
 interface IndexSchemaReaderInterface
 {
-    /**
-     * @return \Generated\Shared\Transfer\SearchIndexSchemaTransfer
-     */
     public function getPageIndexSchema(): SearchIndexSchemaTransfer;
 
     /**

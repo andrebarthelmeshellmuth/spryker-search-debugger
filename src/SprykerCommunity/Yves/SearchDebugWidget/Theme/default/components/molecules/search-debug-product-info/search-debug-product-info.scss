@@ -126,6 +126,15 @@ $search-debug-trigger-color: $search-debug-feature-accent-color;
     &__final-score {
         margin-top: 0;
     }
+
+    // A plain (non-collapsible) group heading — e.g. "Text signals" — sitting above a mix of one
+    // collapsible `<details>` and a few always-visible lines it doesn't make sense to hide all of behind
+    // a single toggle. `display: block` because `<strong>` is inline by default, which would otherwise
+    // let the details/lines below it render flush against the same line instead of their own.
+    &__section-title {
+        display: block;
+        margin-bottom: rem(4);
+    }
 }
 
 // One metric row (e.g. "pdp_impressions: 0.79 × 0.30 = 0.24"): label left, calculation+value right —

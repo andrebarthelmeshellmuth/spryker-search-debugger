@@ -55,8 +55,6 @@ class ComponentConfigController extends AbstractController
      * @throws \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException
      * @throws \Symfony\Component\HttpKernel\Exception\BadRequestHttpException
      * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
-     *
-     * @return \Spryker\Yves\Kernel\View\View
      */
     public function indexAction(Request $request): View
     {

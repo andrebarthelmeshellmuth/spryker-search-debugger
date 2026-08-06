@@ -29,8 +29,6 @@ class CategoryAncestorNameCollectorTest extends Unit
 {
     /**
      * A real 3-level chain (node -> parent -> grandparent), root's `getParents()` correctly empty.
-     *
-     * @return void
      */
     public function testCollectWalksTheFullAncestorChain(): void
     {
@@ -46,9 +44,6 @@ class CategoryAncestorNameCollectorTest extends Unit
         $this->assertSame(['Electrical', 'All Products'], $names);
     }
 
-    /**
-     * @return void
-     */
     public function testCollectReturnsEmptyArrayForNoDirectNodes(): void
     {
         // Act
@@ -60,8 +55,6 @@ class CategoryAncestorNameCollectorTest extends Unit
 
     /**
      * Two direct nodes sharing a common ancestor must not list that ancestor's name twice.
-     *
-     * @return void
      */
     public function testCollectDeduplicatesASharedAncestorAcrossMultipleDirectNodes(): void
     {
@@ -80,8 +73,6 @@ class CategoryAncestorNameCollectorTest extends Unit
     /**
      * A cycle (nothing enforces a category tree can't have one at the storage layer) must not infinite
      * loop — the visited-set stops recursion the second time an already-seen node id is reached.
-     *
-     * @return void
      */
     public function testCollectStopsAtACycleInsteadOfLoopingForever(): void
     {
@@ -104,8 +95,6 @@ class CategoryAncestorNameCollectorTest extends Unit
      * The hard depth cap terminates a hypothetical chain of nodes WITHOUT ids, which the visited-set
      * cannot register — built here as a long chain of real, uniquely-id'd nodes (so the cycle guard never
      * fires) purely to prove the depth cap is the thing that stops it, at a real, finite depth.
-     *
-     * @return void
      */
     public function testCollectStopsAtTheMaxDepthEvenWithoutACycle(): void
     {

@@ -25,9 +25,6 @@ use SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatter;
  */
 class ComponentDefinitionFormatterTest extends Unit
 {
-    /**
-     * @return void
-     */
     public function testFormatReturnsNullWhenTheComponentIsNull(): void
     {
         // Act
@@ -37,9 +34,6 @@ class ComponentDefinitionFormatterTest extends Unit
         $this->assertNull($definition);
     }
 
-    /**
-     * @return void
-     */
     public function testFormatReturnsJustTheTypeWhenThereIsNoFurtherConfig(): void
     {
         // Arrange
@@ -57,8 +51,6 @@ class ComponentDefinitionFormatterTest extends Unit
 
     /**
      * The real `page.json` shape for this shop's one custom filter.
-     *
-     * @return void
      */
     public function testFormatIncludesScalarConfigParametersInOrder(): void
     {
@@ -82,8 +74,6 @@ class ComponentDefinitionFormatterTest extends Unit
      * PHP casts `true`/`false` to `"1"`/`""` on a naive `(string)` cast — the empty string would read as
      * a missing value, not `false`, so this must be spelled out explicitly. `word_delimiter` is a common
      * real-world filter with exactly this shape (`generate_word_parts`, `split_on_numerics`, ...).
-     *
-     * @return void
      */
     public function testFormatSpellsOutBooleanConfigValues(): void
     {
@@ -106,8 +96,6 @@ class ComponentDefinitionFormatterTest extends Unit
     /**
      * A short list (at or under the preview limit) is shown in full — not truncated, so no link to a
      * full-list page is warranted.
-     *
-     * @return void
      */
     public function testFormatShowsAShortListInFullAndReportsNoTruncation(): void
     {
@@ -129,8 +117,6 @@ class ComponentDefinitionFormatterTest extends Unit
      * quirk) — the empty string would then read as a missing/blank item, not `false`. Each list item goes
      * through the same shared formatter {@see testFormatSpellsOutBooleanConfigValues()} covers for a
      * top-level config value, so this must hold for list items too.
-     *
-     * @return void
      */
     public function testFormatShowsAShortListInFullAndSpellsOutBooleansWithinIt(): void
     {
@@ -151,8 +137,6 @@ class ComponentDefinitionFormatterTest extends Unit
      * A real `synonym`/`stop` word list can run into the hundreds — dumping it verbatim would turn one
      * debug line into an unreadable blob, so only a preview is shown, with the total count appended, and
      * `truncated` reports true so a caller can offer a link to the full, untruncated list.
-     *
-     * @return void
      */
     public function testFormatTruncatesALongListAppendsTheTotalCountAndReportsTruncation(): void
     {
@@ -175,8 +159,6 @@ class ComponentDefinitionFormatterTest extends Unit
     /**
      * An empty list still reports itself as an (intentionally) empty list, not silently vanishing, and
      * is obviously not truncated.
-     *
-     * @return void
      */
     public function testFormatShowsAnEmptyListExplicitly(): void
     {
@@ -198,8 +180,6 @@ class ComponentDefinitionFormatterTest extends Unit
      * formatted line still gets one final hard character limit — covers a single long scalar (e.g. a
      * long regex `pattern`) that the list-specific truncation above never sees. Still reports
      * `truncated` so a caller can offer a link to the untruncated value.
-     *
-     * @return void
      */
     public function testFormatTruncatesAnOverallLongDefinitionWithAnEllipsisAndReportsTruncation(): void
     {

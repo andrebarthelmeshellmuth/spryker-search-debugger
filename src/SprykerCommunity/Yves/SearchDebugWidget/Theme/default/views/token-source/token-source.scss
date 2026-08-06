@@ -18,7 +18,6 @@ $token-source-field-label-color: $setting-color-darker;
 
 .token-source-tier {
     margin-top: rem(24);
-    overflow: hidden;
     border: 1px solid $setting-color-light;
     border-radius: rem(12);
 }
@@ -26,6 +25,10 @@ $token-source-field-label-color: $setting-color-darker;
 .token-source-tier__heading {
     margin: 0;
     padding: rem(10) rem(16);
+    // Rounds to match the container's own rem(12) corner (minus the container's 1px border) — the
+    // container used to get this via `overflow: hidden`, but that also clipped the hint tooltip below,
+    // which needs to pop outside the card's bounds.
+    border-radius: rem(11) rem(11) 0 0;
     background-color: $token-source-tier-accent;
     color: $setting-color-white;
     font-family: monospace;
@@ -74,7 +77,14 @@ $token-source-field-label-color: $setting-color-darker;
 // Deliberately a visible glyph rather than a bare `title` — an invisible tooltip is only ever found
 // by someone who already knew to look, which is precisely not the person who needs this explanation.
 // `tabindex` keeps it reachable without a mouse, since the explanation is the entire point.
+//
+// The explanation text itself is built as a real `::after` element off `data-tooltip` (shown on
+// `:hover`/`:focus`) rather than relying on the bare `title` attribute alone — `title`'s built-in
+// tooltip has a browser-controlled hover delay, never fires on click/tap, and gives no visible cue
+// that the glyph is hoverable at all until it does. `:focus` covers both keyboard and click, since
+// clicking a `tabindex="0"` element focuses it.
 .token-source-field__hint {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -91,6 +101,37 @@ $token-source-field-label-color: $setting-color-darker;
     &:hover,
     &:focus {
         opacity: 1;
+    }
+
+    &::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: calc(100% + #{rem(8)});
+        left: 50%;
+        z-index: 1;
+        width: max-content;
+        max-width: rem(260);
+        padding: rem(8) rem(10);
+        border-radius: rem(6);
+        background-color: $setting-color-darkest;
+        color: $setting-color-white;
+        font-family: sans-serif;
+        font-size: rem(11);
+        font-weight: normal;
+        line-height: 1.4;
+        text-align: left;
+        white-space: normal;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateX(-50%);
+        transition: opacity 0.15s ease;
+        pointer-events: none;
+    }
+
+    &:hover::after,
+    &:focus::after {
+        opacity: 1;
+        visibility: visible;
     }
 }
 

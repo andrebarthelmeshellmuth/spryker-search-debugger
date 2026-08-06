@@ -19,9 +19,6 @@ use Spryker\Client\SearchExtension\Dependency\Plugin\QueryInterface;
  */
 class BaseQueryPlugin implements QueryInterface
 {
-    /**
-     * @var \Elastica\Query
-     */
     protected Query $query;
 
     public function __construct()
@@ -29,9 +26,6 @@ class BaseQueryPlugin implements QueryInterface
         $this->query = (new Query())->setQuery(new BoolQuery());
     }
 
-    /**
-     * @return \Elastica\Query
-     */
     public function getSearchQuery(): Query
     {
         return $this->query;
