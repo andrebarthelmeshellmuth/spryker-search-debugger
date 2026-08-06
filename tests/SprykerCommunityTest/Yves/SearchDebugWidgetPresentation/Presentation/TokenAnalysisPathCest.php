@@ -36,8 +36,6 @@ class TokenAnalysisPathCest
 {
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function _before(SearchDebugWidgetPresentationTester $i): void
     {
@@ -47,8 +45,6 @@ class TokenAnalysisPathCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function searchTimeAnalysisPathForAQueryToken(SearchDebugWidgetPresentationTester $i): void
     {
@@ -66,8 +62,6 @@ class TokenAnalysisPathCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function multiTokenQueryGetsDistinctConsistentColors(SearchDebugWidgetPresentationTester $i): void
     {
@@ -88,8 +82,6 @@ class TokenAnalysisPathCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function synonymInjectionShowsAsAColorChange(SearchDebugWidgetPresentationTester $i): void
     {
@@ -119,8 +111,6 @@ class TokenAnalysisPathCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function anyMatchStillTracesAsOneStraightLine(SearchDebugWidgetPresentationTester $i): void
     {
@@ -137,8 +127,6 @@ class TokenAnalysisPathCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function builtInFiltersShowNoInventedDefinition(SearchDebugWidgetPresentationTester $i): void
     {

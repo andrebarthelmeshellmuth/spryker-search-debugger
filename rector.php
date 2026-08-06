@@ -57,8 +57,6 @@ return RectorConfig::configure()
     ])
     // Picks up the PHP floor (>=8.3) from composer.json.
     ->withPhpSets()
-    // Gradual levels (0 = safest rules only). Raising in batches; stop at the first hit that
-    // conflicts with established Spryker style rather than applying it automatically.
-    ->withDeadCodeLevel(76)
-    ->withCodeQualityLevel(76)
+    ->withDeadCodeLevel(69)
+    ->withCodeQualityLevel(75)
     ->withoutParallel();

@@ -30,8 +30,6 @@ class TokenSourcePageCest
 {
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function _before(SearchDebugWidgetPresentationTester $i): void
     {
@@ -61,8 +59,6 @@ class TokenSourcePageCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function tierHeadingsShowRealBoostValues(SearchDebugWidgetPresentationTester $i): void
     {
@@ -74,8 +70,6 @@ class TokenSourcePageCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function fieldAttributionNamesRealProductFields(SearchDebugWidgetPresentationTester $i): void
     {
@@ -85,8 +79,6 @@ class TokenSourcePageCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function unclaimedValueMayGetTheHint(SearchDebugWidgetPresentationTester $i): void
     {
@@ -106,8 +98,6 @@ class TokenSourcePageCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function onlyTheTiersActuallySearchedAppear(SearchDebugWidgetPresentationTester $i): void
     {

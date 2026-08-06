@@ -59,8 +59,6 @@ class SearchDebugWidgetPresentationTester extends Actor
 
     /**
      * @param string $email
-     *
-     * @return void
      */
     public function loginAsCustomer(string $email): void
     {
@@ -73,8 +71,6 @@ class SearchDebugWidgetPresentationTester extends Actor
 
     /**
      * @param string $selector
-     *
-     * @return bool
      */
     public function tryToSeeElement(string $selector): bool
     {
@@ -82,7 +78,7 @@ class SearchDebugWidgetPresentationTester extends Actor
             $this->seeElement($selector);
 
             return true;
-        } catch (Exception $exception) {
+        } catch (Exception) {
             return false;
         }
     }
@@ -92,8 +88,6 @@ class SearchDebugWidgetPresentationTester extends Actor
      * nested, collapsed-by-default <details> ("Text signals" > "Matched tokens") - both have to be
      * clicked open before any of that content is visible/interactable. Call this right after opening
      * the score popup (clicking .search-debug-trigger).
-     *
-     * @return void
      */
     public function expandMatchedTokens(): void
     {

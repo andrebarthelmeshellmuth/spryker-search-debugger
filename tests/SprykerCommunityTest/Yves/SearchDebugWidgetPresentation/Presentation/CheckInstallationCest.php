@@ -29,8 +29,6 @@ class CheckInstallationCest
 {
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function _before(SearchDebugWidgetPresentationTester $i): void
     {
@@ -39,8 +37,6 @@ class CheckInstallationCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function loggedOutVisitorSeesPermissionDenied(SearchDebugWidgetPresentationTester $i): void
     {
@@ -51,8 +47,6 @@ class CheckInstallationCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return void
      */
     public function permittedCustomerSeesTheRealChecklist(SearchDebugWidgetPresentationTester $i): void
     {
