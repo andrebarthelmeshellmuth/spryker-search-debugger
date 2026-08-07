@@ -384,8 +384,12 @@
                             } only %}
                         </span>
                     </summary>
+                    {# `line.stacked` opts a line into the label-above-value layout (search-debug-score-line--stacked,
+                       see its own SCSS comment) — used by ScoreSectionBuilder::buildSpecificitySection()
+                       for its two longest formulas, which the default side-by-side layout can't fit
+                       without squeezing the label or overflowing the popup. #}
                     {% for line in section.lines ?? [] %}
-                        <div class="search-debug-score-line">
+                        <div class="search-debug-score-line{% if line.stacked ?? false %} search-debug-score-line--stacked{% endif %}">
                             <span class="search-debug-score-line__label">{{ line.label }}:</span>
                             <span class="search-debug-score-line__value">{% if line.calculation is defined and line.calculation %}{{ line.calculation }} = {% endif %}{{ line.value | number_format(scoreDecimalPlaces) }}</span>
                         </div>

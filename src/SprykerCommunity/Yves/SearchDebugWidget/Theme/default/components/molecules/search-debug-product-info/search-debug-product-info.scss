@@ -151,6 +151,23 @@ $search-debug-trigger-color: $search-debug-feature-accent-color;
     align-items: baseline;
     justify-content: space-between;
     gap: rem(8);
+
+    // For a line whose calculation is long enough to wrap onto a second line (search-ranking's own
+    // specificity-weighting formulas) — the default side-by-side layout above breaks badly once that
+    // happens: `justify-content: space-between` plus the value's own `flex-shrink: 0` (see
+    // `.search-debug-score-line__value` below) squeezes the LABEL down to near-zero width instead
+    // (visible as the label vanishing or ellipsis-truncating even though it's short, e.g. "Signed
+    // deviation" clipping to "Signed d..."), and the popup's fixed size then clips whatever no longer
+    // fits. Stacking the label above the value instead sidesteps both: the label always gets its full
+    // natural width, and the value is free to wrap normally underneath it.
+    &--stacked {
+        flex-direction: column;
+        align-items: flex-start;
+
+        .search-debug-score-line__value {
+            white-space: normal;
+        }
+    }
 }
 
 // A long metric name is truncated with an ellipsis rather than pushing the calculation into a wrap.
