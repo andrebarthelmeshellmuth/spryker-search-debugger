@@ -342,19 +342,46 @@ In your product-grid template (e.g. `page-layout-catalog.twig`), render the per-
 the product loop — `fieldBoosts` is the query's real, live field=>boost pairs (captured by
 `QueryFieldBoostReader`, e.g. `{'full-text': 1, 'full-text-boosted': 5}`), forwarded through the
 per-token link so the token-source page shows however many fields your query actually searched, at their
-real boost values, with no hardcoded field count or boost assumption:
+real boost values, with no hardcoded field count or boost assumption.
+
+**The include must share a positioning wrapper with the product widget, not sit next to it as a plain
+sibling.** `CatalogPageProductWidget`'s own template renders its product card inside a `<div class="col
+col--sm-12 col--md-6 col--xl-4">` (or `col col--sm-12` in list view) — that div IS the SRP grid's actual
+grid item. `search-debug-product-info.scss`'s `.search-debug-product-wrapper` class expects to both
+replace that div as the grid item AND act as the `position: relative` anchor the overlay's `position:
+absolute` resolves against. Add the overlay as a bare sibling after `{% endwidget %}` (the shape a first
+read of this section suggests) and the grid breaks visibly: the score badge/overlay becomes its own
+stray grid cell instead of anchoring to the product it describes, and the product cards around it
+misalign. Wrap both the widget call and the include together, and only for products that actually have
+debug data — a product with none should render through the widget exactly as it would without this
+package installed, with no extra wrapper div at all:
 
 ```twig
 {% set productSearchDebugInfo = (data.searchDebugProducts | default([]))[product.id_product_abstract] | default([]) %}
 {% if productSearchDebugInfo is not empty %}
-    {% include molecule('search-debug-product-info', 'SearchDebugWidget') with {
-        data: {
-            debugInfo: productSearchDebugInfo,
-            tokenColors: data.searchDebugTokenColors | default([]),
-            productAbstractSku: product.abstract_sku,
-            fieldBoosts: data.searchDebugFieldBoosts | default([]),
-        }
-    } only %}
+    <div class="search-debug-product-wrapper {{ data.viewMode == 'list' ? 'col col--sm-12' : 'col col--sm-12 col--md-6 col--xl-4' }}">
+        {% widget 'CatalogPageProductWidget' args [
+            product,
+            data.viewMode,
+            data.products,
+        ] only %}
+        {% endwidget %}
+        {% include molecule('search-debug-product-info', 'SearchDebugWidget') with {
+            data: {
+                debugInfo: productSearchDebugInfo,
+                tokenColors: data.searchDebugTokenColors | default([]),
+                productAbstractSku: product.abstract_sku,
+                fieldBoosts: data.searchDebugFieldBoosts | default([]),
+            }
+        } only %}
+    </div>
+{% else %}
+    {% widget 'CatalogPageProductWidget' args [
+        product,
+        data.viewMode,
+        data.products,
+    ] only %}
+    {% endwidget %}
 {% endif %}
 ```
 
