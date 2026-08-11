@@ -404,6 +404,7 @@ class CheckInstallationControllerTest extends Unit
             /**
              * @phpcsSuppress SlevomatCodingStandard.Functions.UnusedParameter
              *
+             * @param string $id
              * @param mixed $service
              */
             public function set(string $id, $service): void
@@ -413,6 +414,7 @@ class CheckInstallationControllerTest extends Unit
             /**
              * @phpcsSuppress SlevomatCodingStandard.Functions.UnusedParameter
              *
+             * @param string $id
              * @param mixed $service
              */
             public function setGlobal(string $id, $service): void
@@ -422,6 +424,7 @@ class CheckInstallationControllerTest extends Unit
             /**
              * @phpcsSuppress SlevomatCodingStandard.Functions.UnusedParameter
              *
+             * @param string $id
              * @param array<string, mixed> $configuration
              */
             public function configure(string $id, array $configuration): void
@@ -435,6 +438,7 @@ class CheckInstallationControllerTest extends Unit
              *
              * @phpcsSuppress SlevomatCodingStandard.Functions.UnusedParameter
              *
+             * @param string $id
              * @param mixed $service
              */
             public function extend(string $id, $service): Closure
@@ -444,6 +448,8 @@ class CheckInstallationControllerTest extends Unit
 
             /**
              * @phpcsSuppress SlevomatCodingStandard.Functions.UnusedParameter
+             *
+             * @param string $id
              */
             public function remove(string $id): void
             {

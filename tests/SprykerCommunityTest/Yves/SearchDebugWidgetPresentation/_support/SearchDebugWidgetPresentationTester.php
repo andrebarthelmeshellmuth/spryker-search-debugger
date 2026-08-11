@@ -84,6 +84,20 @@ class SearchDebugWidgetPresentationTester extends Actor
     }
 
     /**
+     * @param string $text
+     */
+    public function tryToSee(string $text): bool
+    {
+        try {
+            $this->see($text);
+
+            return true;
+        } catch (Exception) {
+            return false;
+        }
+    }
+
+    /**
      * The matched-token breakdown, its BM25 detail, and the token-source link all live inside two
      * nested, collapsed-by-default <details> ("Text signals" > "Matched tokens") - both have to be
      * clicked open before any of that content is visible/interactable. Call this right after opening
