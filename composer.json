@@ -61,7 +61,9 @@
     },
     "autoload": {
         "psr-4": {
-            "SprykerCommunity\\": "src/SprykerCommunity/"
+            "SprykerCommunity\\": "src/SprykerCommunity/",
+            "SprykerCommunityTest\\Client\\SearchDebug\\Fixture\\": "tests/SprykerCommunityTest/Client/SearchDebug/Fixture/",
+            "SprykerCommunityTest\\Client\\SearchDebug\\Plugin\\Fixtures\\": "tests/SprykerCommunityTest/Client/SearchDebug/Plugin/Fixtures/"
         }
     },
     "autoload-dev": {
