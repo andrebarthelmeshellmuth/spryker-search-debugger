@@ -26,6 +26,14 @@ return RectorConfig::configure()
         __DIR__ . '/tests/*/_support/_generated/*',
         __DIR__ . '/tests/*/_output',
         __DIR__ . '/tests/*/_data',
+        // Freshly generated each CI run for the standalone portable-tests job, gitignored, never
+        // committed — same reason src/Generated/ is never touched in a real Spryker project either.
+        __DIR__ . '/src/Generated',
+        __DIR__ . '/src/Generated/*',
+        // Checked-in, verbatim Spryker CORE generated fixture (see its own docblock) — must stay
+        // byte-identical to core's own generator output, never rector'd.
+        __DIR__ . '/tests/_ci-standalone/Generated',
+        __DIR__ . '/tests/_ci-standalone/Generated/*',
         // Typed class constants (PHP 8.3) aren't understood by the installed phpcs 3.7.1
         // (Generic.NamingConventions.UpperCaseConstantName misreads the type as the constant name).
         AddTypeToConstRector::class,

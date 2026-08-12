@@ -33,6 +33,7 @@
     },
     "require-dev": {
         "codeception/codeception": "^5.0.0",
+        "codeception/module-asserts": "^3.0.0",
         "dealerdirect/phpcodesniffer-composer-installer": "^1.0.0",
         "phpmd/phpmd": "^2.15.0",
         "phpstan/phpstan": "^2.0.0",
@@ -68,7 +69,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "SprykerCommunityTest\\": "tests/SprykerCommunityTest/"
+            "SprykerCommunityTest\\": "tests/SprykerCommunityTest/",
+            "Generated\\": ["src/Generated/", "tests/_ci-standalone/Generated/"]
         }
     },
     "config": {

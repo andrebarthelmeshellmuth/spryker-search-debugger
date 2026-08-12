@@ -1,0 +1,14 @@
+namespace: SprykerCommunityTest
+paths:
+    tests: SprykerCommunityTest
+    output: _ci-standalone/_output
+    data: _ci-standalone/_data
+    support: _ci-standalone/_support
+bootstrap: ../_ci-standalone/bootstrap.php
+suites:
+    Portable:
+        path: .
+        shuffle: false
+        modules:
+            enabled:
+                - Asserts
