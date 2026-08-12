@@ -46,6 +46,7 @@ use SprykerCommunity\Client\SearchDebug\SearchDebugFactory;
  * @group SearchDebug
  * @group SearchDebugFactoryTest
  * Add your own group annotations below this line
+ * @group NeedsSearch
  */
 class SearchDebugFactoryTest extends Unit
 {

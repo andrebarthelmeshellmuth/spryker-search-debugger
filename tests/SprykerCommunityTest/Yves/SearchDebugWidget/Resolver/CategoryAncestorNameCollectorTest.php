@@ -24,6 +24,7 @@ use SprykerCommunity\Yves\SearchDebugWidget\Resolver\CategoryAncestorNameCollect
  * Add your own group annotations below this line
  *
  * @property \SprykerCommunityTest\Yves\SearchDebugWidget\SearchDebugWidgetTester $tester
+ * @group Portable
  */
 class CategoryAncestorNameCollectorTest extends Unit
 {

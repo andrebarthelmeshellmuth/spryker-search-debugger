@@ -30,6 +30,7 @@ use SprykerCommunityTest\Client\SearchDebug\Fixture\TestPageIndexTrait;
  * @group Analyzer
  * @group SearchStringAnalyzerTest
  * Add your own group annotations below this line
+ * @group NeedsSearch
  */
 class SearchStringAnalyzerTest extends Unit
 {

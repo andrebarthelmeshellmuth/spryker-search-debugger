@@ -32,6 +32,7 @@ use Twig\Loader\ArrayLoader;
  * @group Twig
  * @group SearchDebugTwigPluginTest
  * Add your own group annotations below this line
+ * @group Portable
  */
 class SearchDebugTwigPluginTest extends Unit
 {

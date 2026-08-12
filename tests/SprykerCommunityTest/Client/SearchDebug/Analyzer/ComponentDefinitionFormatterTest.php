@@ -22,6 +22,7 @@ use SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatter;
  * @group Analyzer
  * @group ComponentDefinitionFormatterTest
  * Add your own group annotations below this line
+ * @group Portable
  */
 class ComponentDefinitionFormatterTest extends Unit
 {

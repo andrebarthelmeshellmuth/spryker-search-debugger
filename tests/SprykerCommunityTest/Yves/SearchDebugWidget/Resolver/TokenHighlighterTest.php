@@ -23,6 +23,7 @@ use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighter;
  * Add your own group annotations below this line
  *
  * @property \SprykerCommunityTest\Yves\SearchDebugWidget\SearchDebugWidgetTester $tester
+ * @group Portable
  */
 class TokenHighlighterTest extends Unit
 {

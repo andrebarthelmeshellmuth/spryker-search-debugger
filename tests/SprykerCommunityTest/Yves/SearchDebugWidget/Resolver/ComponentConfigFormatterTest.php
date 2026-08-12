@@ -21,6 +21,7 @@ use SprykerCommunity\Yves\SearchDebugWidget\Resolver\ComponentConfigFormatter;
  * @group Resolver
  * @group ComponentConfigFormatterTest
  * Add your own group annotations below this line
+ * @group Portable
  */
 class ComponentConfigFormatterTest extends Unit
 {

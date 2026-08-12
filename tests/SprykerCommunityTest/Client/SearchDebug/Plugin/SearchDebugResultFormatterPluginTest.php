@@ -38,6 +38,7 @@ use SprykerCommunity\Shared\SearchDebug\SearchDebugConfig;
  * Add your own group annotations below this line
  *
  * @property \SprykerCommunityTest\Client\SearchDebug\SearchDebugClientTester $tester
+ * @group NeedsSearch
  */
 class SearchDebugResultFormatterPluginTest extends Unit
 {

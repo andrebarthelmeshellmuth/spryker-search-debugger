@@ -31,6 +31,7 @@ use SprykerCommunity\Shared\SearchDebug\SearchDebugConfig;
  * Add your own group annotations below this line
  *
  * @property \SprykerCommunityTest\Client\SearchDebug\SearchDebugClientTester $tester
+ * @group Portable
  */
 class SearchDebugAccessCheckerTest extends Unit
 {

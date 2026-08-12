@@ -22,6 +22,7 @@ use SprykerCommunity\Shared\SearchDebug\Plugin\SeeSearchDebugInfoPermissionPlugi
  * @group Plugin
  * @group SeeSearchDebugInfoPermissionPluginTest
  * Add your own group annotations below this line
+ * @group Portable
  */
 class SeeSearchDebugInfoPermissionPluginTest extends Unit
 {

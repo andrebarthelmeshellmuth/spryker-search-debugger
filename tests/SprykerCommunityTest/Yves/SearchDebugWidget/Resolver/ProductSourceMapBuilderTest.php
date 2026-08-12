@@ -35,6 +35,7 @@ use SprykerCommunity\Yves\SearchDebugWidget\Resolver\ProductSourceMapBuilder;
  * Add your own group annotations below this line
  *
  * @property \SprykerCommunityTest\Yves\SearchDebugWidget\SearchDebugWidgetTester $tester
+ * @group Portable
  */
 class ProductSourceMapBuilderTest extends Unit
 {

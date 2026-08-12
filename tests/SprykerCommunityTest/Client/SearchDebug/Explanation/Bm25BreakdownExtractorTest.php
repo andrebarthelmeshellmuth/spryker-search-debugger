@@ -23,6 +23,7 @@ use SprykerCommunity\Client\SearchDebug\Explanation\Bm25BreakdownExtractor;
  * Add your own group annotations below this line
  *
  * @property \SprykerCommunityTest\Client\SearchDebug\SearchDebugClientTester $tester
+ * @group Portable
  */
 class Bm25BreakdownExtractorTest extends Unit
 {

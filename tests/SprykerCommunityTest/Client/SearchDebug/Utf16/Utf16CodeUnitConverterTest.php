@@ -21,6 +21,7 @@ use SprykerCommunity\Shared\SearchDebug\Utf16\Utf16CodeUnitConverter;
  * @group Utf16
  * @group Utf16CodeUnitConverterTest
  * Add your own group annotations below this line
+ * @group Portable
  */
 class Utf16CodeUnitConverterTest extends Unit
 {

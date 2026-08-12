@@ -23,6 +23,7 @@ use SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaMapper;
  * Add your own group annotations below this line
  *
  * @property \SprykerCommunityTest\Client\SearchDebug\SearchDebugClientTester $tester
+ * @group Portable
  */
 class IndexSchemaMapperTest extends Unit
 {

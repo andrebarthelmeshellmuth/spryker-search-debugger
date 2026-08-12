@@ -34,6 +34,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  * @group Controller
  * @group ComponentConfigControllerTest
  * Add your own group annotations below this line
+ * @group Portable
  */
 class ComponentConfigControllerTest extends Unit
 {
