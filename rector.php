@@ -15,6 +15,7 @@ return RectorConfig::configure()
         __DIR__ . '/src',
         __DIR__ . '/tests',
         __DIR__ . '/tools',
+        __DIR__ . '/fixtures',
     ])
     ->withSkip([
         // The bare directory pattern alone doesn't reliably skip the FILES inside it -- fnmatch() needs
