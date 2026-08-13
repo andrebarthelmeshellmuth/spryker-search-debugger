@@ -758,6 +758,34 @@ that would let CI run them too is on the roadmap.
 > at a different shop and most of it will simply fail on missing data, not on a real defect. It exists to
 > catch UI regressions while developing this package, not as something adopters are expected to run.
 
+**Reproducing the fixture on a fresh clone of this demoshop.** `spencor.hopkin@acme.com`
+(`customer_reference` `DE--1`) is already a base-fixture member of the `test-company` company with no
+company-role assignment — that's the negative-test account (`UNPERMITTED_CUSTOMER_EMAIL`), nothing to
+add. The positive-test account (`PERMITTED_CUSTOMER_EMAIL`) is not a base fixture; the fastest way to
+add it is [`fixtures/apply.php`](fixtures/apply.php):
+
+```bash
+php fixtures/apply.php /path/to/b2b-demo-marketplace
+```
+
+It's idempotent (safe to re-run, safe alongside the sibling packages' own `apply.php`, since they all
+share the same underlying customer/company-user/role rows and each only adds its own permission row).
+It edits `data/import/common/common/customer.csv`, `company_user.csv`,
+`company_business_unit_user.csv`, `company_user_role.csv`, `company_role_permission.csv` (granting
+`SeeSearchDebugInfoPermissionPlugin`) and `glossary.csv` directly — re-import afterwards:
+
+```bash
+./docker/sdk console data:import customer
+./docker/sdk console data:import company-user
+./docker/sdk console data:import company-business-unit-user
+./docker/sdk console data:import company-user-role
+./docker/sdk console data:import company-role-permission
+./docker/sdk console data:import glossary
+```
+
+This is the CSV-fixture equivalent of step 9's Zed GUI grant above — either path works, but the
+Presentation suite needs the CSV path since it logs in as this exact account.
+
 `tests/SprykerCommunityTest/Yves/SearchDebugWidgetPresentation/` is a real WebDriver click-through suite
 covering every checklist item from the package's own manual QA pass: the SRP score overlay (badge, pin,
 matched-token/BM25 breakdown, business-signals section), the query-token analyzer, the token-source and
