@@ -75,6 +75,27 @@ jobs:
           coverage: none
       - run: composer check-floors
 
+  phpstan:
+    # Standalone CI variant (`composer phpstan-ci`, see phpstan.ci.neon) — generates just the Transfer
+    # classes this package needs (same generator the Portable suite below uses) and ignores the two
+    # categories of class that only exist inside a real host shop (Propel Orm\Zed\* models, the
+    # aggregated Ide\AutoCompletion stub). The full host-shop-aware `composer phpstan` check still runs
+    # from within a real project — see README, "Testing and CI".
+    name: phpstan (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - run: composer install --prefer-dist --no-interaction --no-progress
+      - run: composer phpstan-ci
+
   portable-tests:
     # Runs this package's own tests, standalone — no demoshop, no live database, no Elasticsearch.
     # `@group Portable` (tests/_ci-standalone/) is the subset that needs only `Generated\Shared\Transfer\*`,
