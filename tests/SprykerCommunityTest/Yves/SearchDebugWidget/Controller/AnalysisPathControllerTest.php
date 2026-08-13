@@ -40,6 +40,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  * @group Controller
  * @group AnalysisPathControllerTest
  * Add your own group annotations below this line
+ * @group Portable
  */
 class AnalysisPathControllerTest extends Unit
 {

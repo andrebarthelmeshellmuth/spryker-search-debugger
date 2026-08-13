@@ -23,6 +23,7 @@ use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighter;
  * @group Resolver
  * @group AnalysisPathResolverTest
  * Add your own group annotations below this line
+ * @group Portable
  */
 class AnalysisPathResolverTest extends Unit
 {

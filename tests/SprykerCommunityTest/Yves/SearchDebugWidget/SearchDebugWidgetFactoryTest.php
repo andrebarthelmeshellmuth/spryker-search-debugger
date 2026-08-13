@@ -37,6 +37,7 @@ use SprykerCommunity\Yves\SearchDebugWidget\SearchDebugWidgetFactory;
  * @group SearchDebugWidget
  * @group SearchDebugWidgetFactoryTest
  * Add your own group annotations below this line
+ * @group Portable
  */
 class SearchDebugWidgetFactoryTest extends Unit
 {

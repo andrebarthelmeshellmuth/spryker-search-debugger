@@ -25,6 +25,7 @@ use SprykerCommunity\Client\SearchDebug\Explanation\ExplanationParser;
  * Add your own group annotations below this line
  *
  * @property \SprykerCommunityTest\Client\SearchDebug\SearchDebugClientTester $tester
+ * @group Portable
  */
 class ExplanationParserTest extends Unit
 {

@@ -28,6 +28,7 @@ use SprykerCommunityTest\Client\SearchDebug\Fixture\TestPageIndexTrait;
  * @group Schema
  * @group IndexSchemaReaderTest
  * Add your own group annotations below this line
+ * @group NeedsSearch
  */
 class IndexSchemaReaderTest extends Unit
 {

@@ -38,6 +38,7 @@ use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceRow;
  * Add your own group annotations below this line
  *
  * @property \SprykerCommunityTest\Yves\SearchDebugWidget\SearchDebugWidgetTester $tester
+ * @group Portable
  */
 class TokenSourceResolverTest extends Unit
 {

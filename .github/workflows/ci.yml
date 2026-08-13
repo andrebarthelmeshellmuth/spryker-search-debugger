@@ -75,6 +75,33 @@ jobs:
           coverage: none
       - run: composer check-floors
 
+  portable-tests:
+    # Runs this package's own tests, standalone — no demoshop, no live database, no Elasticsearch.
+    # `@group Portable` (tests/_ci-standalone/) is the subset that needs only `Generated\Shared\Transfer\*`,
+    # generated here via a direct TransferBusinessFactory call rather than the full Zed Console/Kernel
+    # bootstrap. `@group NeedsDatabase`/`@group NeedsSearch`/`@group NeedsProject` are NOT run here — they
+    # need a real project (see the CI-portability write-up); run them from a host shop instead.
+    #
+    # tests/_ci-standalone/Generated/Shared/Search/PageIndexMap.php is a checked-in, point-in-time fixture,
+    # not live-generated: its content is a project-wide aggregate across every installed sibling package,
+    # so it cannot be produced by this package alone. See that file's own docblock for what it is and how
+    # to regenerate it — regeneration is only needed when the project-wide search field set itself changes.
+    name: portable tests (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - run: composer install --prefer-dist --no-interaction --no-progress
+      - run: php tests/_ci-standalone/generate-transfers.php
+      - run: vendor/bin/codecept run -c tests/codeception.portable.yml -g Portable
+
   complexity:
     # Two SEPARATE phpmd runs, not one combined ruleset: PHPMD merges every loaded ruleset's
     # exclude-pattern into one global file-ignore list for a single invocation, so keeping

@@ -25,6 +25,7 @@ use SprykerCommunity\Client\SearchDebug\SearchDebugFactory;
  * @group SearchDebug
  * @group SearchDebugClientTest
  * Add your own group annotations below this line
+ * @group Portable
  */
 class SearchDebugClientTest extends Unit
 {

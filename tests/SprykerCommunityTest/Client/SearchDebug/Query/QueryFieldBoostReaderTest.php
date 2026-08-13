@@ -29,6 +29,7 @@ use SprykerCommunity\Client\SearchDebug\Query\QueryFieldBoostReader;
  * Add your own group annotations below this line
  *
  * @property \SprykerCommunityTest\Client\SearchDebug\SearchDebugClientTester $tester
+ * @group NeedsSearch
  */
 class QueryFieldBoostReaderTest extends Unit
 {

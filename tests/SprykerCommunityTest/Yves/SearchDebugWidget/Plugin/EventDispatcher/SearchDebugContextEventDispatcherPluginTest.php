@@ -37,6 +37,7 @@ use Symfony\Component\HttpKernel\KernelEvents;
  * @group EventDispatcher
  * @group SearchDebugContextEventDispatcherPluginTest
  * Add your own group annotations below this line
+ * @group Portable
  */
 class SearchDebugContextEventDispatcherPluginTest extends Unit
 {

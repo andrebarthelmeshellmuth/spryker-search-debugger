@@ -36,6 +36,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  * @group Controller
  * @group TokenSourceControllerTest
  * Add your own group annotations below this line
+ * @group Portable
  */
 class TokenSourceControllerTest extends Unit
 {

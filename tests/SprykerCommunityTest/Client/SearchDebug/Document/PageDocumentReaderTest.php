@@ -32,6 +32,7 @@ use SprykerCommunity\Client\SearchDebug\SearchDebugConfig;
  * @group Document
  * @group PageDocumentReaderTest
  * Add your own group annotations below this line
+ * @group NeedsSearch
  */
 class PageDocumentReaderTest extends Unit
 {

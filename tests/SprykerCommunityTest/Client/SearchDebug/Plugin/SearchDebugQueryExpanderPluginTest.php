@@ -32,6 +32,7 @@ use SprykerCommunityTest\Client\SearchDebug\Plugin\Fixtures\BaseQueryPlugin;
  * Add your own group annotations below this line
  *
  * @property \SprykerCommunityTest\Client\SearchDebug\SearchDebugClientTester $tester
+ * @group NeedsSearch
  */
 class SearchDebugQueryExpanderPluginTest extends Unit
 {
