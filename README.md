@@ -176,8 +176,20 @@ gracefully — they are kept verbatim as "other contributions" rather than dropp
 
 ### 1. Install the package
 
+Not published on Packagist under the `spryker-community` vendor namespace — install from a VCS
+repository instead:
+
+```json
+"repositories": [
+    {
+        "type": "vcs",
+        "url": "https://github.com/andrebarthelmeshellmuth/spryker-search-debugger"
+    }
+]
+```
+
 ```bash
-composer require spryker-community/search-debug
+composer require spryker-community/search-debug:^1.2
 ```
 
 ### 2. Register the core namespace
