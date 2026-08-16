@@ -237,7 +237,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      * @param string $text
      * @param bool $useSearchAnalyzer See {@see getTokenOffsets()}'s parameter of the same name.
      *
-     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, isStem: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
+     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, isStem: bool, tokens: array<array{token: string, startOffset: int, endOffset: int, position: int}>}>
      */
     public function getAnalysisStages(string $text, bool $useSearchAnalyzer = false): array
     {
