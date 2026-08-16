@@ -130,13 +130,15 @@ class AnalyzeController extends AbstractController
     protected function resolvePin(Request $request): ?array
     {
         $rawPin = $request->query->all(static::PARAM_PIN);
-        $text = trim((string)($rawPin[static::PARAM_PIN_TEXT] ?? ''));
+        $rawText = $rawPin[static::PARAM_PIN_TEXT] ?? '';
+        $text = trim(is_string($rawText) ? $rawText : '');
 
         if ($text === '') {
             return null;
         }
 
-        $analyzer = (string)($rawPin[static::PARAM_PIN_ANALYZER] ?? '') === static::PIN_ANALYZER_SEARCH
+        $rawAnalyzer = $rawPin[static::PARAM_PIN_ANALYZER] ?? '';
+        $analyzer = is_string($rawAnalyzer) && $rawAnalyzer === static::PIN_ANALYZER_SEARCH
             ? static::PIN_ANALYZER_SEARCH
             : 'index';
 
