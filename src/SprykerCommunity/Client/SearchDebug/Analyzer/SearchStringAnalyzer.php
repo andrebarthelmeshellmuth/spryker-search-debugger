@@ -237,9 +237,38 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      * @param string $text
      * @param bool $useSearchAnalyzer See {@see getTokenOffsets()}'s parameter of the same name.
      *
-     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, isStem: bool, tokens: array<array{token: string, startOffset: int, endOffset: int, position: int}>}>
+     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, isStem: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
      */
     public function getAnalysisStages(string $text, bool $useSearchAnalyzer = false): array
+    {
+        $stages = $this->fetchAnalysisStages($text, $useSearchAnalyzer);
+
+        // `position` is bookkeeping getAnalysisTree()'s own pipeline needs (see fetchAnalysisStages()'s
+        // docblock) — never part of THIS method's public return shape, so it's stripped here.
+        foreach ($stages as &$stage) {
+            $stage['tokens'] = array_map(
+                static fn (array $token): array => ['token' => $token['token'], 'startOffset' => $token['startOffset'], 'endOffset' => $token['endOffset']],
+                $stage['tokens'],
+            );
+        }
+        unset($stage);
+
+        return $stages;
+    }
+
+    /**
+     * Same underlying stage breakdown {@see getAnalysisStages()} returns, kept for internal use by
+     * {@see getAnalysisTree()}'s own pipeline — the ONLY difference is that each token here still
+     * carries its `position` (AnalysisTreeBuilder needs it to link tokens across stages; see that
+     * class's own docblock), which {@see getAnalysisStages()} strips before returning to its own
+     * callers since it was never part of that method's documented public shape.
+     *
+     * @param string $text
+     * @param bool $useSearchAnalyzer
+     *
+     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, isStem: bool, tokens: array<array{token: string, startOffset: int, endOffset: int, position: int}>}>
+     */
+    protected function fetchAnalysisStages(string $text, bool $useSearchAnalyzer): array
     {
         if ($text === '') {
             return [];
@@ -295,7 +324,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      */
     public function getAnalysisTree(string $text, bool $useSearchAnalyzer = false): array
     {
-        return $this->analysisTreeBuilder->build($this->getAnalysisStages($text, $useSearchAnalyzer));
+        return $this->analysisTreeBuilder->build($this->fetchAnalysisStages($text, $useSearchAnalyzer));
     }
 
     /**
@@ -360,7 +389,13 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
             ? ($tokenFilters[$lastFilterKey]['tokens'] ?? [])
             : ($detail['analyzer']['tokens'] ?? $detail['tokenizer']['tokens'] ?? []);
 
-        return $this->mapTokens($tokens);
+        // `position` is bookkeeping mapTokens() adds for AnalysisStageMapper/AnalysisTreeBuilder's own
+        // use (see mapTokens()'s own docblock) — never part of this method's public return shape, so it's
+        // stripped here rather than leaking into getTokenOffsets()/getTokenOffsetsForTexts().
+        return array_map(
+            static fn (array $token): array => ['token' => $token['token'], 'startOffset' => $token['startOffset'], 'endOffset' => $token['endOffset']],
+            $this->mapTokens($tokens),
+        );
     }
 
     /**

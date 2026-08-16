@@ -56,7 +56,7 @@ analysis-path visualization and the newer word-level analysis page (see below). 
 
 Verified: dependency floors resolved and checked at their oldest allowed versions (`composer
 check-floors`), explanation parsing confirmed against three engines across two Lucene generations (see
-"Search engine compatibility"), 303 tests, phpcs and phpstan level 8 clean. The word-level analysis page is
+"Search engine compatibility"), 312 tests, phpcs and phpstan level 8 clean. The word-level analysis page is
 live-verified (manually, against real branching/removal/stemming cases) but not yet covered by the
 automated test suite — that coverage is on the roadmap, same as the rest of the Presentation suite.
 

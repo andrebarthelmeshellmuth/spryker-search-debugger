@@ -239,7 +239,7 @@ class CheckInstallationControllerTest extends Unit
         $this->assertStringContainsString(SearchDebugWidgetRouteProviderPlugin::ROUTE_NAME_ANALYSIS_PATH, $check['remedy']);
     }
 
-    public function testGetWidgetRouteNamesReturnsTheThreeNonCheckInstallationRoutes(): void
+    public function testGetWidgetRouteNamesReturnsTheFiveNonCheckInstallationRoutes(): void
     {
         // Act
         $routeNames = $this->invokeProtectedMethod('getWidgetRouteNames', []);
@@ -250,6 +250,8 @@ class CheckInstallationControllerTest extends Unit
                 SearchDebugWidgetRouteProviderPlugin::ROUTE_NAME_TOKEN_SOURCE,
                 SearchDebugWidgetRouteProviderPlugin::ROUTE_NAME_ANALYSIS_PATH,
                 SearchDebugWidgetRouteProviderPlugin::ROUTE_NAME_COMPONENT_CONFIG,
+                SearchDebugWidgetRouteProviderPlugin::ROUTE_NAME_ANALYZE,
+                SearchDebugWidgetRouteProviderPlugin::ROUTE_NAME_SKU_LOOKUP,
             ],
             $routeNames,
         );

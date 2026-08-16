@@ -251,8 +251,7 @@ class SearchStringAnalyzerTest extends Unit
 
         $this->assertSame('filter: fulltext_synonyms', $stages[3]['operation']);
         $this->assertSame([['token' => 'ölpapier', 'startOffset' => 0, 'endOffset' => 8]], $stages[3]['tokens']);
-        $this->assertStringStartsWith('synonym (synonyms: ', $stages[3]['definition']);
-        $this->assertStringContainsString('… (6 total)', $stages[3]['definition']);
+        $this->assertSame('synonym (synonyms: (6 total))', $stages[3]['definition']);
         $this->assertTrue($stages[3]['definitionTruncated']);
 
         $this->assertSame('filter: fulltext_word_delimiter', $stages[4]['operation']);
