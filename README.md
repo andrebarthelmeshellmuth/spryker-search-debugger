@@ -459,24 +459,18 @@ provider plugin — nothing further to wire up there.
 
 ### 7. Frontend build
 
-Add the community vendor directory to your Yves builder so the package's components compile. In
-`frontend/settings.js`, add to `paths`:
-
-```js
-community: './vendor/spryker-community',
-```
-
-...mirror it in the per-theme path mapping, and add `join(globalSettings.context, paths.community)` to
-`find.componentEntryPoints.dirs`.
-
-**If you install more than one `spryker-community/*` package side by side**, each one carries its own
-nested `vendor/spryker-community/*` copy of its sibling packages (a normal consequence of them being
-independently composer-installable). Without an exclusion, the builder picks up both the real copy and
-every nested duplicate, and whichever one wins is arbitrary — components can silently fail to register
+Add the community vendor directory to your Yves builder so the package's components compile — this touches
+three separate places in your project's own `frontend/settings.js` (the `paths` map, the per-theme path
+mapping, and `find.componentEntryPoints.dirs`), plus one `ignoreFiles` addition that matters as soon as you
+install more than one `spryker-community/*` package side by side: each one carries its own nested
+`vendor/spryker-community/*` copy of its sibling packages (a normal consequence of them being
+independently composer-installable), and without the exclusion the builder bundles both the real copy and
+every nested duplicate — whichever one wins is arbitrary, so a component can silently fail to register
 (`customElements.get()` returns nothing, no build error) because the browser loaded a stale duplicate
-instead of the file you're actually editing. Add `'!**/vendor/**'` to the shared `ignoreFiles` array (next
-to wherever `componentEntryPoints`/`componentStyles` glob community paths in) so only the top-level copy of
-each package is ever compiled.
+instead of the file you're actually editing.
+
+All four edits, spelled out together, are in
+[`docs/examples/frontend-settings.js.patch`](docs/examples/frontend-settings.js.patch).
 
 Then:
 

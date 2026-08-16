@@ -1,0 +1,46 @@
+Three separate, non-contiguous edits to your project's own `frontend/settings.js`, needed so the Yves
+builder compiles this package's components (the `!**/vendor/**` line matters most once you install more
+than one `spryker-community/*` package side by side — see step 7 in the README for why). Apply by hand;
+this is illustrative, not a literal patch to `git apply`.
+
+--- a/frontend/settings.js
++++ b/frontend/settings.js
+@@ paths (top of globalSettings) @@
+         // eco folders
+         eco: './vendor/spryker-eco',
+
++        // community folders
++        community: './vendor/spryker-community',
++
+         // project folders
+         project: './src/Pyz/Yves',
+
+@@ ignoreFiles (inside getAppSettingsByTheme) @@
+         '!node_modules',
+         '!public',
+         '!test',
++        // A `spryker-community/*` package is independently composer-installable and carries its own
++        // nested `vendor/spryker-community/*` copy of any sibling packages it depends on. Without this
++        // exclusion the builder bundles both the real top-level copy and every nested duplicate —
++        // whichever one wins is arbitrary, so a component can silently fail to register
++        // (`customElements.get()` returns nothing, no build error) because the browser loaded a stale
++        // duplicate instead of the file you're actually editing.
++        '!**/vendor/**',
+         ...ignoreModulesCollection(),
+
+@@ per-theme path mapping (inside getAppSettingsByTheme) @@
+         // eco folders
+         eco: globalSettings.paths.eco,
+
++        // community folders
++        community: globalSettings.paths.community,
++
+         // features folder
+         features: globalSettings.paths.features,
+
+@@ find.componentEntryPoints.dirs (inside getAppSettingsByTheme) @@
+                     join(globalSettings.context, paths.sprykerCore),
+                     join(globalSettings.context, paths.features),
+                     join(globalSettings.context, paths.eco),
++                    join(globalSettings.context, paths.community),
+                     join(globalSettings.context, paths.project),
