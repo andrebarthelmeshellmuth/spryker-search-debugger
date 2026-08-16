@@ -26,6 +26,10 @@ use Spryker\Service\Synchronization\SynchronizationServiceInterface;
 use Spryker\Shared\SearchElasticsearch\ElasticaClient\ElasticaClientFactory;
 use SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessChecker;
 use SprykerCommunity\Client\SearchDebug\AccessChecker\SearchDebugAccessCheckerInterface;
+use SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisStageMapper;
+use SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisStageMapperInterface;
+use SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisTreeBuilder;
+use SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisTreeBuilderInterface;
 use SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatter;
 use SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatterInterface;
 use SprykerCommunity\Client\SearchDebug\Analyzer\SearchStringAnalyzer;
@@ -56,12 +60,27 @@ class SearchDebugFactory extends AbstractFactory
             $this->createIndexSchemaReader(),
             $this->getConfig(),
             $this->createComponentDefinitionFormatter(),
+            $this->createAnalysisTreeBuilder(),
+            $this->createAnalysisStageMapper(),
         );
     }
 
     public function createComponentDefinitionFormatter(): ComponentDefinitionFormatterInterface
     {
         return new ComponentDefinitionFormatter();
+    }
+
+    public function createAnalysisTreeBuilder(): AnalysisTreeBuilderInterface
+    {
+        return new AnalysisTreeBuilder();
+    }
+
+    public function createAnalysisStageMapper(): AnalysisStageMapperInterface
+    {
+        return new AnalysisStageMapper(
+            $this->createIndexSchemaReader(),
+            $this->createComponentDefinitionFormatter(),
+        );
     }
 
     public function createIndexSchemaReader(): IndexSchemaReaderInterface

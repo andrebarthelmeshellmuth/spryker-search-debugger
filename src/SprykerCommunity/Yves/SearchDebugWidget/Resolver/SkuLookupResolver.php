@@ -73,7 +73,7 @@ class SkuLookupResolver implements SkuLookupResolverInterface
      *
      * @param string $sku
      * @param string $searchString
-     * @param array<string, mixed> $requestParameters
+     * @param array<int|string, mixed> $requestParameters
      * @param string $localeName
      */
     public function resolve(string $sku, string $searchString, array $requestParameters, string $localeName): SkuLookupResult
@@ -125,7 +125,7 @@ class SkuLookupResolver implements SkuLookupResolverInterface
      *
      * @param int $idProductAbstract
      * @param string $searchString
-     * @param array<string, mixed> $requestParameters
+     * @param array<int|string, mixed> $requestParameters
      *
      * @return array{0: int|null, 1: bool}
      */
@@ -135,7 +135,13 @@ class SkuLookupResolver implements SkuLookupResolverInterface
         $page = 1;
 
         for ($request = 0; $request < static::MAX_SCAN_REQUESTS; $request++) {
-            $pageParameters = $requestParameters;
+            // `CatalogClient::catalogSearch()` expects string keys only — `parse_str()` (this method's
+            // own caller) can in principle produce an int key for a purely-numeric query parameter name,
+            // so keys are normalized here rather than trusting that never happens.
+            $pageParameters = array_combine(
+                array_map(static fn (int|string $key): string => (string)$key, array_keys($requestParameters)),
+                $requestParameters,
+            );
             $pageParameters[static::PARAMETER_NAME_PAGE] = $page;
 
             $result = $this->catalogClient->catalogSearch($searchString, $pageParameters);

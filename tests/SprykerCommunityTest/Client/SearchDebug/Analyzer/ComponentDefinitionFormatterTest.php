@@ -152,7 +152,7 @@ class ComponentDefinitionFormatterTest extends Unit
 
         // Assert
         $this->assertSame(
-            ['label' => 'stop (stopwords: a, an, the, and, or, … (7 total))', 'truncated' => true],
+            ['label' => 'stop (stopwords: (7 total))', 'truncated' => true],
             $formatted,
         );
     }

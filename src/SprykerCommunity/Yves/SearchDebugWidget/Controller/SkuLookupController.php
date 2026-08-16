@@ -73,7 +73,8 @@ class SkuLookupController extends AbstractController
         $sku = trim((string)$request->query->get(static::PARAM_SKU, ''));
         $queryString = (string)$request->query->get(static::PARAM_QUERY_STRING, '');
         $originalParameters = $this->parseQueryString($queryString);
-        $searchString = (string)($originalParameters[SearchDebugConfig::REQUEST_PARAM_SEARCH_STRING] ?? '');
+        $rawSearchString = $originalParameters[SearchDebugConfig::REQUEST_PARAM_SEARCH_STRING] ?? '';
+        $searchString = is_string($rawSearchString) ? $rawSearchString : '';
 
         if ($sku === '') {
             $this->addErrorMessage('search_debug.sku_lookup.error.empty');
@@ -126,7 +127,7 @@ class SkuLookupController extends AbstractController
     /**
      * @param string $queryString
      *
-     * @return array<string, mixed>
+     * @return array<int|string, mixed>
      */
     protected function parseQueryString(string $queryString): array
     {

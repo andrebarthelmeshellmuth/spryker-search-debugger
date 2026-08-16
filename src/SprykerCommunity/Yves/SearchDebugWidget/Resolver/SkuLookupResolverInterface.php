@@ -22,7 +22,7 @@ interface SkuLookupResolverInterface
      * @param string $sku
      * @param string $searchString The CURRENT search result set's own query string — determines what
      *   "found in the result set" even means.
-     * @param array<string, mixed> $requestParameters The current request's own query parameters (facets,
+     * @param array<int|string, mixed> $requestParameters The current request's own query parameters (facets,
      *   sort, items-per-page, ...) — reused verbatim for the rank re-run so it reflects the SAME filtered
      *   view the admin is actually looking at, only the `page` parameter is overridden per scan step.
      * @param string $localeName

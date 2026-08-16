@@ -340,9 +340,8 @@ class ProductSourceMapBuilder
         ];
 
         $valuesBySourceKey += $this->collectConcreteValues($concreteStorageData);
-        $valuesBySourceKey += $this->collectCategoryValues($productData, $localeName, $storeName);
 
-        return $valuesBySourceKey;
+        return $valuesBySourceKey + $this->collectCategoryValues($productData, $localeName, $storeName);
     }
 
     /**

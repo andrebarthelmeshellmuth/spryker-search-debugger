@@ -28,6 +28,7 @@ interface AnalyzeResolverInterface
      *     productSku: string,
      *     productTitle: string,
      *     queryTokens: array<string>,
+     *     queryTokenOrigins: array<string, string>,
      *     fieldRows: array<int, array{labelKey: string, words: array<int, array{word: string, matchesQuery: bool}>}>,
      * }|null Null when $sku does not resolve to a product at all.
      */

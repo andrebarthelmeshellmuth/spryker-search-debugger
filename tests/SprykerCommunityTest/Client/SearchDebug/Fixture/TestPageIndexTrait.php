@@ -14,6 +14,8 @@ use Elastica\Index;
 use Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolverInterface;
 use Spryker\Client\SearchElasticsearch\SearchElasticsearchConfig;
 use Spryker\Shared\SearchElasticsearch\ElasticaClient\ElasticaClientFactory;
+use SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisStageMapper;
+use SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisTreeBuilder;
 use SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatter;
 use SprykerCommunity\Client\SearchDebug\Analyzer\SearchStringAnalyzer;
 use SprykerCommunity\Client\SearchDebug\Analyzer\SearchStringAnalyzerInterface;
@@ -98,6 +100,8 @@ trait TestPageIndexTrait
             $this->createTestIndexSchemaReader(),
             new SearchDebugConfig(),
             new ComponentDefinitionFormatter(),
+            new AnalysisTreeBuilder(),
+            new AnalysisStageMapper($this->createTestIndexSchemaReader(), new ComponentDefinitionFormatter()),
         );
     }
 
@@ -150,6 +154,8 @@ trait TestPageIndexTrait
             $this->createNonexistentIndexSchemaReader(),
             new SearchDebugConfig(),
             new ComponentDefinitionFormatter(),
+            new AnalysisTreeBuilder(),
+            new AnalysisStageMapper($this->createNonexistentIndexSchemaReader(), new ComponentDefinitionFormatter()),
         );
     }
 

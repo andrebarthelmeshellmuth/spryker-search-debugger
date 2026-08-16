@@ -87,7 +87,8 @@ class AnalyzeController extends AbstractController
 
         $queryString = (string)$request->query->get(static::PARAM_QUERY_STRING, '');
         parse_str($queryString, $originalParameters);
-        $searchString = (string)($originalParameters[SearchDebugConfig::REQUEST_PARAM_SEARCH_STRING] ?? '');
+        $rawSearchString = $originalParameters[SearchDebugConfig::REQUEST_PARAM_SEARCH_STRING] ?? '';
+        $searchString = is_string($rawSearchString) ? $rawSearchString : '';
 
         $data = $this->getFactory()
             ->createAnalyzeResolver()
@@ -143,9 +144,18 @@ class AnalyzeController extends AbstractController
     }
 
     /**
-     * @param array{text: string, analyzer: string}|null $pin
+     * @phpstan-param array{text: string, analyzer: string}|null $pin
      *
-     * @return array{text: string, analyzer: string, tree: array}|null
+     * @param array{text: string, analyzer: string}|array|null $pin
+     *
+     * @return array{
+     *     text: string,
+     *     analyzer: string,
+     *     tree: array{
+     *         stages: array<int, array{label: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, isStem: bool, nodes: array<int, array{id: string, token: string, isRemoved: bool}>}>,
+     *         edges: array<int, array{from: string, to: string}>,
+     *     },
+     * }|null
      */
     protected function resolvePinnedTree(?array $pin): ?array
     {
@@ -153,7 +163,9 @@ class AnalyzeController extends AbstractController
             return null;
         }
 
-        return $pin + [
+        return [
+            'text' => $pin['text'],
+            'analyzer' => $pin['analyzer'],
             'tree' => $this->getFactory()->getSearchDebugClient()->getTextAnalysisTree($pin['text'], $pin['analyzer'] === static::PIN_ANALYZER_SEARCH),
         ];
     }
