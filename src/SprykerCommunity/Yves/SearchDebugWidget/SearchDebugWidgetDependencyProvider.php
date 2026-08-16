@@ -18,6 +18,11 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
     /**
      * @var string
      */
+    public const CLIENT_CATALOG = 'CLIENT_CATALOG';
+
+    /**
+     * @var string
+     */
     public const CLIENT_PRODUCT_STORAGE = 'CLIENT_PRODUCT_STORAGE';
 
     /**
@@ -57,6 +62,7 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
     public function provideDependencies(Container $container): Container
     {
         $container = parent::provideDependencies($container);
+        $container = $this->addCatalogClient($container);
         $container = $this->addProductStorageClient($container);
         $container = $this->addProductCategoryStorageClient($container);
         $container = $this->addCategoryStorageClient($container);
@@ -64,6 +70,16 @@ class SearchDebugWidgetDependencyProvider extends AbstractBundleDependencyProvid
         $container = $this->addSearchDebugClient($container);
         $container = $this->addStoreClient($container);
         $container = $this->addTokenSourceProviderPlugins($container);
+
+        return $container;
+    }
+
+    /**
+     * @param \Spryker\Yves\Kernel\Container $container
+     */
+    protected function addCatalogClient(Container $container): Container
+    {
+        $container->set(static::CLIENT_CATALOG, fn (Container $container) => $container->getLocator()->catalog()->client());
 
         return $container;
     }

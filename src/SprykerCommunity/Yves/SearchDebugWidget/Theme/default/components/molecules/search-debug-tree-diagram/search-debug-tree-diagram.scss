@@ -1,0 +1,143 @@
+@import '../search-debug-tokens/search-debug-palette';
+
+// The connector-line canvas needs a positioned ancestor to measure and draw against — see
+// search-debug-tree-diagram.ts's own comment on why real pixel positions (not something computable at
+// template time) are required at all.
+.search-debug-tree-diagram__wrapper {
+    position: relative;
+}
+
+// One row per analyzer STAGE (not per branch — see SearchStringAnalyzer::getAnalysisTree()'s own
+// docblock on why depth here already equals stage). `z-index` above the SVG overlay (painted first in the
+// DOM, but that alone isn't reliable once the SVG is absolutely positioned) so chip text always stays
+// legible over a connector line passing behind it.
+.search-debug-tree-diagram__row {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: rem(16);
+    padding: rem(10) 0;
+
+    &:not(:last-child) {
+        border-bottom: 1px dashed $setting-color-lightest;
+    }
+
+    // The one stage this whole feature was originally built to surface (see SearchStringAnalyzer's own
+    // "we currently don't display the Stamm" comment) — a subtle tint on the row itself, not just the
+    // "stem:" text label, so it's noticeable even scanning quickly down the row-gap dashed lines.
+    &--stem {
+        background-color: rgba($search-debug-feature-accent-color, 0.05);
+    }
+}
+
+// Fixed width across EVERY row so the chip area always starts at the same X offset regardless of how
+// long a stage's own label happens to be — without this, connector lines between rows with
+// differently-sized labels would need to account for a shifting origin for no real benefit.
+.search-debug-tree-diagram__row-label {
+    flex: 0 0 rem(220);
+    padding-top: rem(4);
+    font-family: monospace;
+    font-size: rem(12);
+    font-weight: fw(bold);
+}
+
+.search-debug-tree-diagram__definition {
+    display: block;
+    margin-top: rem(2);
+    color: $setting-color-darker;
+    font-style: italic;
+    font-weight: fw(regular);
+}
+
+.search-debug-tree-diagram__definition-link {
+    margin-left: rem(4);
+    color: $search-debug-feature-accent-color;
+    font-style: normal;
+    text-decoration: underline;
+
+    &:hover,
+    &:focus {
+        color: darken($search-debug-feature-accent-color, 8%);
+    }
+}
+
+// NEVER wraps, even for a stage with many tokens (e.g. an edge-ngram filter's fan-out can easily produce
+// 7-8 tokens at once) — a wrapped row would silently break the "one row = one stage" mental model this
+// whole diagram is built on (a wrapped row visually looks like two), and would desync the connector
+// lines' vertical math, which assumes each row occupies exactly one line. The row (and its ancestor
+// wrapper/panel — see analyze.scss's own `.search-debug-analyze-trees`) grows as wide as it needs to and
+// scrolls horizontally instead.
+.search-debug-tree-diagram__row-nodes {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    // No `gap` here — search-debug-tree-diagram.ts's `applyTreeLayout()` owns ALL horizontal spacing via
+    // an explicit `margin-left` per chip (its own `BASE_GAP_PX` matches this 12px baseline), since it
+    // needs to add EXTRA space on top of the baseline for some chips to center a parent over its
+    // children; mixing an automatic flex `gap` with per-item margin overrides would double up the
+    // spacing. See the sibling-combinator fallback rule below for the unscripted case.
+    flex: 1 1 auto;
+}
+
+// Without JS (see search-debug-tree-diagram.ts's own docblock — it degrades to "no connector lines,
+// natural left-packed layout" on a malformed payload, but a plain missing/broken script tag needs its
+// own fallback too): every chip needs SOME spacing since the flex `gap` above was removed in favor of
+// JS-owned margins. This declares the SAME 12px baseline as a plain sibling-combinator rule so the
+// unscripted fallback still reads correctly, immediately overridden by the JS's own explicit
+// `margin-left` the moment `applyTreeLayout()` runs.
+.search-debug-tree-diagram__node + .search-debug-tree-diagram__node {
+    margin-left: rem(12);
+}
+
+// A stage's own token chip — deliberately distinct from both the query-token badges
+// (_search-debug-token-badge.scss's cycling palette) and the field-word badges
+// (search-debug-word-badge in analyze.scss): this chip is neither "a specific query token" nor "a raw,
+// unanalyzed document word" — it's one INTERMEDIATE state in a pipeline, so it gets its own neutral,
+// bordered treatment that reads as "a step", not as either of those other two things.
+.search-debug-tree-diagram__node {
+    padding: rem(4) rem(12);
+    border: 1px solid $search-debug-feature-accent-color;
+    border-radius: rem(999);
+    background-color: $setting-color-white;
+    color: $search-debug-feature-accent-color;
+    font-family: monospace;
+    font-size: rem(13);
+    font-weight: fw(bold);
+    white-space: nowrap;
+
+    // A token that was REMOVED outright by this stage's own filter (stop-word, min-length, ...) — not
+    // just transformed, genuinely gone — rather than silently having no more rows underneath it. Dashed
+    // and muted rather than the solid accent-colored treatment every real token gets, so a dead end reads
+    // as "nothing happened here" at a glance, not as one more step in the pipeline.
+    &--removed {
+        border-style: dashed;
+        border-color: $setting-color-light;
+        background-color: transparent;
+        color: $setting-color-darker;
+        font-weight: fw(regular);
+        cursor: help;
+    }
+}
+
+// Absolutely positioned over `.search-debug-tree-diagram__rows` (both share the same
+// `.search-debug-tree-diagram__wrapper` ancestor) — `pointer-events: none` so it never intercepts a click
+// meant for a row beneath it (nodes in this diagram aren't interactive, but the wrapper may sit inside
+// other interactive UI).
+.search-debug-tree-diagram__edges {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+}
+
+.search-debug-tree-diagram__edge-path {
+    fill: none;
+    stroke: $search-debug-feature-accent-color;
+    stroke-width: 1.5;
+    opacity: 0.45;
+}

@@ -98,9 +98,11 @@ class ComponentDefinitionFormatter implements ComponentDefinitionFormatterInterf
     }
 
     /**
-     * Only the first few items are shown, with a total count appended when there are more — the config
-     * VALUE COUNT (e.g. "312 words") is itself useful debug information even when the words themselves
-     * are truncated away.
+     * A short list (at or under the preview limit) is shown in full — genuinely useful debug information
+     * at that size. Past the limit, just the COUNT is shown ("(312 total)"), not a handful of example
+     * items — a partial item preview reads as if those specific words were somehow special/representative,
+     * when they're really just whatever happened to be first in the config; the count alone says exactly
+     * as much without that false implication.
      *
      * @param array<mixed> $values
      */
@@ -110,16 +112,12 @@ class ComponentDefinitionFormatter implements ComponentDefinitionFormatterInterf
             return '[]';
         }
 
-        $preview = array_map(
-            ConfigValueScalarFormatter::format(...),
-            array_slice($values, 0, static::CONFIG_LIST_PREVIEW_ITEM_LIMIT),
-        );
-
         $totalCount = count($values);
+
         if ($totalCount <= static::CONFIG_LIST_PREVIEW_ITEM_LIMIT) {
-            return implode(', ', $preview);
+            return implode(', ', array_map(ConfigValueScalarFormatter::format(...), $values));
         }
 
-        return sprintf('%s, … (%d total)', implode(', ', $preview), $totalCount);
+        return sprintf('(%d total)', $totalCount);
     }
 }
