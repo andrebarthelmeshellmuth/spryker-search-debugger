@@ -419,13 +419,20 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      * returns — no new Elasticsearch call. Elasticsearch's own `position` field (present on every
      * tokenizer/filter token, Lucene's encoding of "which slot in the token stream this occupies") is the
      * link between consecutive stages: two tokens in neighboring stages that share the same `position`
-     * are treated as parent/child. This is a correlation, not a real parent pointer (the `_analyze` API
-     * exposes none) — confirmed sufficient in practice against this project's own `search_debug_synonyms`
-     * (1 token in, 4 out, at two positions) and `search_debug_decompound` (1 token in, 2 out, same
-     * position) filters. It can misattribute lineage only when a single stage emits more than one token
-     * at the SAME position with DIFFERENT text (unresolvable from `position` alone) — accepted as a known
-     * limitation rather than solved with per-filter-type special-casing. A token whose position has no
-     * match in the previous row simply has no incoming edge, rather than being silently dropped.
+     * are treated as parent/child, preferring a PREFIX-RELATED candidate (the same text, or one a prefix
+     * of the other) when several same-position candidates exist (see
+     * {@see \SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisTreeBuilder::resolveParentIds()} — this
+     * disambiguates both an unchanged pass-through, e.g. a decompounder's own unrelated-by-spelling
+     * sub-words both surviving a stemmer untouched, AND an edge-ngram filter's own shorter prefixes of
+     * one specific sibling, neither of which is resolvable by exact-text-equality alone). This is still a
+     * correlation, not a real parent pointer (the `_analyze` API exposes none) — confirmed sufficient in
+     * practice against this project's own `search_debug_synonyms` (1 token in, 4 out, at two positions)
+     * and `search_debug_decompound` (1 token in, 2 out, same position) filters. It can still misattribute
+     * lineage when a stage emits a token at the SAME position as more than one PREVIOUS-stage candidate,
+     * and NONE of them is prefix-related to it at all (unresolvable from `position` alone in that case,
+     * e.g. a synonym filter's genuinely unrelated replacement text) — accepted as a known limitation
+     * rather than solved with per-filter-type special-casing. A token whose position has no match in the
+     * previous row simply has no incoming edge, rather than being silently dropped.
      *
      * @param string $text
      * @param bool $useSearchAnalyzer See {@see getTokenOffsets()}'s parameter of the same name.
