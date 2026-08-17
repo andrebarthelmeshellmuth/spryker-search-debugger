@@ -227,6 +227,119 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
     }
 
     /**
+     * {@inheritDoc}
+     *
+     * @param array<string> $texts
+     *
+     * @return array<string, array<array{token: string, startOffset: int, endOffset: int}>>
+     */
+    public function getWordSpansForTexts(array $texts): array
+    {
+        $texts = array_values(array_unique(array_filter($texts, fn (string $text): bool => $text !== '')));
+
+        if ($texts === []) {
+            return [];
+        }
+
+        if (count($texts) === 1) {
+            return [$texts[0] => $this->getWordSpans($texts[0])];
+        }
+
+        $indexName = $this->indexNameResolver->resolve($this->config->getPageSourceIdentifier());
+
+        try {
+            $detail = $this->elasticaClient
+                ->getIndex($indexName)
+                ->analyze([
+                    'text' => $texts,
+                    'analyzer' => $this->resolveIndexAnalyzerName(),
+                    'explain' => true,
+                ]);
+        } catch (ExceptionInterface) {
+            return array_fill_keys($texts, []);
+        }
+
+        $tokensByText = $this->rebaseTokensByText($texts, $this->stripPosition($this->wordBoundaryTokens($detail)));
+
+        if ($tokensByText === null) {
+            $tokensByText = [];
+            foreach ($texts as $text) {
+                $tokensByText[$text] = $this->getWordSpans($text);
+            }
+        }
+
+        return $tokensByText;
+    }
+
+    /**
+     * Single-text case behind {@see getWordSpansForTexts()} — also its own per-text fallback whenever the
+     * batched call's rebase assumption doesn't hold.
+     *
+     * @param string $text
+     *
+     * @return array<array{token: string, startOffset: int, endOffset: int}>
+     */
+    protected function getWordSpans(string $text): array
+    {
+        if ($text === '') {
+            return [];
+        }
+
+        $indexName = $this->indexNameResolver->resolve($this->config->getPageSourceIdentifier());
+
+        try {
+            $detail = $this->elasticaClient
+                ->getIndex($indexName)
+                ->analyze([
+                    'text' => $text,
+                    'analyzer' => $this->resolveIndexAnalyzerName(),
+                    'explain' => true,
+                ]);
+        } catch (ExceptionInterface) {
+            return [];
+        }
+
+        return $this->stripPosition($this->wordBoundaryTokens($detail));
+    }
+
+    /**
+     * The tokens of the FIRST non-char-filter stage — the tokenizer's own output for a custom analyzer
+     * (see {@see AnalysisStageMapper::mapStages()}'s own docblock: char filters always come first, then
+     * either a real `tokenizer` stage or, for a BUILT-IN analyzer with no separate breakdown at all, the
+     * one collapsed `analyzer` fallback stage). Either way this is the earliest, most granular word
+     * boundary this index's real pipeline reports — token filters (lowercase, stemmer, synonym,
+     * decompounder, ...) run strictly after it, so none of them has had a chance to merge, split, or drop
+     * anything yet.
+     *
+     * @param array<string, mixed> $detail
+     *
+     * @return array<array{token: string, startOffset: int, endOffset: int, position: int}>
+     */
+    protected function wordBoundaryTokens(array $detail): array
+    {
+        foreach ($this->analysisStageMapper->mapStages($detail) as $stage) {
+            if ($stage['componentKind'] !== IndexSchemaMapper::COMPONENT_KIND_CHAR_FILTER) {
+                return $stage['tokens'];
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * @param array<array{token: string, startOffset: int, endOffset: int, position: int}> $tokens
+     *
+     * @return array<array{token: string, startOffset: int, endOffset: int}>
+     */
+    protected function stripPosition(array $tokens): array
+    {
+        return array_map(
+            static fn (array $token): array => ['token' => $token['token'], 'startOffset' => $token['startOffset'], 'endOffset' => $token['endOffset']],
+            $tokens,
+        );
+    }
+
+    /**
      * Full per-stage breakdown of the index-time analyzer's pipeline — every char filter (whole-text
      * transformations, before tokenization), the tokenizer, and every token filter, in chain order.
      * `getTokenOffsets()` above only needs the FINAL stage's tokens; this keeps every intermediate
