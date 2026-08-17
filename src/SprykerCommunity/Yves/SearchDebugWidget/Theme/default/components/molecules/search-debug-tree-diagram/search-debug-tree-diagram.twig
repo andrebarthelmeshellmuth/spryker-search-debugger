@@ -16,36 +16,48 @@
 } %}
 
 {% block body %}
+    {# Two separate regions, not one flex row per stage with the label inside it: the label column here
+       never scrolls and is never overlaid by anything, so a chip passing underneath it while scrolling
+       can never visually tear (see search-debug-tree-diagram.scss's own docblock on the position:sticky
+       approach this replaced). search-debug-tree-diagram.ts's own `syncLabelHeights()` keeps a label's
+       rendered height matched to its row's, since two independently-flowing columns have no native CSS
+       way to do that themselves. #}
     <div class="search-debug-tree-diagram__wrapper">
-        <div class="search-debug-tree-diagram__rows {{ config.jsName }}__rows">
+        <div class="search-debug-tree-diagram__labels {{ config.jsName }}__labels">
             {% for stage in data.stages %}
-                <div class="search-debug-tree-diagram__row{{ stage.isStem ? ' search-debug-tree-diagram__row--stem' : '' }}">
-                    <div class="search-debug-tree-diagram__row-label">
-                        {{ stage.label }}
-                        {%- if stage.definition is not null %}
-                            <span class="search-debug-tree-diagram__definition">
-                                {{- stage.definition -}}
-                                {%- if stage.definitionTruncated -%}
-                                    <a href="{{ url('search-debug/component-config', { type: stage.componentKind, name: stage.componentName }) }}" target="_blank" rel="noopener noreferrer" class="search-debug-tree-diagram__definition-link">{{ 'search_debug.token_analysis.view_full_definition' | trans }}</a>
-                                {%- endif -%}
-                            </span>
-                        {%- endif %}
-                    </div>
-                    <div class="search-debug-tree-diagram__row-nodes">
-                        {% for node in stage.nodes %}
-                            <span
-                                class="search-debug-tree-diagram__node{{ node.isRemoved ? ' search-debug-tree-diagram__node--removed' : '' }}"
-                                data-node-id="{{ node.id }}"
-                                {%- if node.isRemoved %} title="{{ 'search_debug.analyze.token_removed' | trans }}"{% endif -%}
-                            >{{ node.token }}</span>
-                        {% endfor %}
-                    </div>
+                <div class="search-debug-tree-diagram__row-label{{ stage.isStem ? ' search-debug-tree-diagram__row-label--stem' : '' }}">
+                    {{ stage.label }}
+                    {%- if stage.definition is not null %}
+                        <span class="search-debug-tree-diagram__definition">
+                            {{- stage.definition -}}
+                            {%- if stage.definitionTruncated -%}
+                                <a href="{{ url('search-debug/component-config', { type: stage.componentKind, name: stage.componentName }) }}" target="_blank" rel="noopener noreferrer" class="search-debug-tree-diagram__definition-link">{{ 'search_debug.token_analysis.view_full_definition' | trans }}</a>
+                            {%- endif -%}
+                        </span>
+                    {%- endif %}
                 </div>
             {% endfor %}
         </div>
-        {# Populated entirely by search-debug-tree-diagram.ts, once actual node positions are known —
-           empty (and harmless) without JS. #}
-        <svg class="search-debug-tree-diagram__edges {{ config.jsName }}__edges" aria-hidden="true"></svg>
+        <div class="search-debug-tree-diagram__scroll {{ config.jsName }}__scroll">
+            <div class="search-debug-tree-diagram__rows {{ config.jsName }}__rows">
+                {% for stage in data.stages %}
+                    <div class="search-debug-tree-diagram__row{{ stage.isStem ? ' search-debug-tree-diagram__row--stem' : '' }}">
+                        <div class="search-debug-tree-diagram__row-nodes">
+                            {% for node in stage.nodes %}
+                                <span
+                                    class="search-debug-tree-diagram__node{{ node.isRemoved ? ' search-debug-tree-diagram__node--removed' : '' }}"
+                                    data-node-id="{{ node.id }}"
+                                    {%- if node.isRemoved %} title="{{ 'search_debug.analyze.token_removed' | trans }}"{% endif -%}
+                                >{{ node.token }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            {# Populated entirely by search-debug-tree-diagram.ts, once actual node positions are known —
+               empty (and harmless) without JS. #}
+            <svg class="search-debug-tree-diagram__edges {{ config.jsName }}__edges" aria-hidden="true"></svg>
+        </div>
     </div>
     {# Not executed as a script — `type="application/json"` opts a `<script>` OUT of execution, same
        payload-carrying trick `packaging-unit-quantity-selector.twig` already uses elsewhere in this

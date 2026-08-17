@@ -1,45 +1,45 @@
 @import '../search-debug-tokens/search-debug-palette';
 
-// The connector-line canvas needs a positioned ancestor to measure and draw against — see
-// search-debug-tree-diagram.ts's own comment on why real pixel positions (not something computable at
-// template time) are required at all.
+// Two independent regions side by side, not one flex row per stage with the label sitting inside the
+// scrolled content (`position: sticky` overlaying it, tried first) — that looked right at rest, but
+// mid-scroll a chip's own text visibly TEARS in half wherever it passes under the label's opaque
+// background (confirmed live). A real, separate label column has nothing to tear, since it is never
+// layered on top of scrolled chip content in the first place; see search-debug-tree-diagram.ts's own
+// `syncLabelHeights()` for how a label's height still stays matched to its row's despite the two now
+// being unrelated layout boxes.
 .search-debug-tree-diagram__wrapper {
-    position: relative;
-}
-
-// One row per analyzer STAGE (not per branch — see SearchStringAnalyzer::getAnalysisTree()'s own
-// docblock on why depth here already equals stage). `z-index` above the SVG overlay (painted first in the
-// DOM, but that alone isn't reliable once the SVG is absolutely positioned) so chip text always stays
-// legible over a connector line passing behind it.
-.search-debug-tree-diagram__row {
-    position: relative;
-    z-index: 1;
     display: flex;
     align-items: flex-start;
     gap: rem(16);
-    padding: rem(10) 0;
-
-    &:not(:last-child) {
-        border-bottom: 1px dashed $setting-color-lightest;
-    }
-
-    // The one stage this whole feature was originally built to surface (see SearchStringAnalyzer's own
-    // "we currently don't display the Stamm" comment) — a subtle tint on the row itself, not just the
-    // "stem:" text label, so it's noticeable even scanning quickly down the row-gap dashed lines.
-    &--stem {
-        background-color: rgba($search-debug-feature-accent-color, 0.05);
-    }
 }
 
-// Fixed width across EVERY row so the chip area always starts at the same X offset regardless of how
-// long a stage's own label happens to be — without this, connector lines between rows with
-// differently-sized labels would need to account for a shifting origin for no real benefit.
-.search-debug-tree-diagram__row-label {
+.search-debug-tree-diagram__labels {
     flex: 0 0 rem(220);
-    padding-top: rem(4);
+    display: flex;
+    flex-direction: column;
+}
+
+// Mirrors `__row`'s own padding/divider below so a label lines up with its row at a glance even before
+// JS runs — `syncLabelHeights()` is what makes that alignment EXACT (a label with a long char-filter
+// mapping list can be taller than its row's own single-line chip content, or vice versa).
+.search-debug-tree-diagram__row-label {
+    box-sizing: border-box;
+    padding: rem(10) 0;
     font-family: monospace;
     font-size: rem(12);
     font-weight: fw(bold);
+
+    &:not(:last-child) {
+        border-bottom: 1px solid $setting-color-light;
+    }
+
+    // The one stage this whole feature was originally built to surface (see SearchStringAnalyzer's own
+    // "we currently don't display the Stamm" comment) — matches `__row--stem`'s own tint below, kept as
+    // a plain rgba() here (not the mix()-approximated solid `position: sticky` needed) since this column
+    // is never overlaying scrolled content that needs masking.
+    &--stem {
+        background-color: rgba($search-debug-feature-accent-color, 0.05);
+    }
 }
 
 .search-debug-tree-diagram__definition {
@@ -62,12 +62,54 @@
     }
 }
 
+// The connector-line canvas needs a positioned ancestor to measure and draw against — see
+// search-debug-tree-diagram.ts's own comment on why real pixel positions (not something computable at
+// template time) are required at all. Also the ONLY horizontal scroll boundary now: the label column
+// above is a fully separate box, never a descendant of this element, so it can never be scrolled or
+// covered by anything in here.
+.search-debug-tree-diagram__scroll {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    padding-bottom: rem(4);
+}
+
+// `width: max-content` (floored to the scroll region's own width via `min-width: 100%`) is required so
+// EVERY row — not just the widest one — actually occupies the diagram's full scrollable width as its own
+// CSS box, not just visually overflowing into it. A plain block child (the default, without this) only
+// ever takes the width its OWN content needs, which would otherwise leave `applyTreeLayout()`'s
+// centering math and `drawEdges()`'s `scrollWidth` read (see search-debug-tree-diagram.ts) inconsistent
+// between a short row and the widest fanned-out one.
+.search-debug-tree-diagram__rows {
+    width: max-content;
+    min-width: 100%;
+}
+
+// One row per analyzer STAGE (not per branch — see SearchStringAnalyzer::getAnalysisTree()'s own
+// docblock on why depth here already equals stage). `z-index` above the SVG overlay (painted first in the
+// DOM, but that alone isn't reliable once the SVG is absolutely positioned) so chip text always stays
+// legible over a connector line passing behind it.
+.search-debug-tree-diagram__row {
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    padding: rem(10) 0;
+
+    &:not(:last-child) {
+        border-bottom: 1px solid $setting-color-light;
+    }
+
+    &--stem {
+        background-color: rgba($search-debug-feature-accent-color, 0.05);
+    }
+}
+
 // NEVER wraps, even for a stage with many tokens (e.g. an edge-ngram filter's fan-out can easily produce
 // 7-8 tokens at once) — a wrapped row would silently break the "one row = one stage" mental model this
 // whole diagram is built on (a wrapped row visually looks like two), and would desync the connector
-// lines' vertical math, which assumes each row occupies exactly one line. The row (and its ancestor
-// wrapper/panel — see analyze.scss's own `.search-debug-analyze-trees`) grows as wide as it needs to and
-// scrolls horizontally instead.
+// lines' vertical math, which assumes each row occupies exactly one line. The row grows as wide as it
+// needs to and scrolls horizontally instead (see `__scroll` above).
 .search-debug-tree-diagram__row-nodes {
     display: flex;
     flex-wrap: nowrap;
@@ -77,7 +119,6 @@
     // needs to add EXTRA space on top of the baseline for some chips to center a parent over its
     // children; mixing an automatic flex `gap` with per-item margin overrides would double up the
     // spacing. See the sibling-combinator fallback rule below for the unscripted case.
-    flex: 1 1 auto;
 }
 
 // Without JS (see search-debug-tree-diagram.ts's own docblock — it degrades to "no connector lines,
@@ -121,9 +162,9 @@
 }
 
 // Absolutely positioned over `.search-debug-tree-diagram__rows` (both share the same
-// `.search-debug-tree-diagram__wrapper` ancestor) — `pointer-events: none` so it never intercepts a click
-// meant for a row beneath it (nodes in this diagram aren't interactive, but the wrapper may sit inside
-// other interactive UI).
+// `.search-debug-tree-diagram__scroll` ancestor) — `pointer-events: none` so it never intercepts a click
+// meant for a row beneath it (nodes in this diagram aren't interactive, but the scroll region may sit
+// inside other interactive UI).
 .search-debug-tree-diagram__edges {
     position: absolute;
     top: 0;
