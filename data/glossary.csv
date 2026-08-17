@@ -147,8 +147,8 @@ search_debug.analyze.pin_hint_short,Open analysis tree,en_US
 search_debug.analyze.pin_hint_short,Analysebaum öffnen,de_DE
 search_debug.analyze.unpin,Remove this tree,en_US
 search_debug.analyze.unpin,Diesen Baum entfernen,de_DE
-search_debug.analyze.tree_empty,No analysis data available (Elasticsearch may be unreachable).,en_US
-search_debug.analyze.tree_empty,Keine Analysedaten verfügbar (Elasticsearch eventuell nicht erreichbar).,de_DE
+search_debug.analyze.tree_empty,No analysis data available (the search engine may be unreachable).,en_US
+search_debug.analyze.tree_empty,Keine Analysedaten verfügbar (Suchmaschine eventuell nicht erreichbar).,de_DE
 search_debug.analyze.analyzer.index,indexed as,en_US
 search_debug.analyze.analyzer.index,indexiert als,de_DE
 search_debug.analyze.analyzer.search,searched as,en_US
