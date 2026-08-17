@@ -56,9 +56,11 @@ analysis-path visualization and the newer word-level analysis page (see below). 
 
 Verified: dependency floors resolved and checked at their oldest allowed versions (`composer
 check-floors`), explanation parsing confirmed against three engines across two Lucene generations (see
-"Search engine compatibility"), 312 tests, phpcs and phpstan level 8 clean. The word-level analysis page is
-live-verified (manually, against real branching/removal/stemming cases) but not yet covered by the
-automated test suite — that coverage is on the roadmap, same as the rest of the Presentation suite.
+"Search engine compatibility"), 324 tests, phpcs and phpstan level 8 clean. The word-level analysis page's
+tree-building algorithm has its own unit tests (`AnalysisTreeBuilderTest`), and its controllers/resolvers
+(`AnalyzeController`/`AnalyzeResolver`, `SkuLookupController`/`SkuLookupResolver`) now have Presentation-suite
+(WebDriver) coverage too — badge pinning, the single-tree-replaces-the-previous-one behavior, the removed-token
+marker, the SKU-lookup found/not-found/redirect-straight-to-analyze branches, and the permission gate.
 
 ## Search Debug — Spryker Community Extension
 
@@ -866,8 +868,11 @@ Presentation suite needs the CSV path since it logs in as this exact account.
 `tests/SprykerCommunityTest/Yves/SearchDebugWidgetPresentation/` is a real WebDriver click-through suite
 covering every checklist item from the package's own manual QA pass: the SRP score overlay (badge, pin,
 matched-token/BM25 breakdown, business-signals section), the query-token analyzer, the token-source and
-analysis-path pages, the component-config page, the permission gate (including the two negative-test
-accounts), and a couple of edge cases (zero results, the `&` char filter). It is kept as its own module
+analysis-path pages, the component-config page, the word-level analysis page and the SKU-lookup widget
+(`WordLevelAnalysisCest`/`SkuLookupCest` — badge pinning, the single-tree-replaces-the-previous-one
+behavior, the removed-token marker, the found/not-found/redirect-straight-to-analyze branches), the
+permission gate (including the two negative-test accounts), and a couple of edge cases (zero results, the
+`&` char filter). It is kept as its own module
 directory rather than nested under `Yves/SearchDebugWidget/` because that module's `Unit` suite scans its
 whole directory tree recursively — a nested WebDriver suite there would break it.
 
