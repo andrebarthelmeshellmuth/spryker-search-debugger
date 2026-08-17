@@ -92,23 +92,24 @@
     }
 }
 
-// Exactly one pinned tree — still a horizontally-scrolling row (rather than a fixed-width "card") since
-// the diagram itself (many stages, a wide fan-out, a long ngram row) can genuinely be wider than the
-// viewport; NOT squeezed to fit, it scrolls instead. See search-debug-tree-diagram.scss's own
-// `flex-wrap: nowrap` on each stage row for the other half of this — a row's own tokens never wrap either,
-// for the same reason.
+// Exactly one pinned tree. The scrolling itself lives one level deeper, inside
+// search-debug-tree-diagram.scss's own `__wrapper` — not here — so the panel header (pinned word +
+// analyzer badge, see `__panel-header` below) and each row's own label stay put while only the token
+// chips scroll; see that file's `__wrapper`/`__row-label` rules for why. `min-width: 0` is required for
+// `__panel` to actually shrink to the available width in this flex row — a flex item's default min-width
+// is its content's own intrinsic width, which would otherwise defeat the panel's own `max-width: 100%`.
 .search-debug-analyze-trees {
     display: flex;
     flex-wrap: nowrap;
     align-items: flex-start;
     gap: rem(16);
     margin-top: rem(24);
-    overflow-x: auto;
-    padding-bottom: rem(4);
 }
 
 .search-debug-analyze-trees__panel {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
     padding: rem(16);
     border: 1px solid $setting-color-light;
     border-radius: rem(4);

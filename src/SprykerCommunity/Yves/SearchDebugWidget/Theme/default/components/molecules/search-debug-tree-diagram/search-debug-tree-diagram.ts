@@ -28,27 +28,26 @@ const BASE_GAP_PX = 12;
  * {@see applyTreeLayout}'s own docblock.
  */
 export default class SearchDebugTreeDiagram extends Component {
+    labelsContainer: HTMLElement;
     rowsContainer: HTMLElement;
+    scrollContainer: HTMLElement;
     edgesContainer: SVGSVGElement;
     edgesDataScript: HTMLScriptElement;
     edges: TreeEdge[];
     resizeTimeoutId: number;
 
     protected init(): void {
+        this.labelsContainer = <HTMLElement>this.querySelector(`.${this.jsName}__labels`);
         this.rowsContainer = <HTMLElement>this.querySelector(`.${this.jsName}__rows`);
+        this.scrollContainer = <HTMLElement>this.querySelector(`.${this.jsName}__scroll`);
         this.edgesContainer = <SVGSVGElement>this.querySelector(`.${this.jsName}__edges`);
         this.edgesDataScript = <HTMLScriptElement>this.querySelector(`.${this.jsName}__edges-data`);
 
-        if (!this.rowsContainer || !this.edgesContainer || !this.edgesDataScript) {
+        if (!this.labelsContainer || !this.rowsContainer || !this.scrollContainer || !this.edgesContainer || !this.edgesDataScript) {
             return;
         }
 
         this.edges = this.parseEdges();
-
-        if (this.edges.length === 0) {
-            return;
-        }
-
         this.layoutAndDraw();
         window.addEventListener('resize', () => this.scheduleRedraw());
     }
@@ -73,8 +72,47 @@ export default class SearchDebugTreeDiagram extends Component {
     }
 
     protected layoutAndDraw(): void {
+        this.syncLabelHeights();
+
+        // Nothing to center/connect for a single straight chain (no branching at all) — the natural,
+        // already-correct left-packed layout stays untouched in that case.
+        if (this.edges.length === 0) {
+            return;
+        }
+
         this.applyTreeLayout();
         this.drawEdges();
+    }
+
+    /**
+     * The label column and the row column (see search-debug-tree-diagram.scss's own `__labels`/`__scroll`
+     * split) are two independently-flowing layout boxes now, with no native CSS way to keep a label's
+     * height matched to its own row's — a long char-filter mapping list can make a label multi-line
+     * regardless of whether that stage's own row branches at all, so this runs unconditionally, not only
+     * when there are edges to draw. Matched purely by INDEX: a label and its row are rendered in the same
+     * stage order (see the twig), one label per row, so position in each container's own children list is
+     * enough on its own — no id needed. Resets both to `auto` first so a stale height from a PRIOR pass
+     * (e.g. a wider window before a resize) never compounds into an ever-growing max.
+     */
+    protected syncLabelHeights(): void {
+        const labels = Array.from(this.labelsContainer.children) as HTMLElement[];
+        const rows = Array.from(this.rowsContainer.children) as HTMLElement[];
+
+        labels.forEach((label: HTMLElement, index: number) => {
+            const row = rows[index];
+
+            if (!row) {
+                return;
+            }
+
+            label.style.height = 'auto';
+            row.style.height = 'auto';
+
+            const height = Math.max(label.getBoundingClientRect().height, row.getBoundingClientRect().height);
+
+            label.style.height = `${height}px`;
+            row.style.height = `${height}px`;
+        });
     }
 
     /**
@@ -163,24 +201,21 @@ export default class SearchDebugTreeDiagram extends Component {
     }
 
     /**
-     * Every coordinate is measured relative to `.search-debug-tree-diagram__wrapper` (the SVG's own
+     * Every coordinate is measured relative to `.search-debug-tree-diagram__scroll` (the SVG's own
      * positioned ancestor, see the scss) via `getBoundingClientRect()` — chip width is text-dependent and
-     * genuinely unknowable any other way. A curve (not a straight line) between each parent/child pair,
-     * vertically through their shared row gap's midpoint, so a wide fan-out (several children under one
-     * parent) reads as a visibly separated bundle rather than overlapping straight lines converging on
-     * one point.
+     * genuinely unknowable any other way. Scroll-position-independent despite that: the SVG scrolls
+     * together with the chips (both are descendants of the same `overflow-x: auto` element), so their
+     * RELATIVE difference — the only thing this method ever reads — stays constant regardless of where
+     * the region happens to be scrolled to at draw time. A curve (not a straight line) between each
+     * parent/child pair, vertically through their shared row gap's midpoint, so a wide fan-out (several
+     * children under one parent) reads as a visibly separated bundle rather than overlapping straight
+     * lines converging on one point.
      */
     protected drawEdges(): void {
-        const wrapper = <HTMLElement>this.querySelector('.search-debug-tree-diagram__wrapper');
+        const scrollRect = this.scrollContainer.getBoundingClientRect();
 
-        if (!wrapper) {
-            return;
-        }
-
-        const wrapperRect = wrapper.getBoundingClientRect();
-
-        this.edgesContainer.setAttribute('width', String(wrapper.scrollWidth));
-        this.edgesContainer.setAttribute('height', String(wrapper.scrollHeight));
+        this.edgesContainer.setAttribute('width', String(this.scrollContainer.scrollWidth));
+        this.edgesContainer.setAttribute('height', String(this.scrollContainer.scrollHeight));
         this.edgesContainer.innerHTML = '';
 
         this.edges.forEach((edge: TreeEdge) => {
@@ -194,10 +229,10 @@ export default class SearchDebugTreeDiagram extends Component {
             const fromRect = fromNode.getBoundingClientRect();
             const toRect = toNode.getBoundingClientRect();
 
-            const x1 = fromRect.left - wrapperRect.left + fromRect.width / 2;
-            const y1 = fromRect.bottom - wrapperRect.top;
-            const x2 = toRect.left - wrapperRect.left + toRect.width / 2;
-            const y2 = toRect.top - wrapperRect.top;
+            const x1 = fromRect.left - scrollRect.left + fromRect.width / 2;
+            const y1 = fromRect.bottom - scrollRect.top;
+            const x2 = toRect.left - scrollRect.left + toRect.width / 2;
+            const y2 = toRect.top - scrollRect.top;
             const midY = (y1 + y2) / 2;
 
             const path = document.createElementNS(SVG_NAMESPACE, 'path');
