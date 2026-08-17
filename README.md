@@ -41,9 +41,7 @@ Elasticsearch `_score`, which query tokens matched, and — one click deeper —
 numbers behind each match, pinned open for comparing two products side by side. Each query token in the
 headline also has its own magnifying-glass link (traced through the search-time analyzer — see
 "Analysis-path page" below), so how the shopper's own typed words became a search token is one click away
-too:
-
-![The SRP score overlay: the query-token headline with a magnifying-glass link on each token, and the per-product overlay pinned open showing the business-signal breakdown, matched tokens with their BM25 contribution, and the other per-field score contributions](docs/screenshots/srp-overlay.png)
+too.
 
 No more "because Elasticsearch said so" — every number on the page traces back to a real, inspectable part
 of the query.
@@ -77,8 +75,6 @@ catalog search:
   searchable-attribute contributions (Zed → Search Preferences) are attributed correctly — including
   values no known source claims, which are shown honestly as "other indexed value", carrying a `?`
   affordance that explains why and how to name them.
-
-  ![The token-source page: one tier per searched field, each matched fragment highlighted with a link to its analysis path, an unclaimed value labeled honestly by its real attribute key ("brand")](docs/screenshots/token-source-page.png)
 - **Analysis-path page** — a second magnifier next to each matched fragment on the token-source page opens
   a page showing exactly how that raw text became the matched token: one box per analyzer stage (char
   filters, the tokenizer, every token filter, in chain order), connected by the ES operation that produced
@@ -93,8 +89,6 @@ catalog search:
   Every step is colored by its own exact text, cycling a fixed palette — the SAME text anywhere in the
   path gets the SAME color, so a color CHANGE between neighboring steps is itself the visual tell that a
   filter actually transformed the text (e.g. a synonym injecting a different word), not just decoration.
-
-  ![The analysis-path page: "trolley" traced stage by stage until the fulltext_synonyms filter injects "handcart" — the color change from green to orange is the visual tell](docs/screenshots/analysis-path-page.png)
 
   The SRP overlay's own query-token headline has the same magnifier, on each token — traced through the
   **search-time** analyzer instead, since a query token was never indexed, only searched. When a shop's
