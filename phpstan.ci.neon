@@ -9,8 +9,7 @@ includes:
 #   real project's full dependency graph, produced by `console dev:ide-auto-completion:generate`. Not
 #   reproducible for one package in isolation.
 # - `Orm\Zed\*\Persistence\*` (Propel entity/query/map classes) — produced by `propel:model:build` against
-#   a real schema + database. Same category of gap as the checked-in `PageIndexMap.php` fixture the search
-#   suite already carries for its own generator gap.
+#   a real schema + database.
 #
 # Both are still exercised for real by this package's DB-backed Codeception suite when run from a host
 # shop (see README, "Testing and CI") — this file only relaxes what a single standalone package checkout
@@ -23,7 +22,6 @@ parameters:
             - src/Generated/*
     scanDirectories:
         - src/Generated
-        - tests/_ci-standalone/Generated
     # Not every category below necessarily fires in every sibling package that reuses this same file
     # shape — an ignore pattern matching zero errors here is fine, not a sign the pattern is stale.
     reportUnmatchedIgnoredErrors: false

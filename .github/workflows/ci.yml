@@ -98,15 +98,11 @@ jobs:
 
   portable-tests:
     # Runs this package's own tests, standalone — no demoshop, no live database, no Elasticsearch.
-    # `@group Portable` (tests/_ci-standalone/) is the subset that needs only `Generated\Shared\Transfer\*`,
-    # generated here via a direct TransferBusinessFactory call rather than the full Zed Console/Kernel
-    # bootstrap. `@group NeedsDatabase`/`@group NeedsSearch`/`@group NeedsProject` are NOT run here — they
-    # need a real project (see the CI-portability write-up); run them from a host shop instead.
-    #
-    # tests/_ci-standalone/Generated/Shared/Search/PageIndexMap.php is a checked-in, point-in-time fixture,
-    # not live-generated: its content is a project-wide aggregate across every installed sibling package,
-    # so it cannot be produced by this package alone. See that file's own docblock for what it is and how
-    # to regenerate it — regeneration is only needed when the project-wide search field set itself changes.
+    # `@group Portable` (tests/_ci-standalone/) is the subset that needs only `Generated\Shared\Transfer\*`
+    # and `Generated\Shared\Search\PageIndexMap`, both generated here via direct generator calls rather
+    # than the full Zed Console/Kernel bootstrap. `@group NeedsDatabase`/`@group NeedsSearch`/
+    # `@group NeedsProject` are NOT run here — they need a real project (see the CI-portability
+    # write-up); run them from a host shop instead.
     name: portable tests (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
     strategy:
@@ -121,6 +117,7 @@ jobs:
           coverage: none
       - run: composer install --prefer-dist --no-interaction --no-progress
       - run: php tests/_ci-standalone/generate-transfers.php
+      - run: php tests/_ci-standalone/generate-index-map.php
       - run: vendor/bin/codecept run -c tests/codeception.portable.yml -g Portable
 
   complexity:
