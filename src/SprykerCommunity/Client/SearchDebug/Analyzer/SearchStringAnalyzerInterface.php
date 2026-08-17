@@ -39,6 +39,26 @@ interface SearchStringAnalyzerInterface
     public function getTokenOffsetsForTexts(array $texts): array;
 
     /**
+     * Index-time WORD boundaries for each of $texts — i.e. the real analyzer's own char-filter+tokenizer
+     * stage, before any token filter (lowercase, stemmer, synonym, decompounder, ...) has touched
+     * anything. Offsets are back into the ORIGINAL text, exactly like {@see getTokenOffsetsForTexts()},
+     * but this is the raw segmentation a shopper's own text was actually split into by this index's real
+     * tokenizer, not a hand-rolled approximation — the caller slices the original text by these offsets
+     * to get a "word" it can safely re-analyze in isolation later and still see the true result, because
+     * the boundary itself came from the real pipeline (see the implementation's own docblock for why a
+     * hand-rolled boundary guess can silently produce wrong results whenever a char filter needs
+     * characters on both sides of a guessed cut point).
+     *
+     * Falls back to the ONE available stage's tokens for a BUILT-IN (non-custom) analyzer, which reports
+     * no separate tokenizer breakdown at all — the best available boundary information in that case.
+     *
+     * @param array<string> $texts
+     *
+     * @return array<string, array<array{token: string, startOffset: int, endOffset: int}>>
+     */
+    public function getWordSpansForTexts(array $texts): array;
+
+    /**
      * @param string $text
      * @param bool $useSearchAnalyzer See {@see getTokenOffsets()}'s parameter of the same name.
      *

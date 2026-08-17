@@ -70,6 +70,22 @@ class SearchDebugClient extends AbstractClient implements SearchDebugClientInter
      *
      * @api
      *
+     * @param array<string> $texts
+     *
+     * @return array<string, array<array{token: string, startOffset: int, endOffset: int}>>
+     */
+    public function getTextWordSpansForTexts(array $texts): array
+    {
+        return $this->getFactory()
+            ->createSearchStringAnalyzer()
+            ->getWordSpansForTexts($texts);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @api
+     *
      * @param string $text
      * @param bool $useSearchAnalyzer
      *

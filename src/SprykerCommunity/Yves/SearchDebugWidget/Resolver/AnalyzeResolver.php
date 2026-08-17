@@ -21,16 +21,6 @@ class AnalyzeResolver implements AnalyzeResolverInterface
     protected const MAPPING_TYPE_SKU = 'sku';
 
     /**
-     * Word boundary for splitting a raw document element into individually-clickable badges — plain
-     * whitespace plus the punctuation marks that commonly bound a word without being PART of one (unlike,
-     * say, a hyphen inside "wi-fi", deliberately left untouched so a compound word stays one badge, same
-     * as a shopper would read it).
-     *
-     * @var string
-     */
-    protected const WORD_BOUNDARY_PATTERN = '/[\s,;:!?()\[\]{}"\'\/\\\\]+/u';
-
-    /**
      * @param \Spryker\Client\ProductStorage\ProductStorageClientInterface $productStorageClient
      * @param \SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface $searchDebugClient
      * @param \SprykerCommunity\Yves\SearchDebugWidget\Resolver\ProductSourceMapBuilder $productSourceMapBuilder
@@ -145,13 +135,28 @@ class AnalyzeResolver implements AnalyzeResolverInterface
     {
         $queryTokenSet = array_fill_keys($queryTokens, true);
 
+        $allElements = [];
+        foreach ($fieldRows as $row) {
+            array_push($allElements, ...$row['elements']);
+        }
+        $allElements = array_values(array_unique(array_filter($allElements, static fn (string $element): bool => $element !== '')));
+
+        // ONE batched `_analyze` call for every distinct raw element across every field, reading back its
+        // real WORD boundaries — see SearchDebugClientInterface::getTextWordSpansForTexts()'s own
+        // docblock for why these come from the real analyzer rather than a hand-rolled split: a guessed
+        // boundary can cut a char filter's own input in half (e.g. a decimal-comma normalizer), silently
+        // producing wrong results for whatever gets analyzed on either side of that cut.
+        $wordSpansByElement = $allElements !== [] ? $this->searchDebugClient->getTextWordSpansForTexts($allElements) : [];
+
         $wordsByRowIndex = [];
         $allWords = [];
 
         foreach ($fieldRows as $rowIndex => $row) {
             $words = [];
             foreach ($row['elements'] as $element) {
-                array_push($words, ...$this->splitIntoWords($element));
+                foreach ($wordSpansByElement[$element] ?? [] as $span) {
+                    $words[] = $this->sliceCodeUnits($element, $span['startOffset'], $span['endOffset']);
+                }
             }
 
             // Deliberately a VALUE-based dedup (array_unique over a plain list), never a dict keyed by the
@@ -170,12 +175,14 @@ class AnalyzeResolver implements AnalyzeResolverInterface
 
         $allWords = array_values(array_unique($allWords));
 
-        // ONE batched `_analyze` call for every distinct word across every field — see
-        // SearchDebugClientInterface::getTextTokenOffsetsForTexts()'s own docblock. Deliberately the
-        // INDEX-time analyzer (the default `useSearchAnalyzer = false`): this asks "what token(s) would
-        // this raw document WORD produce if indexed", the same asymmetric-analyzer posture
-        // `SearchStringAnalyzer::getTokenOffsets()` documents at length — comparable against the query's
-        // own SEARCH-time tokens below only because that is genuinely the real-world matching question.
+        // A second, separate batched `_analyze` call: the word SPANS above only established where a word
+        // starts and ends, not what it produces once fully analyzed (lowercase, stemmer, synonym,
+        // decompounder, ...) — see SearchDebugClientInterface::getTextTokenOffsetsForTexts()'s own
+        // docblock. Deliberately the INDEX-time analyzer (the default `useSearchAnalyzer = false`): this
+        // asks "what token(s) would this raw document WORD produce if indexed", the same
+        // asymmetric-analyzer posture `SearchStringAnalyzer::getTokenOffsets()` documents at length —
+        // comparable against the query's own SEARCH-time tokens below only because that is genuinely the
+        // real-world matching question.
         $tokensByWord = $allWords !== [] ? $this->searchDebugClient->getTextTokenOffsetsForTexts($allWords) : [];
 
         $fieldWordRows = [];
@@ -192,17 +199,5 @@ class AnalyzeResolver implements AnalyzeResolverInterface
         }
 
         return $fieldWordRows;
-    }
-
-    /**
-     * @param string $text
-     *
-     * @return array<int, string>
-     */
-    protected function splitIntoWords(string $text): array
-    {
-        $parts = preg_split(static::WORD_BOUNDARY_PATTERN, trim($text), -1, PREG_SPLIT_NO_EMPTY);
-
-        return $parts !== false ? array_values(array_unique($parts)) : [];
     }
 }
