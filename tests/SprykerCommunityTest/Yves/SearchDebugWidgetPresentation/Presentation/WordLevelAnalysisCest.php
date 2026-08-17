@@ -178,8 +178,6 @@ class WordLevelAnalysisCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return string
      */
     protected function grabAnalyzeLinkHref(SearchDebugWidgetPresentationTester $i): string
     {
