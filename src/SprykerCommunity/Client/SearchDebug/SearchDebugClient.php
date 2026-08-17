@@ -73,13 +73,33 @@ class SearchDebugClient extends AbstractClient implements SearchDebugClientInter
      * @param string $text
      * @param bool $useSearchAnalyzer
      *
-     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
+     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, isStem: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
      */
     public function getTextAnalysisStages(string $text, bool $useSearchAnalyzer = false): array
     {
         return $this->getFactory()
             ->createSearchStringAnalyzer()
             ->getAnalysisStages($text, $useSearchAnalyzer);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @api
+     *
+     * @param string $text
+     * @param bool $useSearchAnalyzer
+     *
+     * @return array{
+     *     stages: array<int, array{label: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, isStem: bool, nodes: array<int, array{id: string, token: string, isRemoved: bool}>}>,
+     *     edges: array<int, array{from: string, to: string}>,
+     * }
+     */
+    public function getTextAnalysisTree(string $text, bool $useSearchAnalyzer = false): array
+    {
+        return $this->getFactory()
+            ->createSearchStringAnalyzer()
+            ->getAnalysisTree($text, $useSearchAnalyzer);
     }
 
     /**

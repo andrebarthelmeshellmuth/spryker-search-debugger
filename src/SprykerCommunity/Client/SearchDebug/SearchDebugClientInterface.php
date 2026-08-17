@@ -90,9 +90,42 @@ interface SearchDebugClientInterface
      * @param string $text
      * @param bool $useSearchAnalyzer
      *
-     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
+     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, isStem: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
      */
     public function getTextAnalysisStages(string $text, bool $useSearchAnalyzer = false): array;
+
+    /**
+     * Specification:
+     * - Same underlying `_analyze?explain=true` data as `getTextAnalysisStages()`, restructured into a
+     *   branching diagram laid out by STAGE rather than by lineage: `stages` is one entry per analyzer
+     *   stage (char filter, tokenizer, token filter, in chain order), each carrying every token alive at
+     *   that point (`nodes`); `edges` connects a stage's nodes to the specific nodes they produced in the
+     *   NEXT stage, so every fan-out a filter produces (synonym expansion, decompounding, ngrams, ...) is
+     *   visible as multiple edges out of one node rather than collapsed away. Nodes are linked
+     *   stage-to-stage via Elasticsearch's own per-token `position` field — a correlation, not a
+     *   guaranteed parent pointer (the API exposes none); see the implementation's own docblock for the
+     *   one known edge case this can misattribute. A node with no matching position in the previous
+     *   stage simply has no incoming edge.
+     * - A stemming stage's `label` reads "stem: X" rather than the generic "filter: X" every other token
+     *   filter gets, and its `isStem` flag is `true`.
+     * - A token a filter drops outright (a stop-word or min-length filter is the common case) gets a
+     *   synthetic `isRemoved: true` node (`token: "∅"`) injected into the NEXT stage's own row, linked by
+     *   a normal edge — so a dead end is always visible, never silently absent.
+     * - Returns `{stages: [], edges: []}` for empty text or when Elasticsearch is unreachable.
+     * - Pass `$useSearchAnalyzer = true` to trace a QUERY string's own tokenization instead of a piece of
+     *   indexed product text — see {@see getTextTokenOffsets()}'s parameter of the same name.
+     *
+     * @api
+     *
+     * @param string $text
+     * @param bool $useSearchAnalyzer
+     *
+     * @return array{
+     *     stages: array<int, array{label: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, isStem: bool, nodes: array<int, array{id: string, token: string, isRemoved: bool}>}>,
+     *     edges: array<int, array{from: string, to: string}>,
+     * }
+     */
+    public function getTextAnalysisTree(string $text, bool $useSearchAnalyzer = false): array;
 
     /**
      * Specification:

@@ -23,6 +23,7 @@ Search Debug helps Search Engineers explain ranking decisions—quickly enough t
   - [8. Glossary entries](#8-glossary-entries)
   - [9. Grant the permission](#9-grant-the-permission)
   - [10. Verify the installation](#10-verify-the-installation)
+- [Word-level analysis page](#word-level-analysis-page)
 - [How it works](#how-it-works)
 - [Extending the overlay](#extending-the-overlay)
   - [Naming your own indexed values on the token-source page](#naming-your-own-indexed-values-on-the-token-source-page)
@@ -49,11 +50,13 @@ of the query.
 ## Status
 
 Feature-complete and verified for its scope: search relevance debugging, including per-token
-analysis-path visualization. More tools are planned.
+analysis-path visualization and the newer word-level analysis page (see below). More tools are planned.
 
 Verified: dependency floors resolved and checked at their oldest allowed versions (`composer
 check-floors`), explanation parsing confirmed against three engines across two Lucene generations (see
-"Search engine compatibility"), 303 tests, phpcs and phpstan level 8 clean.
+"Search engine compatibility"), 312 tests, phpcs and phpstan level 8 clean. The word-level analysis page is
+live-verified (manually, against real branching/removal/stemming cases) but not yet covered by the
+automated test suite — that coverage is on the roadmap, same as the rest of the Presentation suite.
 
 ## Search Debug — Spryker Community Extension
 
@@ -118,6 +121,45 @@ logged-out state — so out of the box you could only grant this to *every* logg
 not what you want for a debug tool. A B2C shop therefore needs a small custom
 `PermissionStoragePluginInterface` implementation that grants the permission to whichever customers it
 should apply to (e.g. an allowlist of customer references).
+
+## Word-level analysis page
+
+Everything above — the SRP overlay, the token-source page, the analysis-path page — answers one question:
+**why was this product's token *matched***. Given a real match already happened, they explain it: which
+score it contributed, which field it came from, which single lineage of transformations produced it. None
+of them can answer the question a Search Engineer asks *before* there is a match to explain: **which
+tokens does this product produce in the first place** — including the ones that never matched anything,
+the ones a filter quietly removed, and the branches an earlier tool would have collapsed away.
+
+The word-level analysis page is that other half. A "You miss a SKU? Figure out why it's not here" widget
+sits at the bottom of the search results grid, next to the search-feedback ticket form — enter a SKU and
+it resolves one of three outcomes: the SKU doesn't exist (a typo), it exists but has no document in this
+store/locale's search index (unpublished, inactive, or not yet exported), or it exists and is found — in
+which case its real rank in the *current* filtered result set is shown (re-running the shop's own
+`CatalogClient` query, page by page, never a hand-reconstructed raw query), with the option to open the
+full analysis anyway even when it's ranked comfortably on page one. The same page is one click away from
+any already-visible product too, via the small "🔍 Analyze" pill next to the pin toggle on the SRP score
+overlay.
+
+The page itself shows the current query's own tokens plus one horizontally-scrollable row of clickable
+word badges per document field (title, SKU, descriptions, categories, merchant name — the same field
+attribution `TokenSourceResolver` already knows, reused here) — a word already sharing a produced token
+with the query is highlighted before anything is even clicked. Clicking any badge pins its full analysis
+as a branching diagram: one ROW per analyzer stage (char filters, the tokenizer, every token filter, in
+chain order), every token alive at that stage in that row, connected to the specific tokens it produced in
+the next row — so a filter that fans one word into several (a decompounder, a synonym expansion, an
+edge-ngram filter) is fully visible as multiple branches, not collapsed to the one lineage that happened to
+match. A token a filter drops outright (a stop word, a min-length cutoff) gets an explicit `∅` marker
+rather than just silently having no more rows underneath it, and a stemming stage is called out as
+`stem: X` rather than buried as one more generic `filter: X` line:
+
+![The word-level analysis page: "stuhl" traced stage by stage, fanning into "stuhl"/"sessel" at the synonym filter — every branch visible at once, not collapsed to one matched lineage](docs/screenshots/analyze-page.png)
+
+This is a genuinely different layout from the analysis-path page's own straight-line boxes, and
+deliberately so — see the analysis-path page's own docblock for why a linear path is the *right* shape for
+"trace this one already-matched token backward" (there is structurally only ever one lineage to show), and
+why that shape would be the *wrong* one here: this page exists specifically to show every branch a
+transformation produces, most of which never match anything at all.
 
 ## Requirements
 
@@ -391,17 +433,40 @@ package installed, with no extra wrapper div at all:
 {% endif %}
 ```
 
-### 7. Frontend build
+Finally, add the "You miss a SKU?" lookup widget at the bottom of the results grid, next to any existing
+feedback widget (e.g. search-feedback's ticket form) — it needs the same `searchDebugTokens` check as the
+overlay above so it never renders on a query this package has no data for:
 
-Add the community vendor directory to your Yves builder so the package's components compile. In
-`frontend/settings.js`, add to `paths`:
-
-```js
-community: './vendor/spryker-community',
+```twig
+{% if data.searchString is defined and data.searchString is not empty and data.searchDebugTokens | default([]) is not empty %}
+    {% include molecule('search-debug-sku-lookup', 'SearchDebugWidget') with {
+        data: {
+            searchString: data.searchString,
+        },
+    } only %}
+{% endif %}
 ```
 
-...mirror it in the per-theme path mapping, and add `join(globalSettings.context, paths.community)` to
-`find.componentEntryPoints.dirs`. Then:
+And the SRP overlay's "🔍 Analyze" link (rendered by `search-debug-product-info` itself, no extra template
+change needed) resolves to the `search-debug/analyze` route registered by this package's own route
+provider plugin — nothing further to wire up there.
+
+### 7. Frontend build
+
+Add the community vendor directory to your Yves builder so the package's components compile — this touches
+three separate places in your project's own `frontend/settings.js` (the `paths` map, the per-theme path
+mapping, and `find.componentEntryPoints.dirs`), plus one `ignoreFiles` addition that matters as soon as you
+install more than one `spryker-community/*` package side by side: each one carries its own nested
+`vendor/spryker-community/*` copy of its sibling packages (a normal consequence of them being
+independently composer-installable), and without the exclusion the builder bundles both the real copy and
+every nested duplicate — whichever one wins is arbitrary, so a component can silently fail to register
+(`customElements.get()` returns nothing, no build error) because the browser loaded a stale duplicate
+instead of the file you're actually editing.
+
+All four edits, spelled out together, are in
+[`docs/examples/frontend-settings.js.patch`](docs/examples/frontend-settings.js.patch).
+
+Then:
 
 ```bash
 yarn yves

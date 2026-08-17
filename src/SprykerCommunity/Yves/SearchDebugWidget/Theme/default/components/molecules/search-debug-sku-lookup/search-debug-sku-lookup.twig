@@ -1,0 +1,27 @@
+{% extends model('component') %}
+
+{% define config = {
+    name: 'search-debug-sku-lookup',
+} %}
+
+{% block body %}
+    <div class="box search-debug-sku-lookup">
+        <p class="search-debug-sku-lookup__prompt">{{ 'search_debug.sku_lookup.prompt' | trans }}</p>
+
+        <form class="{{ config.jsName }}__form search-debug-sku-lookup__form" method="GET" action="{{ url('search-debug/sku-lookup') }}">
+            <input type="hidden" name="queryString" value="{{ app.request.queryString }}">
+
+            <label for="{{ config.jsName }}__sku" class="is-visually-hidden">{{ 'search_debug.sku_lookup.sku_label' | trans }}</label>
+            <input
+                type="text"
+                id="{{ config.jsName }}__sku"
+                name="sku"
+                class="input"
+                placeholder="{{ 'search_debug.sku_lookup.sku_placeholder' | trans }}"
+                required="required"
+            >
+
+            <button type="submit" class="button">{{ 'search_debug.sku_lookup.submit' | trans }}</button>
+        </form>
+    </div>
+{% endblock %}

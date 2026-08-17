@@ -269,14 +269,24 @@ $search-debug-trigger-color: $search-debug-feature-accent-color;
     pointer-events: auto;
 }
 
-// Top-right of the overlay, next to nothing else — the one control meant to survive the mouse leaving,
-// so it needs to be reachable independently of hovering any OTHER part of the panel first. Same circular
-// debug-purple badge look as `.search-debug-collapsible__icon`/`.search-debug-token-source-link` elsewhere
-// in this overlay, just anchored to a corner instead of sitting inline with text.
-.search-debug-pin-toggle {
+// Spans the full top edge of the overlay — both controls in here are meant to survive the mouse leaving,
+// so they need to be reachable independently of hovering any OTHER part of the panel first, and are kept
+// apart (analyze at the left, pin at the right) rather than bunched together in one corner, so neither
+// reads as subordinate to the other.
+.search-debug-overlay__actions {
     position: absolute;
     top: rem(8);
+    left: rem(8);
     right: rem(8);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+// Same circular debug-purple badge look as `.search-debug-collapsible__icon`/`.search-debug-token-source-link`
+// elsewhere in this overlay — the one control meant to survive the mouse leaving, so it needs to be
+// reachable independently of hovering any OTHER part of the panel first.
+.search-debug-pin-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -314,6 +324,35 @@ $search-debug-trigger-color: $search-debug-feature-accent-color;
     &[aria-pressed='true'] {
         background-color: $setting-color-white;
         color: $search-debug-trigger-color;
+    }
+}
+
+// A small pill (not a circle, unlike the pin next to it — the label needs room) opening the NEW
+// word-level analysis page for this product in a new tab. Same debug-purple accent as every other "go
+// deeper" affordance in this package.
+.search-debug-analyze-link {
+    display: inline-flex;
+    align-items: center;
+    gap: rem(4);
+    height: rem(24);
+    min-height: 0;
+    padding: 0 rem(10);
+    border: none;
+    border-radius: rem(999);
+    background-color: $search-debug-trigger-color;
+    color: $setting-color-white;
+    font-size: rem(11);
+    font-weight: fw(bold);
+    white-space: nowrap;
+
+    .icon {
+        width: rem(11);
+        height: rem(11);
+    }
+
+    &:hover,
+    &:focus {
+        background-color: darken($search-debug-trigger-color, 8%);
     }
 }
 

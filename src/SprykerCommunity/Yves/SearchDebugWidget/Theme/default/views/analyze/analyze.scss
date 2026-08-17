@@ -1,0 +1,138 @@
+@import '../../components/molecules/search-debug-tokens/search-debug-palette';
+@import '../../components/molecules/search-debug-tokens/search-debug-token-badge';
+
+// Standalone debug utility page, same plain posture as token-analysis.scss/token-source.scss.
+.search-debug-analyze-page {
+    padding: rem(24) 0;
+}
+
+.search-debug-analyze-page__heading {
+    margin-bottom: rem(8);
+}
+
+.search-debug-analyze-page__sku {
+    color: $setting-color-darker;
+    font-family: monospace;
+}
+
+.search-debug-analyze-page__back {
+    display: inline-block;
+    margin: rem(8) 0 rem(16);
+    color: $search-debug-feature-accent-color;
+
+    &:hover,
+    &:focus {
+        color: darken($search-debug-feature-accent-color, 8%);
+    }
+}
+
+.search-debug-analyze-page__hint {
+    margin-top: rem(16);
+    color: $setting-color-darker;
+    font-style: italic;
+}
+
+// One row per document field (query tokens included) — the label sits above its own badge line rather
+// than beside it, so a long, horizontally-scrolling badge line (see --scroll below) never has to compete
+// with the label for width.
+.search-debug-analyze-row {
+    margin-bottom: rem(16);
+}
+
+.search-debug-analyze-row__label {
+    display: block;
+    margin-bottom: rem(4);
+    font-size: rem(13);
+}
+
+.search-debug-analyze-row__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: rem(4);
+}
+
+// A product description can run to dozens of words — this keeps ONE row's badges on ONE line, scrolling
+// horizontally, instead of wrapping into a multi-line block that would push every row below it down an
+// unpredictable amount depending on description length.
+.search-debug-analyze-row__badges--scroll {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: rem(4);
+}
+
+// Plain (unmatched) word badge — deliberately NOT part of the query-token color cycle
+// (_search-debug-token-badge.scss's `.search-debug-token`): a document word isn't itself one specific
+// query token, so giving it an arbitrary cycling color would falsely imply an association with whichever
+// color happened to land on it.
+.search-debug-word-badge {
+    @include helper-badge-chip;
+    margin: 0;
+    border: 1px solid $setting-color-light;
+    border-radius: rem(999);
+    background-color: $setting-color-lightest;
+    color: $setting-color-darker;
+    font-family: monospace;
+    font-size: rem(12);
+    white-space: nowrap;
+
+    &:hover,
+    &:focus {
+        border-color: $search-debug-feature-accent-color;
+    }
+
+    // Shares at least one produced token with the current query — a near-miss worth noticing before
+    // anything is even clicked, per this feature's own design notes. Uses the feature accent color
+    // (not a cycling token color, for the same reason as the base badge above) so it reads as "the
+    // debug tool is telling you something about this word", not "this word IS token N".
+    &--match {
+        border-color: $search-debug-feature-accent-color;
+        background-color: rgba($search-debug-feature-accent-color, 0.12);
+        color: $search-debug-feature-accent-color;
+        font-weight: fw(bold);
+    }
+}
+
+// Exactly one pinned tree — still a horizontally-scrolling row (rather than a fixed-width "card") since
+// the diagram itself (many stages, a wide fan-out, a long ngram row) can genuinely be wider than the
+// viewport; NOT squeezed to fit, it scrolls instead. See search-debug-tree-diagram.scss's own
+// `flex-wrap: nowrap` on each stage row for the other half of this — a row's own tokens never wrap either,
+// for the same reason.
+.search-debug-analyze-trees {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: rem(16);
+    margin-top: rem(24);
+    overflow-x: auto;
+    padding-bottom: rem(4);
+}
+
+.search-debug-analyze-trees__panel {
+    flex: 0 0 auto;
+    padding: rem(16);
+    border: 1px solid $setting-color-light;
+    border-radius: rem(4);
+}
+
+.search-debug-analyze-trees__panel-header {
+    display: flex;
+    align-items: center;
+    gap: rem(8);
+    margin-bottom: rem(12);
+    padding-bottom: rem(8);
+    border-bottom: 1px solid $setting-color-light;
+    font-family: monospace;
+}
+
+.search-debug-analyze-trees__panel-analyzer {
+    color: $setting-color-darker;
+    font-size: rem(11);
+}
+
+.search-debug-analyze-trees__panel-empty {
+    color: $setting-color-darker;
+    font-style: italic;
+}
+
+// The diagram itself (stage rows + connector lines) is a self-contained component — see
+// search-debug-tree-diagram.scss for its own styling. Nothing tree-specific belongs in this file.

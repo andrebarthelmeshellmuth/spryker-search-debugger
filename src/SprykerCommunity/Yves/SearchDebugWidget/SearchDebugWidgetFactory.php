@@ -9,6 +9,7 @@ declare(strict_types = 1);
 
 namespace SprykerCommunity\Yves\SearchDebugWidget;
 
+use Spryker\Client\Catalog\CatalogClientInterface;
 use Spryker\Client\CategoryStorage\CategoryStorageClientInterface;
 use Spryker\Client\MerchantStorage\MerchantStorageClientInterface;
 use Spryker\Client\ProductCategoryStorage\ProductCategoryStorageClientInterface;
@@ -18,10 +19,14 @@ use Spryker\Yves\Kernel\AbstractFactory;
 use SprykerCommunity\Client\SearchDebug\SearchDebugClientInterface;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\AnalysisPathResolver;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\AnalysisPathResolverInterface;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\AnalyzeResolver;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\AnalyzeResolverInterface;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\CategoryAncestorNameCollector;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\ComponentConfigFormatter;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\ComponentConfigFormatterInterface;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\ProductSourceMapBuilder;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\SkuLookupResolver;
+use SprykerCommunity\Yves\SearchDebugWidget\Resolver\SkuLookupResolverInterface;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighter;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenHighlighterInterface;
 use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolver;
@@ -29,6 +34,29 @@ use SprykerCommunity\Yves\SearchDebugWidget\Resolver\TokenSourceResolverInterfac
 
 class SearchDebugWidgetFactory extends AbstractFactory
 {
+    public function createSkuLookupResolver(): SkuLookupResolverInterface
+    {
+        return new SkuLookupResolver(
+            $this->getProductStorageClient(),
+            $this->getSearchDebugClient(),
+            $this->getCatalogClient(),
+        );
+    }
+
+    public function createAnalyzeResolver(): AnalyzeResolverInterface
+    {
+        return new AnalyzeResolver(
+            $this->getProductStorageClient(),
+            $this->getSearchDebugClient(),
+            $this->createProductSourceMapBuilder(),
+        );
+    }
+
+    public function getCatalogClient(): CatalogClientInterface
+    {
+        return $this->getProvidedDependency(SearchDebugWidgetDependencyProvider::CLIENT_CATALOG);
+    }
+
     public function createTokenSourceResolver(): TokenSourceResolverInterface
     {
         return new TokenSourceResolver(

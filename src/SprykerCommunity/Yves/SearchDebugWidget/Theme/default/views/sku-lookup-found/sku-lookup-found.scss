@@ -1,0 +1,23 @@
+// Standalone debug utility page, same plain posture as token-analysis.scss/token-source.scss.
+.search-debug-sku-lookup-found-page {
+    padding: rem(24) 0;
+    max-width: rem(560);
+}
+
+.search-debug-sku-lookup-found-page__heading {
+    margin-bottom: rem(16);
+}
+
+.search-debug-sku-lookup-found-page__sku {
+    color: $setting-color-darker;
+    font-family: monospace;
+}
+
+.search-debug-sku-lookup-found-page__position {
+    margin: rem(16) 0;
+}
+
+.search-debug-sku-lookup-found-page__actions {
+    display: flex;
+    gap: rem(12);
+}

@@ -1,0 +1,54 @@
+{# `tag` matching `name` makes this a real custom element (see ShopUi's model('component')) — required so
+   the connector-line drawing behavior (search-debug-tree-diagram.ts) can attach to it as a
+   Component/HTMLElement subclass. Without JS this still renders as a readable, correctly-ordered stack of
+   stage rows — the connector lines are the one thing that needs real pixel positions (unknowable at
+   template time, since chip width depends on the rendered token text), everything else is plain HTML. #}
+{% extends model('component') %}
+
+{% define config = {
+    name: 'search-debug-tree-diagram',
+    tag: 'search-debug-tree-diagram',
+} %}
+
+{% define data = {
+    stages: [],
+    edges: [],
+} %}
+
+{% block body %}
+    <div class="search-debug-tree-diagram__wrapper">
+        <div class="search-debug-tree-diagram__rows {{ config.jsName }}__rows">
+            {% for stage in data.stages %}
+                <div class="search-debug-tree-diagram__row{{ stage.isStem ? ' search-debug-tree-diagram__row--stem' : '' }}">
+                    <div class="search-debug-tree-diagram__row-label">
+                        {{ stage.label }}
+                        {%- if stage.definition is not null %}
+                            <span class="search-debug-tree-diagram__definition">
+                                {{- stage.definition -}}
+                                {%- if stage.definitionTruncated -%}
+                                    <a href="{{ url('search-debug/component-config', { type: stage.componentKind, name: stage.componentName }) }}" target="_blank" rel="noopener noreferrer" class="search-debug-tree-diagram__definition-link">{{ 'search_debug.token_analysis.view_full_definition' | trans }}</a>
+                                {%- endif -%}
+                            </span>
+                        {%- endif %}
+                    </div>
+                    <div class="search-debug-tree-diagram__row-nodes">
+                        {% for node in stage.nodes %}
+                            <span
+                                class="search-debug-tree-diagram__node{{ node.isRemoved ? ' search-debug-tree-diagram__node--removed' : '' }}"
+                                data-node-id="{{ node.id }}"
+                                {%- if node.isRemoved %} title="{{ 'search_debug.analyze.token_removed' | trans }}"{% endif -%}
+                            >{{ node.token }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        {# Populated entirely by search-debug-tree-diagram.ts, once actual node positions are known —
+           empty (and harmless) without JS. #}
+        <svg class="search-debug-tree-diagram__edges {{ config.jsName }}__edges" aria-hidden="true"></svg>
+    </div>
+    {# Not executed as a script — `type="application/json"` opts a `<script>` OUT of execution, same
+       payload-carrying trick `packaging-unit-quantity-selector.twig` already uses elsewhere in this
+       project's own ShopUi-based frontend. Read once via `.textContent` + `JSON.parse()`. #}
+    <script type="application/json" class="{{ config.jsName }}__edges-data">{{ data.edges | json_encode | raw }}</script>
+{% endblock %}

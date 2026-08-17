@@ -156,7 +156,7 @@ class CheckInstallationController extends AbstractController
         }
 
         return [
-            'label' => 'Token-source, analysis-path and component-config routes are registered',
+            'label' => 'Token-source, analysis-path, component-config, analyze and sku-lookup routes are registered',
             'passed' => $missingRouteNames === [],
             'remedy' => $missingRouteNames === []
                 ? null
@@ -179,6 +179,8 @@ class CheckInstallationController extends AbstractController
             SearchDebugWidgetRouteProviderPlugin::ROUTE_NAME_TOKEN_SOURCE,
             SearchDebugWidgetRouteProviderPlugin::ROUTE_NAME_ANALYSIS_PATH,
             SearchDebugWidgetRouteProviderPlugin::ROUTE_NAME_COMPONENT_CONFIG,
+            SearchDebugWidgetRouteProviderPlugin::ROUTE_NAME_ANALYZE,
+            SearchDebugWidgetRouteProviderPlugin::ROUTE_NAME_SKU_LOOKUP,
         ];
     }
 

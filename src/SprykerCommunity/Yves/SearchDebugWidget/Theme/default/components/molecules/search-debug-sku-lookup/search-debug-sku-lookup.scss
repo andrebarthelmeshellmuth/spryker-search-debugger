@@ -1,0 +1,31 @@
+@import '../search-debug-tokens/search-debug-palette';
+
+.search-debug-sku-lookup {
+    margin-top: rem(8);
+}
+
+.search-debug-sku-lookup__prompt {
+    margin-bottom: rem(8);
+    font-size: rem(13);
+}
+
+.search-debug-sku-lookup__form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: rem(8);
+    align-items: center;
+
+    .input {
+        flex: 1 1 rem(200);
+    }
+
+    .button {
+        background-color: $search-debug-feature-accent-color;
+        border-color: $search-debug-feature-accent-color;
+
+        &:hover,
+        &:focus {
+            background-color: darken($search-debug-feature-accent-color, 8%);
+        }
+    }
+}

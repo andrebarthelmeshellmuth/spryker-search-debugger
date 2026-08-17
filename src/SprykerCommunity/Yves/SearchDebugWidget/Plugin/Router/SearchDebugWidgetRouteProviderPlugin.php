@@ -37,6 +37,16 @@ class SearchDebugWidgetRouteProviderPlugin extends AbstractRouteProviderPlugin
     public const ROUTE_NAME_CHECK_INSTALLATION = 'search-debug/check-installation';
 
     /**
+     * @var string
+     */
+    public const ROUTE_NAME_SKU_LOOKUP = 'search-debug/sku-lookup';
+
+    /**
+     * @var string
+     */
+    public const ROUTE_NAME_ANALYZE = 'search-debug/analyze';
+
+    /**
      * @param \Spryker\Yves\Router\Route\RouteCollection $routeCollection
      */
     public function addRoutes(RouteCollection $routeCollection): RouteCollection
@@ -49,6 +59,12 @@ class SearchDebugWidgetRouteProviderPlugin extends AbstractRouteProviderPlugin
 
         $componentConfigRoute = $this->buildRoute('/search-debug/component-config', 'SearchDebugWidget', 'ComponentConfig', 'indexAction');
         $routeCollection->add(static::ROUTE_NAME_COMPONENT_CONFIG, $componentConfigRoute);
+
+        $skuLookupRoute = $this->buildRoute('/search-debug/sku-lookup', 'SearchDebugWidget', 'SkuLookup', 'indexAction');
+        $routeCollection->add(static::ROUTE_NAME_SKU_LOOKUP, $skuLookupRoute);
+
+        $analyzeRoute = $this->buildRoute('/search-debug/analyze', 'SearchDebugWidget', 'Analyze', 'indexAction');
+        $routeCollection->add(static::ROUTE_NAME_ANALYZE, $analyzeRoute);
 
         $this->addCheckInstallationRoute($routeCollection);
 

@@ -1,0 +1,82 @@
+{% extends template('page-blank') %}
+
+{% define data = {
+    sku: _view.sku,
+    queryString: _view.queryString,
+    searchFallbackParameters: _view.searchFallbackParameters,
+    productSku: _view.productSku,
+    productTitle: _view.productTitle,
+    queryTokens: _view.queryTokens,
+    queryTokenOrigins: _view.queryTokenOrigins,
+    fieldRows: _view.fieldRows,
+    pin: _view.pin,
+    pinnedTree: _view.pinnedTree,
+    title: 'search_debug.analyze.heading' | trans,
+} %}
+
+{% block body %}
+    <div class="container search-debug-analyze-page">
+        <h1 class="search-debug-analyze-page__heading">{{ 'search_debug.analyze.heading' | trans }}</h1>
+        <p class="search-debug-analyze-page__product">
+            {{ data.productTitle }}
+            <span class="search-debug-analyze-page__sku">({{ data.productSku }})</span>
+        </p>
+
+        <a href="{{ url('search', data.searchFallbackParameters) }}" class="search-debug-analyze-page__back">
+            {{ 'search_debug.analyze.back_to_results' | trans }}
+        </a>
+
+        {% if data.queryTokens is not empty %}
+            {% set tokenColors = searchDebugTokenColors(data.queryTokens) %}
+            <div class="search-debug-analyze-row">
+                <strong class="search-debug-analyze-row__label">{{ 'search_debug.query_tokens' | trans }}</strong>
+                <div class="search-debug-analyze-row__badges">
+                    {% for token in data.queryTokens %}
+                        {% set pinText = data.queryTokenOrigins[token] | default(token) %}
+                        <a class="search-debug-token {{ tokenColors[token] }}" href="{{ url('search-debug/analyze', { sku: data.sku, queryString: data.queryString, pin: { text: pinText, analyzer: 'search' } }) }}" title="{{ 'search_debug.analyze.pin_hint_short' | trans }}">{{ token }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        {# One row per document field that has at least one non-empty raw value (canonical
+           ProductSourceMapBuilder::SOURCE_DEFINITIONS order) — a long description's words scroll
+           horizontally within their own row rather than wrapping the page, see
+           search-debug-analyze-row__badges--scroll below. #}
+        {% for row in data.fieldRows %}
+            <div class="search-debug-analyze-row">
+                <strong class="search-debug-analyze-row__label">{{ row.labelKey | trans }}</strong>
+                <div class="search-debug-analyze-row__badges search-debug-analyze-row__badges--scroll">
+                    {% for wordEntry in row.words %}
+                        <a class="search-debug-word-badge {{ wordEntry.matchesQuery ? 'search-debug-word-badge--match' : '' }}" href="{{ url('search-debug/analyze', { sku: data.sku, queryString: data.queryString, pin: { text: wordEntry.word, analyzer: 'index' } }) }}" title="{{ 'search_debug.analyze.pin_hint_short' | trans }}">{{ wordEntry.word }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+
+        {% if data.pinnedTree %}
+            {# Exactly one pinned tree, for whichever badge was clicked last — clicking any other badge
+               replaces it, there is no separate close/unpin action. #}
+            <div class="search-debug-analyze-trees">
+                <div class="search-debug-analyze-trees__panel">
+                    <div class="search-debug-analyze-trees__panel-header">
+                        <strong class="search-debug-analyze-trees__panel-text">{{ data.pinnedTree.text }}</strong>
+                        <span class="search-debug-analyze-trees__panel-analyzer">{{ ('search_debug.analyze.analyzer.' ~ data.pinnedTree.analyzer) | trans }}</span>
+                    </div>
+                    {% if data.pinnedTree.tree.stages is not empty %}
+                        {% include molecule('search-debug-tree-diagram', 'SearchDebugWidget') with {
+                            data: {
+                                stages: data.pinnedTree.tree.stages,
+                                edges: data.pinnedTree.tree.edges,
+                            },
+                        } only %}
+                    {% else %}
+                        <p class="search-debug-analyze-trees__panel-empty">{{ 'search_debug.analyze.tree_empty' | trans }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% else %}
+            <p class="search-debug-analyze-page__hint">{{ 'search_debug.analyze.pin_hint' | trans }}</p>
+        {% endif %}
+    </div>
+{% endblock %}

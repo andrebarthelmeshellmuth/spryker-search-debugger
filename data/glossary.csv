@@ -115,3 +115,45 @@ search_debug.check_installation.permission_denied_body,"This installation-check 
 search_debug.check_installation.permission_denied_body,"Diese Installationsprüfung wird nur einem Kunden mit der Berechtigung SeeSearchDebugInfoPermissionPlugin angezeigt. Vergib sie in Zed → Kunde → Unternehmensrollen an eine Rolle, weise sie deinem Konto zu und lade die Seite neu.",de_DE
 permission.name.SeeSearchDebugInfoPermissionPlugin,See search debug info,en_US
 permission.name.SeeSearchDebugInfoPermissionPlugin,Suchdebug-Informationen einsehen,de_DE
+search_debug.sku_lookup.prompt,You miss a SKU? Figure out why it's not here.,en_US
+search_debug.sku_lookup.prompt,Vermisst du eine SKU? Finde heraus warum sie nicht auftaucht.,de_DE
+search_debug.sku_lookup.sku_label,SKU,en_US
+search_debug.sku_lookup.sku_label,SKU,de_DE
+search_debug.sku_lookup.sku_placeholder,Enter a SKU,en_US
+search_debug.sku_lookup.sku_placeholder,SKU eingeben,de_DE
+search_debug.sku_lookup.submit,Check,en_US
+search_debug.sku_lookup.submit,Prüfen,de_DE
+search_debug.sku_lookup.error.empty,Please enter a SKU.,en_US
+search_debug.sku_lookup.error.empty,Bitte eine SKU eingeben.,de_DE
+search_debug.sku_lookup.error.not_found,No product with that SKU exists — check for a typo.,en_US
+search_debug.sku_lookup.error.not_found,Zu dieser SKU existiert kein Produkt — auf Tippfehler prüfen.,de_DE
+search_debug.sku_lookup.error.not_indexed,"This product exists, but has no document in the search index for this store/locale (unpublished, inactive, or not yet exported).",en_US
+search_debug.sku_lookup.error.not_indexed,"Dieses Produkt existiert, hat aber kein Dokument im Suchindex für diesen Store/diese Sprache (nicht veröffentlicht, inaktiv oder noch nicht exportiert).",de_DE
+search_debug.sku_lookup.found.heading,Found in the search index,en_US
+search_debug.sku_lookup.found.heading,Im Suchindex gefunden,de_DE
+search_debug.sku_lookup.found.position,It is ranked at position %position% in your current search results.,en_US
+search_debug.sku_lookup.found.position,Es ist auf Position %position% deiner aktuellen Suchergebnisse platziert.,de_DE
+search_debug.sku_lookup.found.analyze_anyway,Analyze anyway,en_US
+search_debug.sku_lookup.found.analyze_anyway,Trotzdem analysieren,de_DE
+search_debug.sku_lookup.found.close,Close,en_US
+search_debug.sku_lookup.found.close,Schließen,de_DE
+search_debug.analyze.heading,Word-level analysis,en_US
+search_debug.analyze.heading,Wortebenen-Analyse,de_DE
+search_debug.analyze.back_to_results,Back to search results,en_US
+search_debug.analyze.back_to_results,Zurück zu den Suchergebnissen,de_DE
+search_debug.analyze.pin_hint,Click a query token or a document word above to open its analysis tree.,en_US
+search_debug.analyze.pin_hint,Klicke auf ein Suchbegriff-Token oder ein Dokumentwort oben um dessen Analysebaum zu öffnen.,de_DE
+search_debug.analyze.pin_hint_short,Open analysis tree,en_US
+search_debug.analyze.pin_hint_short,Analysebaum öffnen,de_DE
+search_debug.analyze.unpin,Remove this tree,en_US
+search_debug.analyze.unpin,Diesen Baum entfernen,de_DE
+search_debug.analyze.tree_empty,No analysis data available (Elasticsearch may be unreachable).,en_US
+search_debug.analyze.tree_empty,Keine Analysedaten verfügbar (Elasticsearch eventuell nicht erreichbar).,de_DE
+search_debug.analyze.analyzer.index,indexed as,en_US
+search_debug.analyze.analyzer.index,indexiert als,de_DE
+search_debug.analyze.analyzer.search,searched as,en_US
+search_debug.analyze.analyzer.search,gesucht als,de_DE
+search_debug.analyze.token_removed,Removed by this filter (e.g. a stop-word or min-length rule),en_US
+search_debug.analyze.token_removed,Von diesem Filter entfernt (z. B. eine Stoppwort- oder Mindestlängen-Regel),de_DE
+search_debug.analyze_link,Analyze,en_US
+search_debug.analyze_link,Analysieren,de_DE

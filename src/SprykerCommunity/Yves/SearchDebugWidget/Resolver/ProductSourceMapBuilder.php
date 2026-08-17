@@ -262,17 +262,7 @@ class ProductSourceMapBuilder
      */
     protected function collectSourceKeysByValue(array $productData, string $localeName, array $concreteStorageData): array
     {
-        $storeName = $this->storeClient->getCurrentStore()->getNameOrFail();
-
-        $valuesBySourceKey = [
-            static::KEY_TITLE => [(string)($productData[TokenSourceResolver::STORAGE_KEY_NAME] ?? '')],
-            static::KEY_SKU => [(string)($productData[TokenSourceResolver::STORAGE_KEY_SKU] ?? '')],
-            static::KEY_ABSTRACT_DESCRIPTION => [(string)($productData[static::STORAGE_KEY_DESCRIPTION] ?? '')],
-            static::KEY_MERCHANT_NAME => [$this->findMerchantName($productData)],
-        ];
-
-        $valuesBySourceKey += $this->collectConcreteValues($concreteStorageData);
-        $valuesBySourceKey += $this->collectCategoryValues($productData, $localeName, $storeName);
+        $valuesBySourceKey = $this->collectValuesBySourceKey($productData, $localeName, $concreteStorageData);
 
         $sourceKeysByValue = [];
         foreach (static::SOURCE_DEFINITIONS as $sourceKey => $definition) {
@@ -291,6 +281,67 @@ class ProductSourceMapBuilder
         }
 
         return $sourceKeysByValue;
+    }
+
+    /**
+     * One row per named source that has at least one non-empty raw value (canonical
+     * {@see SOURCE_DEFINITIONS} order) — the per-FIELD counterpart to {@see collectSourceKeysByValue()}'s
+     * per-VALUE map, built off the exact same {@see collectValuesBySourceKey()} data. Used by the
+     * SKU-lookup analyze page to render one horizontally-scrollable row of clickable word badges per
+     * document field, distinct from {@see build()}'s tier-keyed labeling map: that map answers "what is
+     * this raw document ELEMENT called", this answers "what raw text does FIELD X contain, before any
+     * tokenization".
+     *
+     * @param array<string, mixed> $productData
+     * @param string $localeName
+     *
+     * @return array<int, array{sourceKey: string, labelKey: string, elements: array<int, string>}>
+     */
+    public function buildFieldRows(array $productData, string $localeName): array
+    {
+        $concreteStorageData = $this->fetchConcreteStorageData($productData, $localeName);
+        $valuesBySourceKey = $this->collectValuesBySourceKey($productData, $localeName, $concreteStorageData);
+
+        $rows = [];
+        foreach (static::SOURCE_DEFINITIONS as $sourceKey => $definition) {
+            $elements = array_values(array_unique(array_filter(
+                $valuesBySourceKey[$sourceKey] ?? [],
+                fn (string $value): bool => trim($value) !== '',
+            )));
+
+            if ($elements === []) {
+                continue;
+            }
+
+            $rows[] = ['sourceKey' => $sourceKey, 'labelKey' => $definition['labelKey'], 'elements' => $elements];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $productData
+     * @param string $localeName
+     * @param array<int, array<string, mixed>> $concreteStorageData Already-fetched concrete storage rows
+     *   for this product (see {@see build()}) — reused here instead of re-fetching the same bulk data a
+     *   second time within one request.
+     *
+     * @return array<string, array<int, string>>
+     */
+    protected function collectValuesBySourceKey(array $productData, string $localeName, array $concreteStorageData): array
+    {
+        $storeName = $this->storeClient->getCurrentStore()->getNameOrFail();
+
+        $valuesBySourceKey = [
+            static::KEY_TITLE => [(string)($productData[TokenSourceResolver::STORAGE_KEY_NAME] ?? '')],
+            static::KEY_SKU => [(string)($productData[TokenSourceResolver::STORAGE_KEY_SKU] ?? '')],
+            static::KEY_ABSTRACT_DESCRIPTION => [(string)($productData[static::STORAGE_KEY_DESCRIPTION] ?? '')],
+            static::KEY_MERCHANT_NAME => [$this->findMerchantName($productData)],
+        ];
+
+        $valuesBySourceKey += $this->collectConcreteValues($concreteStorageData);
+
+        return $valuesBySourceKey + $this->collectCategoryValues($productData, $localeName, $storeName);
     }
 
     /**

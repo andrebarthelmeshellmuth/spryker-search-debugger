@@ -1,0 +1,34 @@
+{% extends template('page-blank') %}
+
+{% define data = {
+    productSku: _view.productSku,
+    productTitle: _view.productTitle,
+    rankPosition: _view.rankPosition,
+    sku: _view.sku,
+    queryString: _view.queryString,
+    searchFallbackParameters: _view.searchFallbackParameters,
+    title: 'search_debug.sku_lookup.found.heading' | trans,
+} %}
+
+{% block body %}
+    <div class="container search-debug-sku-lookup-found-page">
+        <h1 class="search-debug-sku-lookup-found-page__heading">{{ 'search_debug.sku_lookup.found.heading' | trans }}</h1>
+        <p class="search-debug-sku-lookup-found-page__product">
+            {{ data.productTitle }}
+            <span class="search-debug-sku-lookup-found-page__sku">({{ data.productSku }})</span>
+        </p>
+
+        <p class="search-debug-sku-lookup-found-page__position">
+            {{ 'search_debug.sku_lookup.found.position' | trans({ '%position%': data.rankPosition }) }}
+        </p>
+
+        <div class="search-debug-sku-lookup-found-page__actions">
+            <a class="button button--primary" href="{{ url('search-debug/analyze', { sku: data.sku, queryString: data.queryString }) }}">
+                {{ 'search_debug.sku_lookup.found.analyze_anyway' | trans }}
+            </a>
+            <a class="button" href="{{ url('search', data.searchFallbackParameters) }}">
+                {{ 'search_debug.sku_lookup.found.close' | trans }}
+            </a>
+        </div>
+    </div>
+{% endblock %}

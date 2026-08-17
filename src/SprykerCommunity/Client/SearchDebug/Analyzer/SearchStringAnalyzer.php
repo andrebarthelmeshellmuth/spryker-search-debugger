@@ -27,6 +27,8 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      * @param \SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaReaderInterface $indexSchemaReader
      * @param \SprykerCommunity\Client\SearchDebug\SearchDebugConfig $config
      * @param \SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatterInterface $componentDefinitionFormatter
+     * @param \SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisTreeBuilderInterface $analysisTreeBuilder
+     * @param \SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisStageMapperInterface $analysisStageMapper
      */
     public function __construct(
         protected Client $elasticaClient,
@@ -34,6 +36,8 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
         protected IndexSchemaReaderInterface $indexSchemaReader,
         protected SearchDebugConfig $config,
         protected ComponentDefinitionFormatterInterface $componentDefinitionFormatter,
+        protected AnalysisTreeBuilderInterface $analysisTreeBuilder,
+        protected AnalysisStageMapperInterface $analysisStageMapper,
     ) {
     }
 
@@ -233,9 +237,38 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      * @param string $text
      * @param bool $useSearchAnalyzer See {@see getTokenOffsets()}'s parameter of the same name.
      *
-     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
+     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, isStem: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
      */
     public function getAnalysisStages(string $text, bool $useSearchAnalyzer = false): array
+    {
+        $stages = $this->fetchAnalysisStages($text, $useSearchAnalyzer);
+
+        // `position` is bookkeeping getAnalysisTree()'s own pipeline needs (see fetchAnalysisStages()'s
+        // docblock) — never part of THIS method's public return shape, so it's stripped here.
+        foreach ($stages as &$stage) {
+            $stage['tokens'] = array_map(
+                static fn (array $token): array => ['token' => $token['token'], 'startOffset' => $token['startOffset'], 'endOffset' => $token['endOffset']],
+                $stage['tokens'],
+            );
+        }
+        unset($stage);
+
+        return $stages;
+    }
+
+    /**
+     * Same underlying stage breakdown {@see getAnalysisStages()} returns, kept for internal use by
+     * {@see getAnalysisTree()}'s own pipeline — the ONLY difference is that each token here still
+     * carries its `position` (AnalysisTreeBuilder needs it to link tokens across stages; see that
+     * class's own docblock), which {@see getAnalysisStages()} strips before returning to its own
+     * callers since it was never part of that method's documented public shape.
+     *
+     * @param string $text
+     * @param bool $useSearchAnalyzer
+     *
+     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, isStem: bool, tokens: array<array{token: string, startOffset: int, endOffset: int, position: int}>}>
+     */
+    protected function fetchAnalysisStages(string $text, bool $useSearchAnalyzer): array
     {
         if ($text === '') {
             return [];
@@ -255,7 +288,43 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
             return [];
         }
 
-        return $this->mapAnalysisStages($detail);
+        return $this->analysisStageMapper->mapStages($detail);
+    }
+
+    /**
+     * A branching pipeline diagram for a piece of text, laid out by STAGE rather than by lineage: one
+     * "row" per analyzer stage (char filter, tokenizer, or token filter, in chain order — exactly
+     * {@see getAnalysisStages()}'s own stage list), each carrying every token alive at that point, plus a
+     * flat list of parent→child EDGES connecting a row's tokens to the specific tokens they produced in
+     * the NEXT row. This is the same tree {@see getAnalysisStages()}'s data always implied — just
+     * rank-layered (grouped by depth-from-origin) instead of nested by indentation, because depth here IS
+     * "which stage produced this token": a stage's own output always re-emits even an UNCHANGED token
+     * (Elasticsearch's `_analyze` response includes every token at every stage, touched or not), so no
+     * edge ever needs to skip a row.
+     *
+     * Built entirely from the SAME `_analyze?explain=true` stages {@see getAnalysisStages()} already
+     * returns — no new Elasticsearch call. Elasticsearch's own `position` field (present on every
+     * tokenizer/filter token, Lucene's encoding of "which slot in the token stream this occupies") is the
+     * link between consecutive stages: two tokens in neighboring stages that share the same `position`
+     * are treated as parent/child. This is a correlation, not a real parent pointer (the `_analyze` API
+     * exposes none) — confirmed sufficient in practice against this project's own `search_debug_synonyms`
+     * (1 token in, 4 out, at two positions) and `search_debug_decompound` (1 token in, 2 out, same
+     * position) filters. It can misattribute lineage only when a single stage emits more than one token
+     * at the SAME position with DIFFERENT text (unresolvable from `position` alone) — accepted as a known
+     * limitation rather than solved with per-filter-type special-casing. A token whose position has no
+     * match in the previous row simply has no incoming edge, rather than being silently dropped.
+     *
+     * @param string $text
+     * @param bool $useSearchAnalyzer See {@see getTokenOffsets()}'s parameter of the same name.
+     *
+     * @return array{
+     *     stages: array<int, array{label: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, isStem: bool, nodes: array<int, array{id: string, token: string, isRemoved: bool}>}>,
+     *     edges: array<int, array{from: string, to: string}>,
+     * }
+     */
+    public function getAnalysisTree(string $text, bool $useSearchAnalyzer = false): array
+    {
+        return $this->analysisTreeBuilder->build($this->fetchAnalysisStages($text, $useSearchAnalyzer));
     }
 
     /**
@@ -320,119 +389,24 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
             ? ($tokenFilters[$lastFilterKey]['tokens'] ?? [])
             : ($detail['analyzer']['tokens'] ?? $detail['tokenizer']['tokens'] ?? []);
 
-        return $this->mapTokens($tokens);
-    }
-
-    /**
-     * Every char filter is a single whole-text transformation (no per-token offsets — char filters run
-     * BEFORE tokenization, on the raw character stream), represented here as one pseudo-token spanning
-     * the whole filtered text, so the caller can treat every stage — char filters, the tokenizer, and
-     * every token filter — uniformly. Confirmed live against this shop's `unit_symbol_normalizer` char
-     * filter (`page.json`).
-     *
-     * A BUILT-IN (non-custom) analyzer reports no tokenizer/tokenfilters breakdown at all — its tokens
-     * live directly under `analyzer.tokens` as a single opaque stage, covered by the fallback at the end.
-     *
-     * Each stage also carries a `definition`: the component's own configuration (e.g.
-     * "edge_ngram (min_gram: 2, max_gram: 20)"), looked up by name in the live index schema — `null`
-     * when the component is a BUILT-IN Elasticsearch one used as-is (e.g. "lowercase", "standard"),
-     * since there is nothing custom to show for those. `componentKind`/`componentName` are the same
-     * pair `getComponentConfig()` accepts to re-fetch the FULL, untruncated config server-side — `null`
-     * whenever `definition` itself is `null`, since there is then nothing to re-fetch either.
-     *
-     * @param array<string, mixed> $detail
-     *
-     * @return array<array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}>
-     */
-    protected function mapAnalysisStages(array $detail): array
-    {
-        $stages = [];
-
-        foreach ((array)($detail['charfilters'] ?? []) as $charFilter) {
-            $filteredText = (string)(($charFilter['filtered_text'] ?? [])[0] ?? '');
-            $name = (string)($charFilter['name'] ?? '?');
-            $stages[] = $this->buildStage(
-                IndexSchemaMapper::COMPONENT_KIND_CHAR_FILTER,
-                'char filter',
-                $name,
-                [$this->wholeTextAsToken($filteredText)],
-            );
-        }
-
-        $tokenizerTokens = $this->mapTokens($detail['tokenizer']['tokens'] ?? []);
-        if ($tokenizerTokens !== []) {
-            $name = (string)($detail['tokenizer']['name'] ?? '?');
-            $stages[] = $this->buildStage(
-                IndexSchemaMapper::COMPONENT_KIND_TOKENIZER,
-                'tokenizer',
-                $name,
-                $tokenizerTokens,
-            );
-        }
-
-        foreach ((array)($detail['tokenfilters'] ?? []) as $tokenFilter) {
-            $tokens = $this->mapTokens($tokenFilter['tokens'] ?? []);
-            if ($tokens === []) {
-                continue;
-            }
-
-            $name = (string)($tokenFilter['name'] ?? '?');
-            $stages[] = $this->buildStage(
-                IndexSchemaMapper::COMPONENT_KIND_FILTER,
-                'filter',
-                $name,
-                $tokens,
-            );
-        }
-
-        if ($stages === [] && isset($detail['analyzer']['tokens'])) {
-            $stages[] = [
-                'operation' => 'analyzer: ' . (string)($detail['analyzer']['name'] ?? '?'),
-                // A built-in analyzer is used by name only, never customized — nothing to look up.
-                'definition' => null,
-                'componentKind' => null,
-                'componentName' => null,
-                'definitionTruncated' => false,
-                'tokens' => $this->mapTokens($detail['analyzer']['tokens']),
-            ];
-        }
-
-        return $stages;
-    }
-
-    /**
-     * @param string $componentKind One of the `IndexSchemaMapper::COMPONENT_KIND_*` constants.
-     * @param string $operationLabel
-     * @param string $name
-     * @param array<array{token: string, startOffset: int, endOffset: int}> $tokens
-     *
-     * @return array{operation: string, definition: string|null, componentKind: string|null, componentName: string|null, definitionTruncated: bool, tokens: array<array{token: string, startOffset: int, endOffset: int}>}
-     */
-    protected function buildStage(string $componentKind, string $operationLabel, string $name, array $tokens): array
-    {
-        $formatted = $this->componentDefinitionFormatter->format(
-            $this->indexSchemaReader->findComponent($componentKind, $name),
+        // `position` is bookkeeping mapTokens() adds for AnalysisStageMapper/AnalysisTreeBuilder's own
+        // use (see mapTokens()'s own docblock) — never part of this method's public return shape, so it's
+        // stripped here rather than leaking into getTokenOffsets()/getTokenOffsetsForTexts().
+        return array_map(
+            static fn (array $token): array => ['token' => $token['token'], 'startOffset' => $token['startOffset'], 'endOffset' => $token['endOffset']],
+            $this->mapTokens($tokens),
         );
-
-        return [
-            'operation' => $operationLabel . ': ' . $name,
-            'definition' => $formatted['label'] ?? null,
-            'componentKind' => $formatted !== null ? $componentKind : null,
-            'componentName' => $formatted !== null ? $name : null,
-            'definitionTruncated' => $formatted['truncated'] ?? false,
-            'tokens' => $tokens,
-        ];
     }
 
     /**
      * @param array<int, array<string, mixed>> $rawTokens
      *
-     * @return array<array{token: string, startOffset: int, endOffset: int}>
+     * @return array<array{token: string, startOffset: int, endOffset: int, position: int}>
      */
     protected function mapTokens(array $rawTokens): array
     {
         $result = [];
-        foreach ($rawTokens as $token) {
+        foreach ($rawTokens as $index => $token) {
             if (!isset($token['token'], $token['start_offset'], $token['end_offset'])) {
                 continue;
             }
@@ -441,27 +415,13 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
                 'token' => $token['token'],
                 'startOffset' => $token['start_offset'],
                 'endOffset' => $token['end_offset'],
+                // Elasticsearch reports `position` on every real tokenizer/filter token (Lucene's own
+                // token-stream slot index — see getAnalysisTree()'s docblock); the array index is only
+                // ever the fallback for a synthetic char-filter pseudo-token, which carries none.
+                'position' => (int)($token['position'] ?? $index),
             ];
         }
 
         return $result;
-    }
-
-    /**
-     * Offsets are UTF-16 code units (see `TokenHighlighter`'s own docblock for the same Lucene
-     * invariant), via the shared {@see Utf16CodeUnitConverter} — so a char-filter pseudo-token's
-     * `endOffset` is directly comparable to a real token's offsets from a later stage.
-     *
-     * @param string $text
-     *
-     * @return array{token: string, startOffset: int, endOffset: int}
-     */
-    protected function wholeTextAsToken(string $text): array
-    {
-        return [
-            'token' => $text,
-            'startOffset' => 0,
-            'endOffset' => Utf16CodeUnitConverter::lengthOf(Utf16CodeUnitConverter::toUtf16($text)),
-        ];
     }
 }
