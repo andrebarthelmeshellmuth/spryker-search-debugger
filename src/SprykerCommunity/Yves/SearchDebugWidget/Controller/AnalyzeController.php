@@ -26,10 +26,6 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  * directly from `SkuLookupController` (a SKU that isn't in the current result set at all) or via the
  * "Analyze anyway" link on the found-but-ranked-low confirmation page.
  *
- * Deliberately just one pin, not several: an earlier version supported two side by side (comparing a
- * query token's tree against a doc word's tree), with its own close button per panel — dropped in favor
- * of "clicking any badge always shows exactly this one tree", simpler to reason about and to build on.
- *
  * @method \SprykerCommunity\Yves\SearchDebugWidget\SearchDebugWidgetFactory getFactory()
  */
 class AnalyzeController extends AbstractController
