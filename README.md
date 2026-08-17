@@ -727,16 +727,16 @@ Every test class carries a portability `@group`, so you can tell at a glance —
 
 `Portable` tests run standalone in CI on every push, via `tests/codeception.portable.yml` +
 `tests/_ci-standalone/` — no host shop, no live database, no search engine. The recipe: a direct
-`TransferBusinessFactory` call generates `Generated\Shared\Transfer\*` into `src/Generated/` (gitignored,
-exactly like a real project already gitignores its own — regenerated every run), and
-`tests/_ci-standalone/Generated/Shared/Search/PageIndexMap.php` is a checked-in, point-in-time snapshot of
-the one generated artifact this package cannot produce alone (its content is a project-wide aggregate
-across every installed sibling package — see that file's own docblock for the full reasoning and how to
-regenerate it). Run it yourself the same way CI does:
+`TransferBusinessFactory` call generates `Generated\Shared\Transfer\*`, and a direct
+`spryker/search-elasticsearch` `IndexMapGenerator` call generates `Generated\Shared\Search\PageIndexMap`
+from that package's own default `page` mapping — both into `src/Generated/` (gitignored, exactly like a
+real project already gitignores its own — regenerated every run, never committed). Run it yourself the
+same way CI does:
 
 ```bash
 composer install
 php tests/_ci-standalone/generate-transfers.php
+php tests/_ci-standalone/generate-index-map.php
 vendor/bin/codecept run -c tests/codeception.portable.yml -g Portable
 ```
 
@@ -821,11 +821,11 @@ appears.
 Static analysis (`phpstan`, level 8) runs in two variants:
 
 - **`composer phpstan-ci`** (config [`phpstan.ci.neon`](phpstan.ci.neon)) — what CI runs on every push,
-  standalone. Same transfer-generation recipe as the `Portable` test subset above, and treats two
+  standalone. Same transfer/index-map generation recipe as the `Portable` test subset above, and treats two
   categories of class as out of scope rather than faking them: Propel's generated `Orm\Zed\*\Persistence\*`
   entity/query/map classes (need a real schema + database, via `propel:model:build`) and the aggregated
-  `Generated\{Zed,Yves,Client,Service}\Ide\AutoCompletion` stub — the same shape of gap as this package's
-  own checked-in `PageIndexMap.php` fixture.
+  `Generated\{Zed,Yves,Client,Service}\Ide\AutoCompletion` stub (an aggregate across every module in a real
+  project's full dependency graph, via `console dev:ide-auto-completion:generate`).
 - **`composer phpstan`** (config [`phpstan.neon`](phpstan.neon)) — the full check, run from a host shop:
   it needs the generated `Generated\Shared\Transfer\*` classes, which only exist once a project has run
   `transfer:generate`, and it needs the shop's `Ide/AutoCompletion` stub freshly regenerated
