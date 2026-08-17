@@ -30,6 +30,8 @@ use SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisStageMapper;
 use SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisStageMapperInterface;
 use SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisTreeBuilder;
 use SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisTreeBuilderInterface;
+use SprykerCommunity\Client\SearchDebug\Analyzer\AnalyzeResponseMapper;
+use SprykerCommunity\Client\SearchDebug\Analyzer\AnalyzeResponseMapperInterface;
 use SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatter;
 use SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatterInterface;
 use SprykerCommunity\Client\SearchDebug\Analyzer\SearchStringAnalyzer;
@@ -62,7 +64,13 @@ class SearchDebugFactory extends AbstractFactory
             $this->createComponentDefinitionFormatter(),
             $this->createAnalysisTreeBuilder(),
             $this->createAnalysisStageMapper(),
+            $this->createAnalyzeResponseMapper(),
         );
+    }
+
+    public function createAnalyzeResponseMapper(): AnalyzeResponseMapperInterface
+    {
+        return new AnalyzeResponseMapper();
     }
 
     public function createComponentDefinitionFormatter(): ComponentDefinitionFormatterInterface

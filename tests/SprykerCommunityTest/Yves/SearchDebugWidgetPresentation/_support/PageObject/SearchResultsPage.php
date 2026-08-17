@@ -121,4 +121,21 @@ class SearchResultsPage
      * @var string
      */
     public const SELECTOR_COLLAPSIBLE_SECTION = '.search-debug-overlay__section .search-debug-collapsible';
+
+    /**
+     * Opens the word-level analysis page directly for a given product — lives inside the overlay, next
+     * to the pin toggle (see `search-debug-product-info.twig`'s own "actions" group).
+     *
+     * @var string
+     */
+    public const SELECTOR_ANALYZE_LINK = '.search-debug-analyze-link';
+
+    /**
+     * The "you miss a SKU? figure out why it's not here" form, rendered once at the bottom of the
+     * results grid — see `page-layout-catalog.twig`'s own inclusion of the `search-debug-sku-lookup`
+     * molecule.
+     *
+     * @var string
+     */
+    public const SELECTOR_SKU_LOOKUP_FORM = '.search-debug-sku-lookup__form';
 }

@@ -69,6 +69,30 @@ interface SearchDebugClientInterface
 
     /**
      * Specification:
+     * - Same underlying `_analyze?explain=true` data as `getTextTokenOffsetsForTexts()`, batched the same
+     *   way, but reads the FIRST non-char-filter stage (the tokenizer's own output for a custom analyzer,
+     *   or the one collapsed stage a built-in analyzer reports) instead of the LAST stage — i.e. the real
+     *   analyzer's own raw WORD boundaries, before any token filter (lowercase, stemmer, synonym,
+     *   decompounder, ...) has touched anything.
+     * - Meant for a caller that needs to split a piece of RAW text into individually re-analyzable
+     *   "words" and cannot risk a hand-rolled boundary guess: cutting text at a point the real pipeline
+     *   wouldn't have cut it can silently produce wrong results whenever a char filter needs characters on
+     *   both sides of that point (e.g. a decimal-comma normalizer, or a unit-symbol mapping) — this
+     *   returns the real cut points instead.
+     * - Empty and duplicate texts are dropped before the batched call; the same text given twice appears
+     *   once in the result, keyed by its own text.
+     * - Returns an empty array for an empty (or all-empty/all-duplicate) $texts list.
+     *
+     * @api
+     *
+     * @param array<string> $texts
+     *
+     * @return array<string, array<array{token: string, startOffset: int, endOffset: int}>>
+     */
+    public function getTextWordSpansForTexts(array $texts): array;
+
+    /**
+     * Specification:
      * - Runs $text through the page index's INDEX-time analyzer, same as `getTextTokenOffsets()`, but
      *   returns every intermediate stage instead of only the final one: each char filter (a single
      *   whole-text pseudo-token, offsets 0..length — char filters run before tokenization, so there are

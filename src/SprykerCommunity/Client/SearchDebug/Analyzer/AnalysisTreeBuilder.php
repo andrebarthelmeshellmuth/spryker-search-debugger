@@ -64,10 +64,10 @@ class AnalysisTreeBuilder implements AnalysisTreeBuilderInterface
     {
         $layeredStages = [];
         $edges = [];
-        // Ids alive at the PREVIOUS stage, keyed by position — every id sharing a position with the
-        // CURRENT stage's token is that token's parent (see this class's own docblock on the position
-        // correlation this relies on).
-        $idsByPositionInPreviousStage = [];
+        // Candidates alive at the PREVIOUS stage, keyed by position — every candidate sharing a position
+        // with the CURRENT stage's token is a possible parent (see this class's own docblock, and
+        // {@see resolveParentIds()}, on the position correlation this relies on and its one known gap).
+        $candidatesByPositionInPreviousStage = [];
         // Every id that turned out to have at least one outgoing edge — {@see markRemovedTokens()} below
         // needs this to tell "this token was REMOVED here" (a stop-word/min-length filter dropped it
         // outright — no id anywhere in the next stage shares its position) apart from "this token is the
@@ -77,7 +77,7 @@ class AnalysisTreeBuilder implements AnalysisTreeBuilderInterface
 
         foreach ($stages as $stageIndex => $stage) {
             $nodes = [];
-            $idsByPositionInThisStage = [];
+            $candidatesByPositionInThisStage = [];
 
             // A char filter's own pseudo-token (see SearchStringAnalyzer::wholeTextAsToken()) has no real
             // position at all — it runs before tokenization even exists, so position 0 is only ever a
@@ -91,7 +91,7 @@ class AnalysisTreeBuilder implements AnalysisTreeBuilderInterface
             // other one — confirmed live: a hyphenated compound tokenized into two real,
             // differently-positioned words ("Bandscheiben", "Drehstuhl") only showed a connector to the
             // first.
-            $soleParentId = $this->resolveSoleParentId($idsByPositionInPreviousStage);
+            $soleParentId = $this->resolveSoleParentId($candidatesByPositionInPreviousStage);
 
             foreach ($stage['tokens'] as $tokenIndex => $token) {
                 $id = $stageIndex . ':' . $tokenIndex;
@@ -102,9 +102,11 @@ class AnalysisTreeBuilder implements AnalysisTreeBuilderInterface
                 // a row happens to already have.
                 $nodes[] = ['id' => $id, 'token' => $token['token'], 'isRemoved' => false, 'position' => $position];
 
-                $idsByPositionInThisStage[$position][] = $id;
+                $candidatesByPositionInThisStage[$position][] = ['id' => $id, 'token' => $token['token']];
 
-                $parentIds = $soleParentId !== null ? [$soleParentId] : ($idsByPositionInPreviousStage[$position] ?? []);
+                $parentIds = $soleParentId !== null
+                    ? [$soleParentId]
+                    : $this->resolveParentIds($candidatesByPositionInPreviousStage[$position] ?? [], $token['token']);
 
                 foreach ($parentIds as $parentId) {
                     $edges[] = ['from' => $parentId, 'to' => $id];
@@ -122,7 +124,7 @@ class AnalysisTreeBuilder implements AnalysisTreeBuilderInterface
                 'nodes' => $nodes,
             ];
 
-            $idsByPositionInPreviousStage = $idsByPositionInThisStage;
+            $candidatesByPositionInPreviousStage = $candidatesByPositionInThisStage;
         }
 
         return [$layeredStages, $edges, $hasOutgoingEdge];
@@ -133,17 +135,58 @@ class AnalysisTreeBuilder implements AnalysisTreeBuilderInterface
      * carry — see {@see buildLayers()}'s own docblock on why that one token is then the unconditional
      * parent of every token the NEXT stage produces.
      *
-     * @param array<int, array<string>> $idsByPosition
+     * @param array<int, array<array{id: string, token: string}>> $candidatesByPosition
      */
-    protected function resolveSoleParentId(array $idsByPosition): ?string
+    protected function resolveSoleParentId(array $candidatesByPosition): ?string
     {
-        if (count($idsByPosition) !== 1) {
+        if (count($candidatesByPosition) !== 1) {
             return null;
         }
 
-        $idsAtOnlyPosition = reset($idsByPosition);
+        $candidatesAtOnlyPosition = reset($candidatesByPosition);
 
-        return count($idsAtOnlyPosition) === 1 ? $idsAtOnlyPosition[0] : null;
+        return count($candidatesAtOnlyPosition) === 1 ? $candidatesAtOnlyPosition[0]['id'] : null;
+    }
+
+    /**
+     * When more than one candidate shares a token's own position (a same-STAGE fan-out in the PREVIOUS
+     * stage — synonym expansion, decompounding), prefer whichever candidate is PREFIX-RELATED to the
+     * token — the same string, or one a prefix of the other — over connecting to every candidate. This
+     * covers two distinct ways a filter's output can still be traced back to a specific same-position
+     * candidate by text alone: an UNCHANGED pass-through (equal text, e.g. a stemmer leaving an
+     * already-base-form word untouched: "stuhl" === "stuhl"), and an edge-ngram filter's own output,
+     * which is always a PREFIX of whatever token it was cut from ("st"/"stu"/"stuh" are all prefixes of
+     * "stuhl", never of an unrelated same-position sibling). Confirmed live, in two stages: a
+     * decompounder's own "brennenstuhlbrand"/"stuhl" pair, both passed through a stemmer unchanged, used
+     * to draw a fully-connected mesh instead of the obviously-correct 1:1 pairing (exact-equality alone
+     * fixed this); immediately after that same pair, an edge-ngram filter's own shorter prefixes
+     * ("st"/"stu"/"stuh") still meshed with BOTH candidates, since none of them is EQUAL to either
+     * candidate — only the prefix relationship (not equality alone) resolves that second case.
+     *
+     * Falls back to EVERY same-position candidate — the prior, still-ambiguous behavior this class's own
+     * docblock already documents as a known, accepted limitation — only when no candidate is prefix-related
+     * at all (e.g. a synonym filter's genuinely unrelated replacement text), since the `_analyze` API
+     * gives no better signal in that case.
+     *
+     * @param array<int, array{id: string, token: string}> $candidates
+     * @param string $token
+     *
+     * @return array<string>
+     */
+    protected function resolveParentIds(array $candidates, string $token): array
+    {
+        if ($candidates === []) {
+            return [];
+        }
+
+        $prefixMatches = array_values(array_filter(
+            $candidates,
+            static fn (array $candidate): bool => str_starts_with($candidate['token'], $token) || str_starts_with($token, $candidate['token']),
+        ));
+
+        $matches = $prefixMatches !== [] ? $prefixMatches : $candidates;
+
+        return array_map(static fn (array $candidate): string => $candidate['id'], $matches);
     }
 
     /**

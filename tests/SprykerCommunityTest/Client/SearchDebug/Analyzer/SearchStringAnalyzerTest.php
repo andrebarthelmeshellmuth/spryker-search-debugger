@@ -209,6 +209,71 @@ class SearchStringAnalyzerTest extends Unit
     }
 
     /**
+     * The real tokenizer's own word boundaries — "eisen"/"hammer" — not the 9 edge-ngram fragments
+     * {@see testGetTextTokenOffsetsReturnsTokensWithOffsetsIntoTheOriginalText} gets from the SAME text
+     * against the SAME index (the final, fully-filtered stage): this is the whole point of a separate
+     * method, reading the FIRST non-char-filter stage instead of the last one. Offsets point into the
+     * ORIGINAL text, same as every other offset method here.
+     */
+    public function testGetTextWordSpansForTextsReturnsTheTokenizerStageNotTheFinalOne(): void
+    {
+        // Act
+        $wordSpans = $this->createTestSearchStringAnalyzer()->getWordSpansForTexts(['Eisen-Hammer']);
+
+        // Assert
+        $this->assertSame(
+            [
+                ['token' => 'Eisen', 'startOffset' => 0, 'endOffset' => 5],
+                ['token' => 'Hammer', 'startOffset' => 6, 'endOffset' => 12],
+            ],
+            $wordSpans['Eisen-Hammer'],
+        );
+    }
+
+    /**
+     * The batched call must return byte-for-byte the SAME spans a single-text call returns — same
+     * rebasing math {@see testGetTokenOffsetsForTextsReturnsTheSameOffsetsAsIndividualCallsForEachText}
+     * already covers for the sibling method, exercised here against the FIRST stage instead of the last.
+     * Includes "Ölpapier" deliberately, same reasoning as that test: a multi-byte character early in one
+     * of the batched texts would catch a rebasing bug that only manifests past a non-ASCII character.
+     */
+    public function testGetTextWordSpansForTextsMatchesASingleTextCallPerText(): void
+    {
+        // Arrange
+        $analyzer = $this->createTestSearchStringAnalyzer();
+
+        // Act
+        $batched = $analyzer->getWordSpansForTexts(['Eisen-Hammer', 'CABLE', 'Ölpapier']);
+
+        // Assert
+        $this->assertSame($analyzer->getWordSpansForTexts(['Eisen-Hammer'])['Eisen-Hammer'], $batched['Eisen-Hammer']);
+        $this->assertSame($analyzer->getWordSpansForTexts(['CABLE'])['CABLE'], $batched['CABLE']);
+        $this->assertSame($analyzer->getWordSpansForTexts(['Ölpapier'])['Ölpapier'], $batched['Ölpapier']);
+    }
+
+    /**
+     * Same dedup/empty-list behavior {@see testGetTokenOffsetsForTextsDeduplicatesRepeatedTextsAndDropsEmptyOnes}
+     * already covers for the sibling method.
+     */
+    public function testGetTextWordSpansForTextsDeduplicatesRepeatedTextsAndDropsEmptyOnes(): void
+    {
+        // Act
+        $batched = $this->createTestSearchStringAnalyzer()->getWordSpansForTexts(['CABLE', 'CABLE', '', 'CABLE']);
+
+        // Assert
+        $this->assertSame(['CABLE'], array_keys($batched));
+    }
+
+    public function testGetTextWordSpansForTextsReturnsAnEmptyArrayForAnEmptyList(): void
+    {
+        // Act
+        $batched = $this->createTestSearchStringAnalyzer()->getWordSpansForTexts([]);
+
+        // Assert
+        $this->assertSame([], $batched);
+    }
+
+    /**
      * Every stage of the real index-time pipeline, in chain order: the char filter first (whole-text,
      * before tokenization), then the tokenizer, then each token filter. This is the same `_analyze`
      * shape `getTokenOffsets()` above reads, just without collapsing everything down to the final stage.
