@@ -17,7 +17,6 @@ use Spryker\Client\SearchElasticsearch\Index\IndexNameResolver\IndexNameResolver
 use SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaMapper;
 use SprykerCommunity\Client\SearchDebug\Schema\IndexSchemaReaderInterface;
 use SprykerCommunity\Client\SearchDebug\SearchDebugConfig;
-use SprykerCommunity\Shared\SearchDebug\Utf16\Utf16CodeUnitConverter;
 
 class SearchStringAnalyzer implements SearchStringAnalyzerInterface
 {
@@ -29,6 +28,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      * @param \SprykerCommunity\Client\SearchDebug\Analyzer\ComponentDefinitionFormatterInterface $componentDefinitionFormatter
      * @param \SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisTreeBuilderInterface $analysisTreeBuilder
      * @param \SprykerCommunity\Client\SearchDebug\Analyzer\AnalysisStageMapperInterface $analysisStageMapper
+     * @param \SprykerCommunity\Client\SearchDebug\Analyzer\AnalyzeResponseMapperInterface $analyzeResponseMapper
      */
     public function __construct(
         protected Client $elasticaClient,
@@ -38,6 +38,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
         protected ComponentDefinitionFormatterInterface $componentDefinitionFormatter,
         protected AnalysisTreeBuilderInterface $analysisTreeBuilder,
         protected AnalysisStageMapperInterface $analysisStageMapper,
+        protected AnalyzeResponseMapperInterface $analyzeResponseMapper,
     ) {
     }
 
@@ -109,7 +110,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
             return [];
         }
 
-        return $this->mapTokenDetail($detail);
+        return $this->analyzeResponseMapper->mapTokenDetail($detail);
     }
 
     /**
@@ -122,7 +123,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
      * offsets continue cumulatively across the whole array rather than resetting to 0 per text, with
      * exactly ONE code-unit gap inserted between consecutive texts (confirmed live against this package's
      * real index: two 2-character texts analyzed together report offsets [0,2) and [3,5), never
-     * [0,2)/[2,4)) — {@see rebaseTokensByText()} uses that gap to split the flat token list back into
+     * [0,2)/[2,4)) — {@see AnalyzeResponseMapper::rebaseTokensByText()} uses that gap to split the flat token list back into
      * one list per original text, with offsets rebased to be relative to THAT text again, exactly as if
      * it had been analyzed alone. If any resulting offset ever falls outside its own text's bounds (the
      * 1-unit-gap assumption not holding against some other Elasticsearch version/configuration), this
@@ -159,68 +160,13 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
             return array_fill_keys($texts, []);
         }
 
-        $tokensByText = $this->rebaseTokensByText($texts, $this->mapTokenDetail($detail));
+        $tokensByText = $this->analyzeResponseMapper->rebaseTokensByText($texts, $this->analyzeResponseMapper->mapTokenDetail($detail));
 
         if ($tokensByText === null) {
             $tokensByText = [];
             foreach ($texts as $text) {
                 $tokensByText[$text] = $this->getTokenOffsets($text);
             }
-        }
-
-        return $tokensByText;
-    }
-
-    /**
-     * @param array<string> $texts
-     * @param array<array{token: string, startOffset: int, endOffset: int}> $tokens
-     *
-     * @return array<string, array<array{token: string, startOffset: int, endOffset: int}>>|null Null when
-     *   a rebased offset falls outside its own text's bounds — the gap assumption {@see getTokenOffsetsForTexts()}
-     *   documents didn't hold for this response, and the caller should fall back to one call per text.
-     */
-    protected function rebaseTokensByText(array $texts, array $tokens): ?array
-    {
-        $boundaries = [];
-        $cursor = 0;
-
-        foreach ($texts as $text) {
-            $length = Utf16CodeUnitConverter::lengthOf(Utf16CodeUnitConverter::toUtf16($text));
-            $boundaries[] = ['text' => $text, 'start' => $cursor, 'end' => $cursor + $length];
-            // The single code-unit gap Elasticsearch inserts between consecutive array-`text` values —
-            // see this method's caller for the live-confirmed measurement.
-            $cursor += $length + 1;
-        }
-
-        $tokensByText = array_fill_keys($texts, []);
-
-        foreach ($tokens as $token) {
-            $boundary = null;
-
-            foreach ($boundaries as $candidate) {
-                if ($token['startOffset'] >= $candidate['start'] && $token['startOffset'] < $candidate['end']) {
-                    $boundary = $candidate;
-
-                    break;
-                }
-            }
-
-            if ($boundary === null) {
-                return null;
-            }
-
-            $startOffset = $token['startOffset'] - $boundary['start'];
-            $endOffset = $token['endOffset'] - $boundary['start'];
-
-            if ($startOffset < 0 || $endOffset > ($boundary['end'] - $boundary['start'])) {
-                return null;
-            }
-
-            $tokensByText[$boundary['text']][] = [
-                'token' => $token['token'],
-                'startOffset' => $startOffset,
-                'endOffset' => $endOffset,
-            ];
         }
 
         return $tokensByText;
@@ -259,7 +205,7 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
             return array_fill_keys($texts, []);
         }
 
-        $tokensByText = $this->rebaseTokensByText($texts, $this->stripPosition($this->wordBoundaryTokens($detail)));
+        $tokensByText = $this->analyzeResponseMapper->rebaseTokensByText($texts, $this->stripPosition($this->wordBoundaryTokens($detail)));
 
         if ($tokensByText === null) {
             $tokensByText = [];
@@ -483,65 +429,5 @@ class SearchStringAnalyzer implements SearchStringAnalyzerInterface
         }
 
         return IndexSchemaMapper::DEFAULT_ANALYZER_NAME;
-    }
-
-    /**
-     * Both the search-time and index-time analyzers are custom (tokenizer + filter chain defined in
-     * `page.json`), so Elasticsearch's `explain` response reports `custom_analyzer: true` and nests the
-     * tokens under `tokenfilters[]` (one entry per filter, in chain order) rather than under a single
-     * `analyzer` key, for either. The LAST filter's tokens are the fully-processed, final tokens —
-     * deliberately not hardcoding which index that is (`array_key_last()` instead of e.g. `[0]`), so this
-     * keeps working unmodified if a stemming filter is ever appended to either chain: the new filter would
-     * simply become the new last entry, its tokens picked up automatically without a code change here.
-     * (A BUILT-IN analyzer — e.g. the `standard` fallback — reports no `tokenfilters` at all; its final
-     * tokens live under `analyzer.tokens`, covered by the fallback chain below.)
-     *
-     * @param array<string, mixed> $detail
-     *
-     * @return array<array{token: string, startOffset: int, endOffset: int}>
-     */
-    protected function mapTokenDetail(array $detail): array
-    {
-        $tokenFilters = $detail['tokenfilters'] ?? [];
-        $lastFilterKey = array_key_last($tokenFilters);
-
-        $tokens = $lastFilterKey !== null
-            ? ($tokenFilters[$lastFilterKey]['tokens'] ?? [])
-            : ($detail['analyzer']['tokens'] ?? $detail['tokenizer']['tokens'] ?? []);
-
-        // `position` is bookkeeping mapTokens() adds for AnalysisStageMapper/AnalysisTreeBuilder's own
-        // use (see mapTokens()'s own docblock) — never part of this method's public return shape, so it's
-        // stripped here rather than leaking into getTokenOffsets()/getTokenOffsetsForTexts().
-        return array_map(
-            static fn (array $token): array => ['token' => $token['token'], 'startOffset' => $token['startOffset'], 'endOffset' => $token['endOffset']],
-            $this->mapTokens($tokens),
-        );
-    }
-
-    /**
-     * @param array<int, array<string, mixed>> $rawTokens
-     *
-     * @return array<array{token: string, startOffset: int, endOffset: int, position: int}>
-     */
-    protected function mapTokens(array $rawTokens): array
-    {
-        $result = [];
-        foreach ($rawTokens as $index => $token) {
-            if (!isset($token['token'], $token['start_offset'], $token['end_offset'])) {
-                continue;
-            }
-
-            $result[] = [
-                'token' => $token['token'],
-                'startOffset' => $token['start_offset'],
-                'endOffset' => $token['end_offset'],
-                // Elasticsearch reports `position` on every real tokenizer/filter token (Lucene's own
-                // token-stream slot index — see getAnalysisTree()'s docblock); the array index is only
-                // ever the fallback for a synthetic char-filter pseudo-token, which carries none.
-                'position' => (int)($token['position'] ?? $index),
-            ];
-        }
-
-        return $result;
     }
 }

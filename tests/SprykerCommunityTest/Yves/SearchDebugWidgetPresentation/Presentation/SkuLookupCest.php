@@ -132,8 +132,6 @@ class SkuLookupCest
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
-     *
-     * @return string
      */
     protected function grabARealSkuFromTheChairResults(SearchDebugWidgetPresentationTester $i): string
     {
@@ -148,15 +146,13 @@ class SkuLookupCest
         $sku = $parameters['sku'] ?? null;
         $i->assertTrue(is_string($sku) && $sku !== '', 'Expected a real sku= query parameter on the analyze link.');
 
-        return (string)$sku;
+        return $sku;
     }
 
     /**
      * @param \SprykerCommunityTest\Yves\SearchDebugWidgetPresentation\SearchDebugWidgetPresentationTester $i
      * @param string $sku
      * @param string $queryString
-     *
-     * @return string
      */
     protected function buildLookupUrl(SearchDebugWidgetPresentationTester $i, string $sku, string $queryString): string
     {
