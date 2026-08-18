@@ -228,7 +228,7 @@ repository instead:
 "repositories": [
     {
         "type": "vcs",
-        "url": "https://github.com/andrebarthelmeshellmuth/spryker-search-debugger"
+        "url": "https://github.com/andrebarthelmeshellmuth/spryker-search-debug"
     }
 ]
 ```

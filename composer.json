@@ -87,7 +87,7 @@
         }
     },
     "minimum-stability": "stable",
-    "homepage": "https://github.com/andrebarthelmeshellmuth/spryker-search-debugger",
+    "homepage": "https://github.com/andrebarthelmeshellmuth/spryker-search-debug",
     "authors": [
         {
             "name": "Andre Barthelmes",
@@ -95,7 +95,7 @@
         }
     ],
     "support": {
-        "issues": "https://github.com/andrebarthelmeshellmuth/spryker-search-debugger/issues",
-        "source": "https://github.com/andrebarthelmeshellmuth/spryker-search-debugger"
+        "issues": "https://github.com/andrebarthelmeshellmuth/spryker-search-debug/issues",
+        "source": "https://github.com/andrebarthelmeshellmuth/spryker-search-debug"
     }
 }
