@@ -89,13 +89,25 @@
         annotations carry the array shapes (array<int, float> and friends) and the parameter
         descriptions that native type hints cannot express, so deleting them would lose real
         information, not noise. slevomat's ParameterTypeHint reports each such annotation as a
-        "useless @param annotation", which lands as thousands of errors against Spryker-style
-        docblocks. The convention wins; the sniff is silenced.
+        "useless @param annotation", and its ReturnTypeHint counterpart does the same for @return,
+        which together land as thousands of errors against Spryker-style docblocks. The convention
+        wins; the sniffs are silenced.
+
+        Both the SlevomatCodingStandard.* and SprykerStrict.* prefixes are listed: SprykerStrict
+        subclasses these sniffs and excludes its own UselessAnnotation codes, but that exclusion no
+        longer takes effect against the current slevomat, so the errors surface under one prefix or
+        the other depending on which versions resolve.
     -->
     <rule ref="SlevomatCodingStandard.TypeHints.ParameterTypeHint.UselessAnnotation">
         <severity>0</severity>
     </rule>
     <rule ref="SprykerStrict.TypeHints.ParameterTypeHint.UselessAnnotation">
+        <severity>0</severity>
+    </rule>
+    <rule ref="SlevomatCodingStandard.TypeHints.ReturnTypeHint.UselessAnnotation">
+        <severity>0</severity>
+    </rule>
+    <rule ref="SprykerStrict.TypeHints.ReturnTypeHint.UselessAnnotation">
         <severity>0</severity>
     </rule>
 
