@@ -1,9 +1,21 @@
 # Spryker Search DevTools
 
+[![CI](https://github.com/andrebarthelmeshellmuth/spryker-search-debug/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/andrebarthelmeshellmuth/spryker-search-debug/actions/workflows/ci.yml)
+[![PHP](https://img.shields.io/badge/php-%E2%89%A5%208.3-777bb4)](composer.json)
+[![PHPStan](https://img.shields.io/badge/PHPStan-level%208-2a6b2a)](phpstan.neon)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 Developer tools for inspecting, debugging and understanding OpenSearch/Elasticsearch queries in Spryker.
 Search Debug helps Search Engineers explain ranking decisions—quickly enough that they can confidently answer the business question: "Why did this product rank above that one?"
 
 *Part of the [Search Relevance](https://search-relevance.dev/) project — explore the interactive ranking-formula walkthrough there.*
+
+> **Not an official Spryker project.** `spryker-community/*` is an independent, community-built
+> package namespace with no affiliation to, sponsorship by, or endorsement from Spryker Systems GmbH.
+> The name describes what these packages are (community contributions for Spryker Commerce OS), not who
+> maintains them. The matching Packagist namespace is held by an unrelated GitHub organization, which is
+> why installation goes through a VCS repository entry rather than a plain `composer require` — see
+> [Installation](#installation).
 
 ## Contents
 
@@ -221,7 +233,7 @@ repository instead:
 "repositories": [
     {
         "type": "vcs",
-        "url": "https://github.com/andrebarthelmeshellmuth/spryker-search-debugger"
+        "url": "https://github.com/andrebarthelmeshellmuth/spryker-search-debug"
     }
 ]
 ```
