@@ -226,8 +226,10 @@ gracefully — they are kept verbatim as "other contributions" rather than dropp
 
 ### 1. Install the package
 
-Not published on Packagist under the `spryker-community` vendor namespace — install from a VCS
-repository instead:
+Not yet published on Packagist under the `spryker-community` vendor namespace. That namespace and its
+GitHub org (`github.com/spryker-community`) are maintained by Spryker's own community program — we're in
+contact with them about bringing this package in properly (their `dummy-module` template is the onboarding
+path). Until that lands, install from a VCS repository instead:
 
 ```json
 "repositories": [
