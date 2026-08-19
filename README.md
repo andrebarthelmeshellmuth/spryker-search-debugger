@@ -165,9 +165,7 @@ the next row — so a filter that fans one word into several (a decompounder, a 
 edge-ngram filter) is fully visible as multiple branches, not collapsed to the one lineage that happened to
 match. A token a filter drops outright (a stop word, a min-length cutoff) gets an explicit `∅` marker
 rather than just silently having no more rows underneath it, and a stemming stage is called out as
-`stem: X` rather than buried as one more generic `filter: X` line:
-
-![The word-level analysis page: "stuhl" traced stage by stage, fanning into "stuhl"/"sessel" at the synonym filter — every branch visible at once, not collapsed to one matched lineage](docs/screenshots/analyze-page.png)
+`stem: X` rather than buried as one more generic `filter: X` line.
 
 This is a genuinely different layout from the analysis-path page's own straight-line boxes, and
 deliberately so — see the analysis-path page's own docblock for why a linear path is the *right* shape for
