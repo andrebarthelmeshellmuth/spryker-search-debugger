@@ -309,9 +309,8 @@ function applyDemoCatalog(string $dataDir, string $demoshopRoot, string $demoCat
     $added += mergeCsvRows($dataDir . '/product_concrete.csv', $demoCatalogDir . '/product_concrete.csv', ['concrete_sku']);
     $added += mergeCsvRows($dataDir . '/product_stock.csv', $demoCatalogDir . '/product_stock.csv', ['concrete_sku']);
     $added += mergeCsvRows($dataDir . '/product_image.csv', $demoCatalogDir . '/product_image.csv', ['abstract_sku', 'locale']);
-    $added += mergeCsvRows($demoshopRoot . '/data/import/common/DE/product_price.csv', $demoCatalogDir . '/product_price_DE.csv', ['abstract_sku', 'store']);
 
-    return $added;
+    return $added + mergeCsvRows($demoshopRoot . '/data/import/common/DE/product_price.csv', $demoCatalogDir . '/product_price_DE.csv', ['abstract_sku', 'store']);
 }
 
 $customerRowsAdded = applySearchAdminCustomerFixture($dataDir);
