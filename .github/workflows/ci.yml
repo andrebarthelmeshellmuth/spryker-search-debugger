@@ -151,3 +151,37 @@ jobs:
       - run: vendor/bin/phpmd src github phpmd.xml
       - name: Public method count (Facades/Factories exempt)
         run: vendor/bin/phpmd src github phpmd-public-methods.xml
+
+  fixtures-sync:
+    # fixtures/demo-catalog/*.csv here is a bundled COPY of the canonical "Feldwerk" demo-catalog
+    # generator output that spryker-community/search-feedback owns (see FIXTURE_CLAIMS.md in
+    # spryker-community/search-toolkit). Nothing re-fetches these at install/update time, so an edit on
+    # one side without copying it to the other silently drifts. This diffs the local copies against
+    # search-feedback's current main on every run, so drift fails CI instead of going unnoticed.
+    name: demo-catalog fixtures in sync with search-feedback
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: this
+      - uses: actions/checkout@v4
+        with:
+          repository: andrebarthelmeshellmuth/spryker-search-feedback
+          path: search-feedback
+      - name: Diff demo-catalog CSVs against search-feedback (canonical owner)
+        run: |
+          status=0
+          for f in this/fixtures/demo-catalog/*.csv; do
+            name=$(basename "$f")
+            upstream="search-feedback/fixtures/demo-catalog/$name"
+            if [ ! -f "$upstream" ]; then
+              echo "::error::$name has no counterpart in search-feedback/fixtures/demo-catalog/"
+              status=1
+              continue
+            fi
+            if ! diff -u "$upstream" "$f"; then
+              echo "::error::$name has drifted from search-feedback's canonical copy"
+              status=1
+            fi
+          done
+          exit $status
