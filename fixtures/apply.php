@@ -19,6 +19,13 @@ declare(strict_types = 1);
  * package's own permission) — this script only ever ADDS its own permission row and glossary keys, so
  * running it alongside any sibling's own apply.php is safe in either order.
  *
+ * Also applies the shared "Feldwerk" demo catalog (fixtures/demo-catalog/*.csv): 12 entirely fictional
+ * products (10 chairs + 1 hand trolley + 1 paper shredder), own SVG-data-URI images, own DE pricing —
+ * used by every sibling package's README/website screenshots instead of this demoshop's real, licensed
+ * supplier catalog (real brand photography/copy that can't be redistributed publicly). SHARED with the
+ * same three sibling packages as the customer fixture above, same "first one creates it, rest skip"
+ * idempotency, keyed by abstract_sku/concrete_sku. See search-toolkit's FIXTURE_CLAIMS.md.
+ *
  * Usage: php fixtures/apply.php /path/to/b2b-demo-marketplace
  *
  * Then, from that demoshop checkout:
@@ -28,6 +35,13 @@ declare(strict_types = 1);
  *   ./docker/sdk console data:import company-user-role
  *   ./docker/sdk console data:import company-role-permission
  *   ./docker/sdk console data:import glossary
+ *   ./docker/sdk console data:import product-abstract
+ *   ./docker/sdk console data:import product-abstract-store
+ *   ./docker/sdk console data:import product-approval-status
+ *   ./docker/sdk console data:import product-concrete
+ *   ./docker/sdk console data:import product-stock
+ *   ./docker/sdk console data:import product-image
+ *   ./docker/sdk console data:import product-price
  */
 
 $demoshopRoot = $argv[1] ?? null;
@@ -228,6 +242,77 @@ function applyGlossary(string $dataDir, string $ownGlossaryCsvPath): int
     return $added;
 }
 
+/**
+ * Idempotently appends every row from $ownCsvPath into $targetPath whose $dedupColumns values aren't
+ * already present in the target — same "additive, safe to re-run, safe alongside siblings" shape as the
+ * customer/glossary fixtures above.
+ *
+ * @param string $targetPath
+ * @param string $ownCsvPath
+ * @param array<int, string> $dedupColumns
+ *
+ * @return int Number of rows added.
+ */
+function mergeCsvRows(string $targetPath, string $ownCsvPath, array $dedupColumns): int
+{
+    $target = readCsv($targetPath);
+    $existingKeys = [];
+
+    foreach ($target['rows'] as $row) {
+        $existingKeys[dedupKey($row, $dedupColumns)] = true;
+    }
+
+    $own = readCsv($ownCsvPath);
+    $added = 0;
+
+    foreach ($own['rows'] as $row) {
+        $key = dedupKey($row, $dedupColumns);
+
+        if (isset($existingKeys[$key])) {
+            continue;
+        }
+
+        $target['rows'][] = $row;
+        $existingKeys[$key] = true;
+        $added++;
+    }
+
+    if ($added > 0) {
+        writeCsv($targetPath, $target['header'], $target['rows']);
+    }
+
+    return $added;
+}
+
+/**
+ * @param array<string, string> $row
+ * @param array<int, string> $columns
+ */
+function dedupKey(array $row, array $columns): string
+{
+    return implode("\0", array_map(fn (string $column): string => $row[$column] ?? '', $columns));
+}
+
+/**
+ * @param string $dataDir
+ * @param string $demoshopRoot
+ * @param string $demoCatalogDir
+ *
+ * @return int Total rows added across all 7 demo-catalog CSVs.
+ */
+function applyDemoCatalog(string $dataDir, string $demoshopRoot, string $demoCatalogDir): int
+{
+    $added = 0;
+    $added += mergeCsvRows($dataDir . '/product_abstract.csv', $demoCatalogDir . '/product_abstract.csv', ['abstract_sku']);
+    $added += mergeCsvRows($demoshopRoot . '/data/import/common/DE/product_abstract_store.csv', $demoCatalogDir . '/product_abstract_store_DE.csv', ['abstract_sku', 'store_name']);
+    $added += mergeCsvRows($dataDir . '/product_abstract_approval_status.csv', $demoCatalogDir . '/product_abstract_approval_status.csv', ['sku']);
+    $added += mergeCsvRows($dataDir . '/product_concrete.csv', $demoCatalogDir . '/product_concrete.csv', ['concrete_sku']);
+    $added += mergeCsvRows($dataDir . '/product_stock.csv', $demoCatalogDir . '/product_stock.csv', ['concrete_sku']);
+    $added += mergeCsvRows($dataDir . '/product_image.csv', $demoCatalogDir . '/product_image.csv', ['abstract_sku', 'locale']);
+
+    return $added + mergeCsvRows($demoshopRoot . '/data/import/common/DE/product_price.csv', $demoCatalogDir . '/product_price_DE.csv', ['abstract_sku', 'store']);
+}
+
 $customerRowsAdded = applySearchAdminCustomerFixture($dataDir);
 echo "search-admin customer/company-user fixture: $customerRowsAdded row(s) added\n";
 
@@ -237,6 +322,9 @@ echo 'company_role_permission.csv: ' . ($permissionRowAdded ? '1 row added' : 'a
 $glossaryRowsAdded = applyGlossary($dataDir, __DIR__ . '/glossary.csv');
 echo "glossary.csv: $glossaryRowsAdded row(s) added\n";
 
+$demoCatalogRowsAdded = applyDemoCatalog($dataDir, $demoshopRoot, __DIR__ . '/demo-catalog');
+echo "Feldwerk demo catalog: $demoCatalogRowsAdded row(s) added\n";
+
 echo "\nDone. Now run (from the demoshop root):\n";
 echo "  ./docker/sdk console data:import customer\n";
 echo "  ./docker/sdk console data:import company-user\n";
@@ -244,3 +332,10 @@ echo "  ./docker/sdk console data:import company-business-unit-user\n";
 echo "  ./docker/sdk console data:import company-user-role\n";
 echo "  ./docker/sdk console data:import company-role-permission\n";
 echo "  ./docker/sdk console data:import glossary\n";
+echo "  ./docker/sdk console data:import product-abstract\n";
+echo "  ./docker/sdk console data:import product-abstract-store\n";
+echo "  ./docker/sdk console data:import product-approval-status\n";
+echo "  ./docker/sdk console data:import product-concrete\n";
+echo "  ./docker/sdk console data:import product-stock\n";
+echo "  ./docker/sdk console data:import product-image\n";
+echo "  ./docker/sdk console data:import product-price\n";

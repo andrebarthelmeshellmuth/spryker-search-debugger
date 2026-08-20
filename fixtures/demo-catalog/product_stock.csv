@@ -1,0 +1,13 @@
+concrete_sku,name,quantity,is_never_out_of_stock,is_bundle
+DEMO-CHR-001-1,Warehouse1,50,0,0
+DEMO-CHR-002-1,Warehouse1,50,0,0
+DEMO-CHR-003-1,Warehouse1,50,0,0
+DEMO-CHR-004-1,Warehouse1,50,0,0
+DEMO-CHR-005-1,Warehouse1,50,0,0
+DEMO-CHR-006-1,Warehouse1,50,0,0
+DEMO-CHR-007-1,Warehouse1,50,0,0
+DEMO-CHR-008-1,Warehouse1,50,0,0
+DEMO-CHR-009-1,Warehouse1,50,0,0
+DEMO-CHR-010-1,Warehouse1,50,0,0
+DEMO-WHS-001-1,Warehouse1,50,0,0
+DEMO-OFF-001-1,Warehouse1,50,0,0

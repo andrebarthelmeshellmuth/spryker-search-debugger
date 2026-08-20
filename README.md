@@ -84,14 +84,18 @@ catalog search:
   frequency, field length vs. average field length — every number BM25 actually computes with), collapsed
   behind its own toggle so the headline total stays the default view. The overlay stays open on click (a
   pin-toggle button, independent of continued hover) for copying values or comparing two products side by
-  side.
+  side:
+
+  ![The SRP score overlay: matched tokens with a magnifying-glass link, the raw text-match score, per-field score contributions (type, store, locale, is-active), and the final score used for ranking](docs/screenshots/srp-overlay.png)
 - **Token-source page** — a magnifier next to each matched token opens a page that attributes the token
   back to the raw product fields it was indexed from (name, SKU, variants, descriptions, categories,
   merchant name). It reads the product's **real indexed document** and analyzes its elements with the
   **index-time analyzer**, so prefix/ngram matches (e.g. searching `öl` matching *Ölpapier*) and
   searchable-attribute contributions (Zed → Search Preferences) are attributed correctly — including
   values no known source claims, which are shown honestly as "other indexed value", carrying a `?`
-  affordance that explains why and how to name them.
+  affordance that explains why and how to name them:
+
+  ![The token-source page: one tier per searched field (name, description, brand), each matched fragment highlighted with a link to its analysis path, plus an "other indexed value" tier for a value no known source claims — labeled honestly rather than hidden](docs/screenshots/token-source-page.png)
 - **Analysis-path page** — a second magnifier next to each matched fragment on the token-source page opens
   a page showing exactly how that raw text became the matched token: one box per analyzer stage (char
   filters, the tokenizer, every token filter, in chain order), connected by the ES operation that produced
@@ -106,6 +110,8 @@ catalog search:
   Every step is colored by its own exact text, cycling a fixed palette — the SAME text anywhere in the
   path gets the SAME color, so a color CHANGE between neighboring steps is itself the visual tell that a
   filter actually transformed the text (e.g. a synonym injecting a different word), not just decoration.
+
+  ![The analysis-path page: "trolley" traced stage by stage through the full analyzer chain — tokenizer, lowercase, German normalization, stop words, stemmer, synonyms, decompounding, edge-ngram — every stage keeping the same color since none of them transform this particular word](docs/screenshots/analysis-path-page.png)
 
   The SRP overlay's own query-token headline has the same magnifier, on each token — traced through the
   **search-time** analyzer instead, since a query token was never indexed, only searched. When a shop's
@@ -165,7 +171,7 @@ the next row — so a filter that fans one word into several (a decompounder, a 
 edge-ngram filter) is fully visible as multiple branches, not collapsed to the one lineage that happened to
 match. A token a filter drops outright (a stop word, a min-length cutoff) gets an explicit `∅` marker
 rather than just silently having no more rows underneath it, and a stemming stage is called out as
-`stem: X` rather than buried as one more generic `filter: X` line:
+`stem: X` rather than buried as one more generic `filter: X` line.
 
 ![The word-level analysis page: "stuhl" traced stage by stage, fanning into "stuhl"/"sessel" at the synonym filter — every branch visible at once, not collapsed to one matched lineage](docs/screenshots/analyze-page.png)
 
