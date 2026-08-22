@@ -1,11 +1,14 @@
 <?php
 
-declare(strict_types=1);
+declare(strict_types = 1);
 
 namespace SprykerCommunityTest\Zed\SearchDebug;
 
+use Codeception\Actor;
+
 /**
  * Inherited Methods
+ *
  * @method void wantTo($text)
  * @method void wantToTest($text)
  * @method void execute($callable)
@@ -18,8 +21,8 @@ namespace SprykerCommunityTest\Zed\SearchDebug;
  * @method void pause($vars = [])
  *
  * @SuppressWarnings(PHPMD)
-*/
-class SearchDebugZedTester extends \Codeception\Actor
+ */
+class SearchDebugZedTester extends Actor
 {
     use _generated\SearchDebugZedTesterActions;
 
